@@ -103,6 +103,7 @@ model ProjectMaster {
   safetyDocuments            SafetyDocument[]
   purchaseInvoices           PurchaseInvoice[]
   purchaseInvoiceAllocations PurchaseInvoiceAllocation[]
+  receipts                   Receipt[]
 
   @@index([title])
   @@index([customerId])
@@ -2236,6 +2237,7 @@ model ExpenseCategory {
 
   purchaseInvoices PurchaseInvoice[]
   allocations      PurchaseInvoiceAllocation[]
+  receipts         Receipt[]
 
   @@index([sortOrder])
   @@index([isActive])
@@ -2339,5 +2341,56 @@ model PurchaseInvoiceAllocation {
 
   @@index([purchaseInvoiceId])
   @@index([projectMasterId])
+  @@schema("public")
+}
+
+/// 領収書・レシート。アップロード→Claude APIで読み取り→費目を仕分けて確定する。
+/// 仕入請求書(PurchaseInvoice)の簡易版: 支払済みの記録のため PaymentSchedule・Payee・原価エンジン集計は行わない。
+/// 案件(projectMasterId)は参照・検索用の任意リンク（原価には計上しない）。
+model Receipt {
+  id     String @id @default(uuid())
+  status String @default("pending") // 'pending'(未仕分け) | 'confirmed'(仕分け済み)
+
+  // ファイル（PurchaseInvoice と同じ持ち方。Supabase Storage）
+  fileName                    String
+  storagePath                 String
+  thumbnailPath               String?
+  mimeType                    String
+  fileSize                    Int
+  sourceType                  String? // 'pdf' など
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+
+  // AI抽出の生データ（店名・日付・金額・税額・摘要・推定費目）
+  extractedData Json?
+
+  // 仕分け値
+  storeName         String?
+  issueDate         DateTime?
+  totalAmount       Decimal?  @db.Decimal(12, 2)
+  taxAmount         Decimal?  @db.Decimal(12, 2)
+  expenseCategoryId String?
+  projectMasterId   String?
+  paymentMethod     String? // 'cash'(現金) | 'company_card'(会社カード) | 'personal'(個人立替)
+  paidBy            String? // 支払者名（自由入力）
+  notes             String?
+
+  // 監査
+  confirmedAt DateTime?
+  confirmedBy String?
+  uploadedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  expenseCategory ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+  projectMaster   ProjectMaster?   @relation(fields: [projectMasterId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([issueDate])
+  @@index([expenseCategoryId])
+  @@index([projectMasterId])
+  @@index([createdAt])
   @@schema("public")
 }

@@ -24,6 +24,7 @@ export type PageType =
     | 'chat'             // チャット
     | 'payment-schedules'// 支払予定
     | 'purchase-invoices'// 仕入請求書（支払側の請求書をAIで取り込み）
+    | 'receipts'         // 領収書（AIで取り込み・費目仕分け・画像保管）
     | 'payees'           // 振込先マスター
     | 'partner-work-volume' // 協力業者出来高
     | 'company-calendar'    // マイカレンダー（admin / manager）
