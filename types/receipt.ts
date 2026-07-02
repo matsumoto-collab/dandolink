@@ -42,6 +42,8 @@ export interface Receipt {
     paymentMethod: string | null; // PaymentMethod | null
     paidBy: string | null;
     notes: string | null;
+    settled: boolean; // 精算済み（立替者への支払い完了）
+    settledAt: string | null;
     confirmedAt: string | null;
     createdAt: string;
     expenseCategory: ExpenseCategoryRef | null;

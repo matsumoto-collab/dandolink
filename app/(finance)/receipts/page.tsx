@@ -6,7 +6,7 @@ import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import type { Receipt, ExpenseCategoryRef } from '@/types/receipt';
-import { PAYMENT_METHOD_LABELS } from '@/types/receipt';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/types/receipt';
 import ReceiptClassifyModal from '@/components/Receipts/ReceiptClassifyModal';
 
 const TABS = [
@@ -71,7 +71,11 @@ export default function ReceiptsPage() {
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
     const [categoryFilter, setCategoryFilter] = useState('');
+    const [paymentFilter, setPaymentFilter] = useState('');
+    const [settledFilter, setSettledFilter] = useState<'' | 'unsettled' | 'settled'>('');
     const [search, setSearch] = useState('');
+    const [sortKey, setSortKey] = useState<'date' | 'amount' | 'store'>('date');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [categories, setCategories] = useState<ExpenseCategoryRef[]>([]);
 
     const fetchReceipts = useCallback(async () => {
@@ -170,19 +174,53 @@ export default function ReceiptsPage() {
         }
     };
 
-    // 仕分け済みタブのクライアント絞り込み
+    // 仕分け済みタブのクライアント絞り込み（複数条件をANDで適用）
     const filtered = useMemo(() => {
         if (activeTab !== 'confirmed') return receipts;
         const q = search.trim().toLowerCase();
         return receipts.filter((r) => {
             if (categoryFilter && r.expenseCategoryId !== categoryFilter) return false;
+            if (paymentFilter && r.paymentMethod !== paymentFilter) return false;
+            if (settledFilter === 'settled' && !r.settled) return false;
+            if (settledFilter === 'unsettled' && r.settled) return false;
             if (q) {
-                const hay = `${r.storeName ?? ''} ${r.notes ?? ''}`.toLowerCase();
+                const hay = `${r.storeName ?? ''} ${r.notes ?? ''} ${r.paidBy ?? ''}`.toLowerCase();
                 if (!hay.includes(q)) return false;
             }
             return true;
         });
-    }, [activeTab, receipts, categoryFilter, search]);
+    }, [activeTab, receipts, categoryFilter, paymentFilter, settledFilter, search]);
+
+    // 並び替え（仕分け済みのみ）
+    const sorted = useMemo(() => {
+        if (activeTab !== 'confirmed') return filtered;
+        const dir = sortDir === 'asc' ? 1 : -1;
+        return [...filtered].sort((a, b) => {
+            if (sortKey === 'amount') return (Number(a.totalAmount || 0) - Number(b.totalAmount || 0)) * dir;
+            if (sortKey === 'store') return (a.storeName || '').localeCompare(b.storeName || '', 'ja') * dir;
+            const ad = a.issueDate ? new Date(a.issueDate).getTime() : 0;
+            const bd = b.issueDate ? new Date(b.issueDate).getTime() : 0;
+            return (ad - bd) * dir;
+        });
+    }, [activeTab, filtered, sortKey, sortDir]);
+
+    const changeSort = (key: 'date' | 'amount' | 'store') => {
+        if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        else { setSortKey(key); setSortDir(key === 'date' ? 'asc' : 'desc'); }
+    };
+
+    // 精算済みフラグの切替（楽観更新・失敗時は戻す）
+    const toggleSettled = async (r: Receipt) => {
+        const next = !r.settled;
+        setReceipts((prev) => prev.map((x) => (x.id === r.id ? { ...x, settled: next, settledAt: next ? new Date().toISOString() : null } : x)));
+        try {
+            const res = await fetch(`/api/receipts/${r.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settled: next }) });
+            if (!res.ok) throw new Error();
+        } catch {
+            setReceipts((prev) => prev.map((x) => (x.id === r.id ? { ...x, settled: r.settled, settledAt: r.settledAt } : x)));
+            toast.error('精算状況の更新に失敗しました');
+        }
+    };
 
     const categoryTotals = useMemo(() => {
         const map = new Map<string, number>();
@@ -195,8 +233,8 @@ export default function ReceiptsPage() {
     const grandTotal = useMemo(() => filtered.reduce((s, r) => s + Number(r.totalAmount || 0), 0), [filtered]);
 
     const exportCsv = () => {
-        const header = ['日付', '店名・支払先', '支払方法', '税込金額', '消費税', '費目', '支払者', 'メモ'];
-        const rows = filtered.map((r) => [
+        const header = ['日付', '店名・支払先', '支払方法', '税込金額', '消費税', '費目', '支払者', '精算', 'メモ'];
+        const rows = sorted.map((r) => [
             fmtDate(r.issueDate),
             r.storeName ?? '',
             pmLabel(r.paymentMethod),
@@ -204,6 +242,7 @@ export default function ReceiptsPage() {
             String(Number(r.taxAmount || 0)),
             r.expenseCategory?.name ?? '',
             r.paidBy ?? '',
+            r.settled ? '精算済み' : '未精算',
             (r.notes ?? '').replace(/[\r\n]+/g, ' '),
         ]);
         const csv = '﻿' + [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
@@ -308,14 +347,30 @@ export default function ReceiptsPage() {
                         <button onClick={goNext} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50" title="翌月"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
                         <button onClick={goToday} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50">今月</button>
                     </div>
-                    {/* 費目フィルタ・検索・CSV（スマホは縦積み） */}
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    {/* 絞り込み・並び替え・CSV（スマホは縦積み） */}
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                         <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
                             <option value="">すべての費目</option>
                             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="店名・メモで検索" className="w-full sm:flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500" />
-                        <button onClick={exportCsv} disabled={filtered.length === 0} className="w-full sm:w-auto justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50 inline-flex items-center gap-1.5 disabled:opacity-50">
+                        <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
+                            <option value="">すべての支払方法</option>
+                            {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>)}
+                        </select>
+                        <select value={settledFilter} onChange={(e) => setSettledFilter(e.target.value as '' | 'unsettled' | 'settled')} className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
+                            <option value="">精算：すべて</option>
+                            <option value="unsettled">未精算のみ</option>
+                            <option value="settled">精算済みのみ</option>
+                        </select>
+                        <select value={`${sortKey}:${sortDir}`} onChange={(e) => { const [k, d] = e.target.value.split(':'); setSortKey(k as 'date' | 'amount' | 'store'); setSortDir(d as 'asc' | 'desc'); }} className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
+                            <option value="date:asc">日付（古い順）</option>
+                            <option value="date:desc">日付（新しい順）</option>
+                            <option value="amount:desc">金額（高い順）</option>
+                            <option value="amount:asc">金額（安い順）</option>
+                            <option value="store:asc">店名（あ→わ）</option>
+                        </select>
+                        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="店名・メモ・支払者で検索" className="w-full sm:flex-1 sm:min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500" />
+                        <button onClick={exportCsv} disabled={sorted.length === 0} className="w-full sm:w-auto justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50 inline-flex items-center gap-1.5 disabled:opacity-50">
                             <Download className="w-4 h-4" />CSV出力
                         </button>
                     </div>
@@ -336,16 +391,16 @@ export default function ReceiptsPage() {
             {/* 一覧 */}
             {isLoading ? (
                 <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>
-            ) : filtered.length === 0 ? (
+            ) : sorted.length === 0 ? (
                 <div className="text-center py-16 text-slate-500">
                     <FileText className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-                    <p>{activeTab === 'pending' ? '未仕分けの領収書はありません' : 'この月の仕分け済み領収書はありません'}</p>
+                    <p>{activeTab === 'pending' ? '未仕分けの領収書はありません' : 'この条件の仕分け済み領収書はありません'}</p>
                 </div>
             ) : activeTab === 'confirmed' ? (
-                <ConfirmedReceiptList rows={filtered} onSelect={setSelected} />
+                <ConfirmedReceiptList rows={sorted} onSelect={setSelected} onToggleSettled={toggleSettled} sortKey={sortKey} sortDir={sortDir} onSort={changeSort} />
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {filtered.map((r) => (
+                    {sorted.map((r) => (
                         <button
                             key={r.id}
                             onClick={() => setSelected(r)}
@@ -395,21 +450,40 @@ export default function ReceiptsPage() {
 
 // 仕分け済みの一覧。案件一覧・見積一覧と同じテーブル体裁（行クリックで画像プレビューのモーダル）。
 // 一覧ではサムネイル画像を出さず容量を節約し、クリック時に初めて画像を読み込む。
-function ConfirmedReceiptList({ rows, onSelect }: { rows: Receipt[]; onSelect: (r: Receipt) => void }) {
+// 見出しクリックで並び替え、精算バッジのタップで精算済み/未精算を切替。
+function ConfirmedReceiptList({ rows, onSelect, onToggleSettled, sortKey, sortDir, onSort }: {
+    rows: Receipt[];
+    onSelect: (r: Receipt) => void;
+    onToggleSettled: (r: Receipt) => void;
+    sortKey: 'date' | 'amount' | 'store';
+    sortDir: 'asc' | 'desc';
+    onSort: (key: 'date' | 'amount' | 'store') => void;
+}) {
+    const mark = (k: 'date' | 'amount' | 'store') => (sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
+    const settledPill = (r: Receipt) => (
+        <button
+            onClick={(e) => { e.stopPropagation(); onToggleSettled(r); }}
+            title="タップで精算済み/未精算を切替"
+            className={`px-2.5 py-1 text-xs font-semibold rounded-full border transition-colors ${r.settled ? 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'}`}
+        >
+            {r.settled ? '✓ 精算済み' : '未精算'}
+        </button>
+    );
     return (
         <>
-            {/* デスクトップ: テーブル */}
+            {/* デスクトップ: テーブル（見出しクリックで並び替え） */}
             <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-slate-100">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap">日付</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700">店名・支払先</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap"><button onClick={() => onSort('date')} className="hover:text-slate-900">日付{mark('date')}</button></th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700"><button onClick={() => onSort('store')} className="hover:text-slate-900">店名・支払先{mark('store')}</button></th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap">支払方法</th>
-                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 whitespace-nowrap">税込金額</th>
+                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 whitespace-nowrap"><button onClick={() => onSort('amount')} className="hover:text-slate-900">税込金額{mark('amount')}</button></th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700">費目</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap">支払者</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap">精算</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700">メモ</th>
                             </tr>
                         </thead>
@@ -428,6 +502,7 @@ function ConfirmedReceiptList({ rows, onSelect }: { rows: Receipt[]; onSelect: (
                                         )}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">{r.paidBy || '−'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>{settledPill(r)}</td>
                                     <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px] truncate">{r.notes || '−'}</td>
                                 </tr>
                             ))}
@@ -436,10 +511,10 @@ function ConfirmedReceiptList({ rows, onSelect }: { rows: Receipt[]; onSelect: (
                 </div>
             </div>
 
-            {/* モバイル: コンパクトなリスト（タップで画像プレビュー） */}
+            {/* モバイル: コンパクトなリスト（タップで画像プレビュー・精算トグル付き） */}
             <div className="md:hidden space-y-2">
                 {rows.map((r) => (
-                    <button key={r.id} onClick={() => onSelect(r)} className="w-full text-left bg-white border border-slate-200 rounded-xl p-3 hover:shadow-sm transition-shadow">
+                    <div key={r.id} role="button" tabIndex={0} onClick={() => onSelect(r)} className="w-full text-left bg-white border border-slate-200 rounded-xl p-3 hover:shadow-sm transition-shadow cursor-pointer">
                         <div className="flex items-center justify-between gap-2">
                             <span className="font-medium text-slate-900 truncate">{r.storeName || '（店名 未取得）'}</span>
                             <span className="font-bold text-slate-900 shrink-0">{yen(r.totalAmount)}</span>
@@ -449,15 +524,16 @@ function ConfirmedReceiptList({ rows, onSelect }: { rows: Receipt[]; onSelect: (
                             {r.paymentMethod ? ` ・ ${pmLabel(r.paymentMethod)}` : ''}
                             {r.paidBy ? ` ・ ${r.paidBy}` : ''}
                         </div>
-                        <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
                             {r.expenseCategory ? (
                                 <span className="px-2 py-0.5 text-xs rounded-full bg-amber-50 text-amber-700 border border-amber-200">{r.expenseCategory.name}</span>
                             ) : (
                                 <span className="px-2 py-0.5 text-xs rounded-full bg-slate-50 text-slate-500 border border-slate-200">費目 未選択</span>
                             )}
+                            {settledPill(r)}
                         </div>
                         {r.notes && <div className="text-xs text-slate-500 mt-1 truncate">{r.notes}</div>}
-                    </button>
+                    </div>
                 ))}
             </div>
         </>

@@ -2377,6 +2377,11 @@ model Receipt {
   paidBy            String? // 支払者名（自由入力）
   notes             String?
 
+  // 精算（立替者への支払い）状況。仕分け（費目分類）とは独立したフラグ。
+  settled   Boolean   @default(false)
+  settledAt DateTime?
+  settledBy String?
+
   // 監査
   confirmedAt DateTime?
   confirmedBy String?
@@ -2392,5 +2397,6 @@ model Receipt {
   @@index([expenseCategoryId])
   @@index([projectMasterId])
   @@index([createdAt])
+  @@index([settled])
   @@schema("public")
 }

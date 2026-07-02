@@ -160,6 +160,30 @@ describe('/api/receipts/[id]', () => {
         });
     });
 
+    describe('PATCH — settled', () => {
+        it('marks settled on a confirmed receipt without hitting the field-edit gate', async () => {
+            (prisma.receipt.findUnique as jest.Mock).mockResolvedValue({ ...basePending, status: 'confirmed' });
+            (prisma.receipt.update as jest.Mock).mockResolvedValue({ ...basePending, status: 'confirmed', settled: true });
+            const res = await PATCH(patchReq('r1', { settled: true }), ctx('r1'));
+            expect(res.status).toBe(200);
+            const arg = (prisma.receipt.update as jest.Mock).mock.calls[0][0];
+            expect(arg.data.settled).toBe(true);
+            expect(arg.data.settledAt).toBeInstanceOf(Date);
+            expect(arg.data.settledBy).toBe('user-1');
+        });
+
+        it('clears the settled audit when set to false', async () => {
+            (prisma.receipt.findUnique as jest.Mock).mockResolvedValue({ ...basePending, status: 'confirmed', settled: true });
+            (prisma.receipt.update as jest.Mock).mockResolvedValue({ ...basePending });
+            const res = await PATCH(patchReq('r1', { settled: false }), ctx('r1'));
+            expect(res.status).toBe(200);
+            const arg = (prisma.receipt.update as jest.Mock).mock.calls[0][0];
+            expect(arg.data.settled).toBe(false);
+            expect(arg.data.settledAt).toBeNull();
+            expect(arg.data.settledBy).toBeNull();
+        });
+    });
+
     describe('DELETE', () => {
         it('removes storage files and deletes the row when the image is not shared', async () => {
             (prisma.receipt.findUnique as jest.Mock).mockResolvedValue(basePending);

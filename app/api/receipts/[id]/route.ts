@@ -70,6 +70,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if ('paidBy' in body) data.paidBy = body.paidBy?.toString().trim() || null;
         if ('notes' in body) data.notes = body.notes?.toString().trim() || null;
 
+        // 精算フラグは仕分け（費目編集）とは独立。確定済みでも切り替え可能。
+        if ('settled' in body) {
+            const s = !!body.settled;
+            data.settled = s;
+            data.settledAt = s ? new Date() : null;
+            data.settledBy = s ? session!.user.id : null;
+        }
+
         if ('status' in body) {
             if (body.status === 'confirmed') {
                 // マージ後の値で確定ゲートを検証（body 指定があればそれ、無ければ現在値）
