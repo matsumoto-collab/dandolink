@@ -35,6 +35,48 @@ async function enrichInvoice(invoice: ReturnType<typeof formatInvoice>) {
     };
 }
 
+/**
+ * 請求書群にひも付く案件マスタ情報を一括取得し invoiceId→projectMasters[] のマップを返す。
+ * 一覧 GET は請求書 1 件ずつ enrichInvoice すると 2N 本のクエリになる（connection_limit=1 の
+ * サーバーレスでは全て直列化され数秒級）ため、必ずこちらを使う。
+ */
+async function loadProjectMastersByInvoice(invoiceIds: string[]) {
+    const map = new Map<string, Array<{ id: string; title: string }>>();
+    if (invoiceIds.length === 0) return map;
+    const links = await prisma.invoiceProjectMaster.findMany({
+        where: { invoiceId: { in: invoiceIds } },
+        orderBy: { sortOrder: 'asc' },
+        select: { invoiceId: true, projectMasterId: true },
+    });
+    const pmIds = Array.from(new Set(links.map(l => l.projectMasterId)));
+    if (pmIds.length === 0) return map;
+    const pms = await prisma.projectMaster.findMany({
+        where: { id: { in: pmIds } },
+        select: { id: true, title: true },
+    });
+    const pmById = new Map(pms.map(p => [p.id, p] as const));
+    // links は sortOrder 昇順の全体ソート＝請求書ごとの相対順も保たれる
+    for (const l of links) {
+        const pm = pmById.get(l.projectMasterId);
+        if (!pm) continue;
+        const arr = map.get(l.invoiceId) ?? [];
+        arr.push(pm);
+        map.set(l.invoiceId, arr);
+    }
+    return map;
+}
+
+/** 一覧用: 一括取得したマップから projectMasters / projectMasterIds を付与する（enrichInvoice の一括版） */
+function enrichInvoicesBulk<E extends { id: string }>(
+    invoices: E[],
+    pmMap: Map<string, Array<{ id: string; title: string }>>,
+) {
+    return invoices.map((inv) => {
+        const projectMasters = pmMap.get(inv.id) ?? [];
+        return { ...inv, projectMasters, projectMasterIds: projectMasters.map(p => p.id) };
+    });
+}
+
 /** 請求書群の入金記録を一括取得し invoiceId→{amount,fee}[] のマップを返す（一覧の残額計算用・N+1回避） */
 async function loadPaymentsByInvoice(invoiceIds: string[]) {
     const map = new Map<string, Array<{ amount: number; fee: number }>>();
@@ -91,8 +133,11 @@ export async function GET(req: NextRequest) {
                 prisma.invoice.findMany({ skip: (pageNum - 1) * limitNum, take: limitNum, orderBy: { createdAt: 'desc' } }),
                 prisma.invoice.count(),
             ]);
-            const enriched = await Promise.all(invoices.map(inv => enrichInvoice(formatInvoice(inv))));
-            const paymentsMap = await loadPaymentsByInvoice(invoices.map(i => i.id));
+            const [pmMap, paymentsMap] = await Promise.all([
+                loadProjectMastersByInvoice(invoices.map(i => i.id)),
+                loadPaymentsByInvoice(invoices.map(i => i.id)),
+            ]);
+            const enriched = enrichInvoicesBulk(invoices.map(inv => formatInvoice(inv)), pmMap);
             const withSummary = attachPaymentSummaries(enriched, invoices, paymentsMap);
             return NextResponse.json({
                 data: withSummary,
@@ -101,8 +146,11 @@ export async function GET(req: NextRequest) {
         }
 
         const invoices = await prisma.invoice.findMany({ orderBy: { createdAt: 'desc' } });
-        const enriched = await Promise.all(invoices.map(inv => enrichInvoice(formatInvoice(inv))));
-        const paymentsMap = await loadPaymentsByInvoice(invoices.map(i => i.id));
+        const [pmMap, paymentsMap] = await Promise.all([
+            loadProjectMastersByInvoice(invoices.map(i => i.id)),
+            loadPaymentsByInvoice(invoices.map(i => i.id)),
+        ]);
+        const enriched = enrichInvoicesBulk(invoices.map(inv => formatInvoice(inv)), pmMap);
         const withSummary = attachPaymentSummaries(enriched, invoices, paymentsMap);
         return NextResponse.json(withSummary, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {

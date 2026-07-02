@@ -157,20 +157,26 @@ export default function BillingBoardPage() {
     // 既存請求書（当月まとめ判定用）。finance ストアから参照する。
     const financeInvoices = useFinanceStore((s) => s.invoices);
 
+    // 月送り連打などで並走した fetch のうち、最後に発行したものだけを画面に反映する
+    // （遅れて届いた古い期間の応答が新しい表示を上書きしない）。
+    const fetchSeq = useRef(0);
     const fetchBoard = useCallback(async () => {
+        const seq = ++fetchSeq.current;
         try {
             setIsLoading(true);
             const qs = mode === 'closing' ? `month=${month}` : `from=${from}&to=${to}`;
             const res = await fetch(`/api/billing-board?${qs}`, { cache: 'no-store' });
             if (!res.ok) throw new Error('請求判断ボードの取得に失敗しました');
             const data = (await res.json()) as Row[];
+            if (seq !== fetchSeq.current) return; // 古い応答は捨てる
             setRows(data);
             setIsInitialized(true);
         } catch (e) {
+            if (seq !== fetchSeq.current) return;
             logger.error('Failed to fetch billing board:', e);
             toast.error(e instanceof Error ? e.message : '取得に失敗しました');
         } finally {
-            setIsLoading(false);
+            if (seq === fetchSeq.current) setIsLoading(false);
         }
     }, [mode, month, from, to]);
 
