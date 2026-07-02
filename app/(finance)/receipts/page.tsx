@@ -25,6 +25,13 @@ const fmtDate = (s: string | null) => {
     if (isNaN(d.getTime())) return '—';
     return `${d.getUTCFullYear()}/${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 };
+// 精算日時は実時刻（タイムスタンプ）なので端末のローカル時刻（JST）で日付表示する。
+const fmtLocalDate = (s: string | null) => {
+    if (!s) return '';
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+};
 const pmLabel = (m: string | null) => (m && m in PAYMENT_METHOD_LABELS ? PAYMENT_METHOD_LABELS[m as keyof typeof PAYMENT_METHOD_LABELS] : '');
 const csvCell = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 
@@ -233,7 +240,7 @@ export default function ReceiptsPage() {
     const grandTotal = useMemo(() => filtered.reduce((s, r) => s + Number(r.totalAmount || 0), 0), [filtered]);
 
     const exportCsv = () => {
-        const header = ['日付', '店名・支払先', '支払方法', '税込金額', '消費税', '費目', '支払者', '精算', 'メモ'];
+        const header = ['日付', '店名・支払先', '支払方法', '税込金額', '消費税', '費目', '支払者', '精算', '精算日', 'メモ'];
         const rows = sorted.map((r) => [
             fmtDate(r.issueDate),
             r.storeName ?? '',
@@ -243,6 +250,7 @@ export default function ReceiptsPage() {
             r.expenseCategory?.name ?? '',
             r.paidBy ?? '',
             r.settled ? '精算済み' : '未精算',
+            r.settled ? fmtLocalDate(r.settledAt) : '',
             (r.notes ?? '').replace(/[\r\n]+/g, ' '),
         ]);
         const csv = '﻿' + [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
@@ -502,7 +510,10 @@ function ConfirmedReceiptList({ rows, onSelect, onToggleSettled, sortKey, sortDi
                                         )}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">{r.paidBy || '−'}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>{settledPill(r)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                        {settledPill(r)}
+                                        {r.settled && r.settledAt && <div className="text-[11px] text-slate-400 mt-0.5">{fmtLocalDate(r.settledAt)}</div>}
+                                    </td>
                                     <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px] truncate">{r.notes || '−'}</td>
                                 </tr>
                             ))}
@@ -531,6 +542,7 @@ function ConfirmedReceiptList({ rows, onSelect, onToggleSettled, sortKey, sortDi
                                 <span className="px-2 py-0.5 text-xs rounded-full bg-slate-50 text-slate-500 border border-slate-200">費目 未選択</span>
                             )}
                             {settledPill(r)}
+                            {r.settled && r.settledAt && <span className="text-[11px] text-slate-400">精算 {fmtLocalDate(r.settledAt)}</span>}
                         </div>
                         {r.notes && <div className="text-xs text-slate-500 mt-1 truncate">{r.notes}</div>}
                     </div>
