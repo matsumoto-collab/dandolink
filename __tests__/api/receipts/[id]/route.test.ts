@@ -182,6 +182,35 @@ describe('/api/receipts/[id]', () => {
             expect(arg.data.settledAt).toBeNull();
             expect(arg.data.settledBy).toBeNull();
         });
+
+        it('records a provided settledAt (arbitrary date) when marking settled', async () => {
+            (prisma.receipt.findUnique as jest.Mock).mockResolvedValue({ ...basePending, status: 'confirmed' });
+            (prisma.receipt.update as jest.Mock).mockResolvedValue({ ...basePending, status: 'confirmed', settled: true });
+            const res = await PATCH(patchReq('r1', { settled: true, settledAt: '2026-06-25' }), ctx('r1'));
+            expect(res.status).toBe(200);
+            const arg = (prisma.receipt.update as jest.Mock).mock.calls[0][0];
+            expect(arg.data.settled).toBe(true);
+            expect(arg.data.settledAt).toBeInstanceOf(Date);
+            expect((arg.data.settledAt as Date).toISOString()).toBe('2026-06-25T00:00:00.000Z');
+            expect(arg.data.settledBy).toBe('user-1');
+        });
+
+        it('updates settledAt only on an already-settled receipt (settled unchanged)', async () => {
+            (prisma.receipt.findUnique as jest.Mock).mockResolvedValue({ ...basePending, status: 'confirmed', settled: true, settledBy: 'user-1' });
+            (prisma.receipt.update as jest.Mock).mockResolvedValue({ ...basePending });
+            const res = await PATCH(patchReq('r1', { settledAt: '2026-05-01' }), ctx('r1'));
+            expect(res.status).toBe(200);
+            const arg = (prisma.receipt.update as jest.Mock).mock.calls[0][0];
+            expect((arg.data.settledAt as Date).toISOString()).toBe('2026-05-01T00:00:00.000Z');
+            expect(arg.data.settled).toBeUndefined();
+        });
+
+        it('ignores settledAt when the receipt is not settled', async () => {
+            (prisma.receipt.findUnique as jest.Mock).mockResolvedValue({ ...basePending, status: 'confirmed', settled: false });
+            const res = await PATCH(patchReq('r1', { settledAt: '2026-05-01' }), ctx('r1'));
+            expect(res.status).toBe(400);
+            expect(prisma.receipt.update).not.toHaveBeenCalled();
+        });
     });
 
     describe('DELETE', () => {

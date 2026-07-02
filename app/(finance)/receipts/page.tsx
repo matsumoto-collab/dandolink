@@ -14,6 +14,7 @@ const TABS = [
     { id: 'confirmed', label: '仕分け済み' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
+type SortKey = 'date' | 'amount' | 'store' | 'settled';
 
 // Vercel のリクエストボディ上限（約4.5MB）。圧縮後の画像・PDF がこれを超えたら送信前に弾く。
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
@@ -31,6 +32,13 @@ const fmtLocalDate = (s: string | null) => {
     const d = new Date(s);
     if (isNaN(d.getTime())) return '';
     return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+};
+// ローカル(JST)の 'YYYY-MM-DD'。精算日の登録・フィルタ・比較に使う（date input と同じ書式）。
+const toYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const localYmd = (s: string | null) => {
+    if (!s) return '';
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? '' : toYmd(d);
 };
 const pmLabel = (m: string | null) => (m && m in PAYMENT_METHOD_LABELS ? PAYMENT_METHOD_LABELS[m as keyof typeof PAYMENT_METHOD_LABELS] : '');
 const csvCell = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
@@ -75,21 +83,30 @@ export default function ReceiptsPage() {
 
     // 仕分け済みタブの絞り込み
     const today = new Date();
+    const [scope, setScope] = useState<'month' | 'all'>('month'); // 発生日の月別 / 全期間
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
     const [categoryFilter, setCategoryFilter] = useState('');
     const [paymentFilter, setPaymentFilter] = useState('');
     const [settledFilter, setSettledFilter] = useState<'' | 'unsettled' | 'settled'>('');
+    const [settledFrom, setSettledFrom] = useState(''); // 精算日で絞り込み（'YYYY-MM-DD'・空=無制限）
+    const [settledTo, setSettledTo] = useState('');
     const [search, setSearch] = useState('');
-    const [sortKey, setSortKey] = useState<'date' | 'amount' | 'store'>('date');
+    const [sortKey, setSortKey] = useState<SortKey>('date');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [categories, setCategories] = useState<ExpenseCategoryRef[]>([]);
+    // 「精算済み」を登録するときに使う精算日（既定=今日）。固定なので同じ日付を続けて使える。
+    const [settleDate, setSettleDate] = useState(() => toYmd(new Date()));
 
     const fetchReceipts = useCallback(async () => {
         setIsLoading(true);
         try {
             const url =
-                activeTab === 'confirmed' ? `/api/receipts?status=confirmed&year=${year}&month=${month}` : '/api/receipts?status=pending';
+                activeTab === 'confirmed'
+                    ? scope === 'all'
+                        ? '/api/receipts?status=confirmed'
+                        : `/api/receipts?status=confirmed&year=${year}&month=${month}`
+                    : '/api/receipts?status=pending';
             const res = await fetch(url, { cache: 'no-store' });
             setReceipts(res.ok ? await res.json() : []);
         } catch (e) {
@@ -98,7 +115,7 @@ export default function ReceiptsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [activeTab, year, month]);
+    }, [activeTab, scope, year, month]);
 
     useEffect(() => {
         fetchReceipts();
@@ -190,13 +207,20 @@ export default function ReceiptsPage() {
             if (paymentFilter && r.paymentMethod !== paymentFilter) return false;
             if (settledFilter === 'settled' && !r.settled) return false;
             if (settledFilter === 'unsettled' && r.settled) return false;
+            // 精算日での絞り込み（範囲指定があれば、その期間に精算されたものだけ・未精算は除外）
+            if (settledFrom || settledTo) {
+                const sy = localYmd(r.settledAt);
+                if (!sy) return false;
+                if (settledFrom && sy < settledFrom) return false;
+                if (settledTo && sy > settledTo) return false;
+            }
             if (q) {
                 const hay = `${r.storeName ?? ''} ${r.notes ?? ''} ${r.paidBy ?? ''}`.toLowerCase();
                 if (!hay.includes(q)) return false;
             }
             return true;
         });
-    }, [activeTab, receipts, categoryFilter, paymentFilter, settledFilter, search]);
+    }, [activeTab, receipts, categoryFilter, paymentFilter, settledFilter, settledFrom, settledTo, search]);
 
     // 並び替え（仕分け済みのみ）
     const sorted = useMemo(() => {
@@ -205,24 +229,45 @@ export default function ReceiptsPage() {
         return [...filtered].sort((a, b) => {
             if (sortKey === 'amount') return (Number(a.totalAmount || 0) - Number(b.totalAmount || 0)) * dir;
             if (sortKey === 'store') return (a.storeName || '').localeCompare(b.storeName || '', 'ja') * dir;
+            if (sortKey === 'settled') {
+                // 精算日で並べ替え。未精算（精算日なし）は方向に関わらず末尾へ。
+                const at = a.settledAt ? new Date(a.settledAt).getTime() : null;
+                const bt = b.settledAt ? new Date(b.settledAt).getTime() : null;
+                if (at == null && bt == null) return 0;
+                if (at == null) return 1;
+                if (bt == null) return -1;
+                return (at - bt) * dir;
+            }
             const ad = a.issueDate ? new Date(a.issueDate).getTime() : 0;
             const bd = b.issueDate ? new Date(b.issueDate).getTime() : 0;
             return (ad - bd) * dir;
         });
     }, [activeTab, filtered, sortKey, sortDir]);
 
-    const changeSort = (key: 'date' | 'amount' | 'store') => {
+    const changeSort = (key: SortKey) => {
         if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
         else { setSortKey(key); setSortDir(key === 'date' ? 'asc' : 'desc'); }
     };
 
-    // 精算済みフラグの切替（楽観更新・失敗時は戻す）
+    // 精算済みフラグの切替（楽観更新・失敗時は戻す）。
+    // 精算登録時は固定の「精算日として登録」の日付を使う（既定=今日・同じ日付を続けて使える）。
     const toggleSettled = async (r: Receipt) => {
         const next = !r.settled;
-        setReceipts((prev) => prev.map((x) => (x.id === r.id ? { ...x, settled: next, settledAt: next ? new Date().toISOString() : null } : x)));
+        const applied = next ? (settleDate || toYmd(new Date())) : '';
+        // 楽観表示: 登録日は UTC 0時（保存値と同じ）にして fmtLocalDate で同じ日付を出す
+        const optimisticAt = next ? `${applied}T00:00:00.000Z` : null;
+        setReceipts((prev) => prev.map((x) => (x.id === r.id ? { ...x, settled: next, settledAt: optimisticAt } : x)));
         try {
-            const res = await fetch(`/api/receipts/${r.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settled: next }) });
+            const res = await fetch(`/api/receipts/${r.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(next ? { settled: true, settledAt: applied } : { settled: false }),
+            });
             if (!res.ok) throw new Error();
+            const updated = await res.json().catch(() => null);
+            if (updated && updated.id) {
+                setReceipts((prev) => prev.map((x) => (x.id === r.id ? { ...x, settled: updated.settled, settledAt: updated.settledAt } : x)));
+            }
         } catch {
             setReceipts((prev) => prev.map((x) => (x.id === r.id ? { ...x, settled: r.settled, settledAt: r.settledAt } : x)));
             toast.error('精算状況の更新に失敗しました');
@@ -258,7 +303,7 @@ export default function ReceiptsPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `領収書_${year}-${String(month).padStart(2, '0')}.csv`;
+        a.download = scope === 'all' ? '領収書_全期間.csv' : `領収書_${year}-${String(month).padStart(2, '0')}.csv`;
         a.click();
         URL.revokeObjectURL(url);
     };
@@ -348,12 +393,29 @@ export default function ReceiptsPage() {
             {/* 仕分け済みタブのツールバー */}
             {activeTab === 'confirmed' && (
                 <div className="mb-4 space-y-2">
-                    {/* 月切替 */}
-                    <div className="flex items-center gap-2">
-                        <button onClick={goPrev} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50" title="前月"><ChevronLeft className="w-5 h-5 text-slate-600" /></button>
-                        <div className="flex-1 sm:flex-none sm:min-w-[120px] px-1 text-center text-base sm:text-lg font-semibold text-slate-800 whitespace-nowrap">{year}年{month}月</div>
-                        <button onClick={goNext} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50" title="翌月"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
-                        <button onClick={goToday} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50">今月</button>
+                    {/* 表示範囲（発生日の月別 / 全期間）＋月切替 */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm shrink-0">
+                            <button onClick={() => setScope('month')} className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${scope === 'month' ? 'bg-teal-600 text-white' : 'text-slate-600 hover:text-slate-900'}`}>月別</button>
+                            <button onClick={() => setScope('all')} className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${scope === 'all' ? 'bg-teal-600 text-white' : 'text-slate-600 hover:text-slate-900'}`}>全期間</button>
+                        </div>
+                        {scope === 'month' ? (
+                            <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                                <button onClick={goPrev} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50" title="前月"><ChevronLeft className="w-5 h-5 text-slate-600" /></button>
+                                <div className="flex-1 sm:flex-none sm:min-w-[120px] px-1 text-center text-base sm:text-lg font-semibold text-slate-800 whitespace-nowrap">{year}年{month}月</div>
+                                <button onClick={goNext} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50" title="翌月"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
+                                <button onClick={goToday} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50">今月</button>
+                            </div>
+                        ) : (
+                            <span className="text-sm text-slate-500">すべての期間（発生日）を表示中</span>
+                        )}
+                    </div>
+                    {/* 精算日として登録（未精算バッジのタップ時に使う日付・固定なので同じ日付を続けて使える） */}
+                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                        <span className="text-xs font-semibold text-emerald-800 whitespace-nowrap">精算日として登録</span>
+                        <input type="date" value={settleDate} onChange={(e) => setSettleDate(e.target.value)} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        <button type="button" onClick={() => setSettleDate(toYmd(new Date()))} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100">今日</button>
+                        <span className="text-xs text-emerald-700/80 w-full sm:w-auto">この日付で「未精算」→「精算済み」を登録します（同じ日付を続けて使えます）。</span>
                     </div>
                     {/* 絞り込み・並び替え・CSV（スマホは縦積み） */}
                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
@@ -370,12 +432,24 @@ export default function ReceiptsPage() {
                             <option value="unsettled">未精算のみ</option>
                             <option value="settled">精算済みのみ</option>
                         </select>
-                        <select value={`${sortKey}:${sortDir}`} onChange={(e) => { const [k, d] = e.target.value.split(':'); setSortKey(k as 'date' | 'amount' | 'store'); setSortDir(d as 'asc' | 'desc'); }} className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
+                        {/* 精算日で絞り込み（範囲・空欄は無制限） */}
+                        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600 w-full sm:w-auto">
+                            <span className="text-xs text-slate-500 whitespace-nowrap">精算日</span>
+                            <input type="date" value={settledFrom} onChange={(e) => setSettledFrom(e.target.value)} title="精算日（開始）" className="min-w-0 flex-1 sm:w-[132px] rounded-lg border border-slate-200 px-2 py-1 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500" />
+                            <span className="text-slate-400 shrink-0">〜</span>
+                            <input type="date" value={settledTo} onChange={(e) => setSettledTo(e.target.value)} title="精算日（終了）" className="min-w-0 flex-1 sm:w-[132px] rounded-lg border border-slate-200 px-2 py-1 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500" />
+                            {(settledFrom || settledTo) && (
+                                <button onClick={() => { setSettledFrom(''); setSettledTo(''); }} title="精算日フィルタを解除" className="shrink-0 px-1 text-slate-400 hover:text-slate-600">✕</button>
+                            )}
+                        </div>
+                        <select value={`${sortKey}:${sortDir}`} onChange={(e) => { const [k, d] = e.target.value.split(':'); setSortKey(k as SortKey); setSortDir(d as 'asc' | 'desc'); }} className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
                             <option value="date:asc">日付（古い順）</option>
                             <option value="date:desc">日付（新しい順）</option>
                             <option value="amount:desc">金額（高い順）</option>
                             <option value="amount:asc">金額（安い順）</option>
                             <option value="store:asc">店名（あ→わ）</option>
+                            <option value="settled:desc">精算日（新しい順）</option>
+                            <option value="settled:asc">精算日（古い順）</option>
                         </select>
                         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="店名・メモ・支払者で検索" className="w-full sm:flex-1 sm:min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500" />
                         <button onClick={exportCsv} disabled={sorted.length === 0} className="w-full sm:w-auto justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50 inline-flex items-center gap-1.5 disabled:opacity-50">
@@ -463,11 +537,11 @@ function ConfirmedReceiptList({ rows, onSelect, onToggleSettled, sortKey, sortDi
     rows: Receipt[];
     onSelect: (r: Receipt) => void;
     onToggleSettled: (r: Receipt) => void;
-    sortKey: 'date' | 'amount' | 'store';
+    sortKey: SortKey;
     sortDir: 'asc' | 'desc';
-    onSort: (key: 'date' | 'amount' | 'store') => void;
+    onSort: (key: SortKey) => void;
 }) {
-    const mark = (k: 'date' | 'amount' | 'store') => (sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
+    const mark = (k: SortKey) => (sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
     const settledPill = (r: Receipt) => (
         <button
             onClick={(e) => { e.stopPropagation(); onToggleSettled(r); }}
@@ -491,7 +565,7 @@ function ConfirmedReceiptList({ rows, onSelect, onToggleSettled, sortKey, sortDi
                                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 whitespace-nowrap"><button onClick={() => onSort('amount')} className="hover:text-slate-900">税込金額{mark('amount')}</button></th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700">費目</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap">支払者</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap">精算</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap"><button onClick={() => onSort('settled')} className="hover:text-slate-900">精算{mark('settled')}</button></th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700">メモ</th>
                             </tr>
                         </thead>

@@ -71,11 +71,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if ('notes' in body) data.notes = body.notes?.toString().trim() || null;
 
         // 精算フラグは仕分け（費目編集）とは独立。確定済みでも切り替え可能。
+        // 精算日(settledAt)は任意指定（'YYYY-MM-DD'）。未指定なら今日（ボタンを押した日）。
         if ('settled' in body) {
             const s = !!body.settled;
             data.settled = s;
-            data.settledAt = s ? new Date() : null;
+            data.settledAt = s ? (parseReceiptDate(body.settledAt) ?? new Date()) : null;
             data.settledBy = s ? session!.user.id : null;
+        } else if ('settledAt' in body) {
+            // 精算済みのまま精算日だけ修正する（settled は変更しない）
+            const d = parseReceiptDate(body.settledAt);
+            if (d && current.settled) {
+                data.settledAt = d;
+                if (!current.settledBy) data.settledBy = session!.user.id;
+            }
         }
 
         if ('status' in body) {
