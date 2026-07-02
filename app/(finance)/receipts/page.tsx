@@ -233,22 +233,23 @@ export default function ReceiptsPage() {
                 <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
                 <p className="text-sm text-slate-600 mb-1">領収書（画像・PDF）をドラッグ＆ドロップ、または選択してください</p>
                 <p className="text-xs text-slate-400 mb-3">複数の領収書を1枚に並べて撮ってもOK。AIが自動で分けて費目まで仕分けます。</p>
-                <div className="flex items-center justify-center gap-2 flex-wrap">
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors font-medium inline-flex items-center gap-2 disabled:opacity-50"
-                    >
-                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        {uploading ? '取り込み中…' : 'ファイルを選択'}
-                    </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
+                    {/* スマホでは撮影を主ボタンに（基本はスマホで撮影するため） */}
                     <button
                         onClick={() => cameraInputRef.current?.click()}
                         disabled={uploading}
-                        className="px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium inline-flex items-center gap-2 disabled:opacity-50 sm:hidden"
+                        className="sm:hidden w-full px-4 py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                        <ImageIcon className="w-4 h-4" />
-                        写真を撮影
+                        {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
+                        {uploading ? '取り込み中…' : '写真を撮影'}
+                    </button>
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="w-full sm:w-auto px-4 py-3 sm:py-2.5 rounded-xl transition-colors font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 sm:bg-teal-600 sm:text-white sm:border-transparent sm:hover:bg-teal-700"
+                    >
+                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        {uploading ? '取り込み中…' : 'ファイルを選択'}
                     </button>
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
@@ -285,12 +286,12 @@ export default function ReceiptsPage() {
             )}
 
             {/* タブ */}
-            <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl w-fit">
+            <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl w-full sm:w-fit">
                 {TABS.map((t) => (
                     <button
                         key={t.id}
                         onClick={() => setActiveTab(t.id)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                        className={`flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                     >
                         {t.label}
                     </button>
@@ -299,23 +300,24 @@ export default function ReceiptsPage() {
 
             {/* 仕分け済みタブのツールバー */}
             {activeTab === 'confirmed' && (
-                <div className="mb-4 space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
+                <div className="mb-4 space-y-2">
+                    {/* 月切替 */}
+                    <div className="flex items-center gap-2">
                         <button onClick={goPrev} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50" title="前月"><ChevronLeft className="w-5 h-5 text-slate-600" /></button>
-                        <div className="min-w-[120px] px-1 text-center text-base sm:text-lg font-semibold text-slate-800 whitespace-nowrap">{year}年{month}月</div>
+                        <div className="flex-1 sm:flex-none sm:min-w-[120px] px-1 text-center text-base sm:text-lg font-semibold text-slate-800 whitespace-nowrap">{year}年{month}月</div>
                         <button onClick={goNext} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50" title="翌月"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
-                        <button onClick={goToday} className="ml-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50">今月</button>
-                        <div className="flex-1" />
-                        <button onClick={exportCsv} disabled={filtered.length === 0} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50 inline-flex items-center gap-1.5 disabled:opacity-50">
-                            <Download className="w-4 h-4" />CSV出力
-                        </button>
+                        <button onClick={goToday} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50">今月</button>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
+                    {/* 費目フィルタ・検索・CSV（スマホは縦積み） */}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
                             <option value="">すべての費目</option>
                             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="店名・メモで検索" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 min-w-[180px]" />
+                        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="店名・メモで検索" className="w-full sm:flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500" />
+                        <button onClick={exportCsv} disabled={filtered.length === 0} className="w-full sm:w-auto justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50 inline-flex items-center gap-1.5 disabled:opacity-50">
+                            <Download className="w-4 h-4" />CSV出力
+                        </button>
                     </div>
                     {/* 費目別合計 */}
                     {filtered.length > 0 && (
@@ -325,7 +327,7 @@ export default function ReceiptsPage() {
                                     {name} <strong>¥{sum.toLocaleString()}</strong>
                                 </span>
                             ))}
-                            <span className="ml-auto text-sm font-semibold text-slate-800">合計 ¥{grandTotal.toLocaleString()}</span>
+                            <span className="w-full sm:w-auto sm:ml-auto text-right text-sm font-semibold text-slate-800">合計 ¥{grandTotal.toLocaleString()}</span>
                         </div>
                     )}
                 </div>

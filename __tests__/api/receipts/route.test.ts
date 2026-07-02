@@ -48,7 +48,7 @@ describe('/api/receipts GET', () => {
         expect(arg.where.status).toBe('confirmed');
         expect(arg.where.issueDate.gte).toEqual(new Date(Date.UTC(2026, 6, 1)));
         expect(arg.where.issueDate.lt).toEqual(new Date(Date.UTC(2026, 7, 1)));
-        expect(arg.orderBy).toEqual([{ issueDate: 'desc' }, { createdAt: 'desc' }]);
+        expect(arg.orderBy).toEqual([{ issueDate: 'asc' }, { createdAt: 'asc' }]);
     });
 
     it('confirmed without year/month has no issueDate filter', async () => {

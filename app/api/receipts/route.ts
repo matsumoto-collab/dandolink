@@ -41,8 +41,9 @@ export async function GET(req: NextRequest) {
             };
         }
 
+        // 仕分け済みは日付の古い順（会計は古い順に並べたい）。未仕分けは取り込みの新しい順。
         const orderBy: Prisma.ReceiptOrderByWithRelationInput[] =
-            status === 'confirmed' ? [{ issueDate: 'desc' }, { createdAt: 'desc' }] : [{ createdAt: 'desc' }];
+            status === 'confirmed' ? [{ issueDate: 'asc' }, { createdAt: 'asc' }] : [{ createdAt: 'desc' }];
 
         const receipts = await prisma.receipt.findMany({ where, orderBy, include: RECEIPT_INCLUDE });
 
@@ -178,6 +179,8 @@ export async function POST(req: NextRequest) {
                     totalAmount: ex?.totalAmount ?? null,
                     taxAmount: ex?.taxAmount ?? null,
                     expenseCategoryId: resolveCategory(ex?.suggestedCategory),
+                    // 支払者は既定でアップロードした人（ログインユーザー名）。モーダルで自由に変更可。
+                    paidBy: session!.user.name ?? null,
                     uploadedBy: session!.user.id,
                 },
                 include: RECEIPT_INCLUDE,
