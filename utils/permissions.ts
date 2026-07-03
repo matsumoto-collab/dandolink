@@ -17,7 +17,6 @@ const ROLE_PERMISSIONS = {
         settings: ['view', 'create', 'edit', 'delete'],
         users: ['view', 'create', 'edit', 'delete'],
         assignments: ['view', 'edit'],
-        safetyDocuments: ['view', 'create', 'edit', 'delete'],
     },
     manager: {
         projects: ['view', 'create', 'edit', 'delete'],
@@ -27,7 +26,6 @@ const ROLE_PERMISSIONS = {
         settings: ['view'],
         users: [],
         assignments: ['view', 'edit'],
-        safetyDocuments: ['view', 'create', 'edit', 'delete'],
     },
     foreman1: {
         projects: ['view', 'edit'],
@@ -37,7 +35,6 @@ const ROLE_PERMISSIONS = {
         settings: [],
         users: [],
         assignments: ['view', 'edit'], // 全班のメンバー・車両采配可能
-        safetyDocuments: [],
     },
     foreman2: {
         projects: ['view'], // 自班のみ、閲覧のみ（金額非表示）
@@ -47,7 +44,6 @@ const ROLE_PERMISSIONS = {
         settings: [],
         users: [],
         assignments: ['view', 'edit'], // 自班のみ操作可能
-        safetyDocuments: [],
     },
     worker: {
         projects: ['view'], // 自班のみ
@@ -57,7 +53,6 @@ const ROLE_PERMISSIONS = {
         settings: [],
         users: [],
         assignments: ['view'], // 自班のみ表示
-        safetyDocuments: [],
     },
     partner: {
         projects: ['view'], // 自分のみ
@@ -67,7 +62,6 @@ const ROLE_PERMISSIONS = {
         settings: [],
         users: [],
         assignments: ['view'], // 自分のみ表示
-        safetyDocuments: [],
     },
     support: {
         projects: [],
@@ -77,7 +71,6 @@ const ROLE_PERMISSIONS = {
         settings: [],
         users: [],
         assignments: [], // ログイン不可 — 手配メンバー選択にのみ表示
-        safetyDocuments: [],
     },
 } as const;
 

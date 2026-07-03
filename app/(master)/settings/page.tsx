@@ -18,8 +18,6 @@ import ExpenseCategorySettings from '@/components/Settings/ExpenseCategorySettin
 import SystemSettingsPanel from '@/components/Settings/SystemSettingsPanel';
 import NotificationSettings from '@/components/Settings/NotificationSettings';
 import DispatchOrderSettings from '@/components/Settings/DispatchOrderSettings';
-import SafetyProfileSettings from '@/components/Settings/SafetyProfileSettings';
-import VehicleMachineSafetySettings from '@/components/Settings/VehicleMachineSafetySettings';
 import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
@@ -35,7 +33,7 @@ export default function SettingsPage() {
         deleteMemberCountEntry,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'safetyProfiles' | 'vehicleMachineSafety' | 'expenseCategories'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [editingRate, setEditingRate] = useState(''); // 車両の日額（編集中）
@@ -55,7 +53,7 @@ export default function SettingsPage() {
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'safetyProfiles' | 'vehicleMachineSafety' | 'expenseCategories'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: null },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
             { id: 'constructionTypes' as const, label: '工事種別', count: null },
@@ -70,8 +68,6 @@ export default function SettingsPage() {
             { id: 'system' as const, label: '協力業者費設定', count: null },
             { id: 'notifications' as const, label: '通知', count: null },
             { id: 'dispatchOrder' as const, label: '手配確定の並び', count: null },
-            { id: 'safetyProfiles' as const, label: '作業員 安全情報', count: null },
-            { id: 'vehicleMachineSafety' as const, label: '車両・機械 安全情報', count: null },
         ];
 
         // Add user management tab if user is admin
@@ -390,12 +386,6 @@ export default function SettingsPage() {
                         ) : activeTab === 'dispatchOrder' ? (
                             // 手配確定の並び順
                             <DispatchOrderSettings />
-                        ) : activeTab === 'safetyProfiles' ? (
-                            // 作業員 安全情報（安全書類用プロフィール）
-                            <SafetyProfileSettings />
-                        ) : activeTab === 'vehicleMachineSafety' ? (
-                            // 車両・機械 安全情報（車両届・持込機械届用）
-                            <VehicleMachineSafetySettings />
                         ) : (
                             // List Management (Vehicles, Workers, Managers)
                             <div>

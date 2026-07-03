@@ -26,7 +26,6 @@ export type PageType =
     | 'receipts'         // 領収書（AIで取り込み・費目仕分け・画像保管）
     | 'payees'           // 振込先マスター
     | 'partner-work-volume' // 協力業者出来高
-    | 'safety-documents' // 安全書類（admin / manager）
     | 'settings';        // 設定
 
 interface NavigationContextType {
