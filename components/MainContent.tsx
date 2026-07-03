@@ -12,7 +12,7 @@ import { isManagerOrAbove } from '@/utils/permissions';
 
 const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
-    'profit-dashboard', 'estimates', 'site-surveys', 'invoices', 'billing-drafts', 'billing-board',
+    'profit-dashboard', 'estimates', 'invoices', 'billing-drafts', 'billing-board',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'material-returns', 'settings', 'chat',
     'payment-schedules', 'purchase-invoices', 'receipts', 'payees', 'partner-work-volume', 'safety-documents',
@@ -44,9 +44,6 @@ const ProjectMasterListPage = dynamic(() => import('@/app/(master)/project-maste
     loading: () => <LoadingSpinner />,
 });
 const EstimateListPage = dynamic(() => import('@/app/(finance)/estimates/page'), {
-    loading: () => <LoadingSpinner />,
-});
-const SiteSurveyListPage = dynamic(() => import('@/app/(finance)/site-surveys/page'), {
     loading: () => <LoadingSpinner />,
 });
 const InvoiceListPage = dynamic(() => import('@/app/(finance)/invoices/page'), {
@@ -195,7 +192,6 @@ export default function MainContent() {
         'attendance': '出勤簿',
         'profit-dashboard': '粗利ダッシュボード',
         'estimates': '見積書',
-        'site-surveys': '現場調査',
         'invoices': '請求書',
         'billing-drafts': '請求予定',
         'billing-board': '請求待ち',
@@ -303,12 +299,6 @@ export default function MainContent() {
             case 'estimates':
                 return <EstimateListPage />;
 
-            case 'site-surveys':
-                if (userRole !== 'admin' && userRole !== 'manager') {
-                    return <PlaceholderPage title="アクセス権限がありません" />;
-                }
-                return <SiteSurveyListPage />;
-
             case 'invoices':
                 return <InvoiceListPage />;
 
@@ -415,7 +405,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'site-surveys', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'customers', 'chat', 'payment-schedules', 'purchase-invoices', 'receipts', 'payees', 'partner-work-volume', 'materials', 'safety-documents'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
+                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'customers', 'chat', 'payment-schedules', 'purchase-invoices', 'receipts', 'payees', 'partner-work-volume', 'materials', 'safety-documents'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}

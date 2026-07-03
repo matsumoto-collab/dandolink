@@ -63,7 +63,7 @@ function formatRelative(iso: string): string {
 // MainContent の VALID_PAGES と一致させる。
 const VALID_PAGES: ReadonlyArray<PageType> = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
-    'profit-dashboard', 'estimates', 'site-surveys', 'invoices',
+    'profit-dashboard', 'estimates', 'invoices',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'settings', 'chat',
     'payment-schedules', 'payees', 'partner-work-volume',

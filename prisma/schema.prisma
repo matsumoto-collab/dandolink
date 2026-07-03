@@ -1063,8 +1063,8 @@ model AttendanceRecord {
   @@schema("public")
 }
 
-// 作図機能用。次タスクで prisma migrate dev によりテーブル作成予定。
-// それまではこのモデルを参照する API・コードを書かないこと。
+// 【機能撤去済み 2026-07-03】旧 現場調査/図面（作図エディタ）。UI・API は未使用のため削除済み。
+// テーブルとデータは残置（復活する場合はこのモデルを再利用）。
 model SiteSurvey {
   id              String    @id @default(uuid())
   projectMasterId String?
