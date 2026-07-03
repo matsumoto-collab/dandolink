@@ -141,7 +141,8 @@ export default function PaymentSchedulesPage() {
         if (!selectedDate) return [];
         const base = items.filter((i) => formatDateKey(i.paymentDate) === selectedDate);
         if (detailSort === 'kana') {
-            // 名義（口座名義カナ→フリガナ→振込先名）をあいうえお順に。法人格「カ）」「(株)」等は無視。
+            // 名義（口座名義カナ→フリガナ→振込先名）をあいうえお順に。書かれた文字どおり比較
+            // （「カ）アームズ」はカ行・「ユ）〜」はヤ行。表記ゆれ＝かな種別/全半角/空白のみ吸収）。
             const key = (x: PaymentSchedule) =>
                 payeeNameSortValue({ accountHolder: x.accountHolder, nameKana: x.payee?.nameKana, payeeName: x.payeeName });
             return [...base].sort(
@@ -296,7 +297,7 @@ export default function PaymentSchedulesPage() {
                             type="button"
                             onClick={() => setDetailSort('kana')}
                             className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${detailSort === 'kana' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:text-slate-900'}`}
-                            title="名義をあいうえお順で表示（「カ）」などの法人格は無視）"
+                            title="名義をあいうえお順で表示（書かれた文字どおり。「カ）〜」はカ行に並びます）"
                         >
                             名義順（あいうえお）
                         </button>
