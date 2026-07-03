@@ -1855,8 +1855,8 @@ model VehicleHandoverNotice {
   @@schema("public")
 }
 
-/// マイカレンダー (admin / manager 限定)
-/// 現調・打ち合わせ・道路使用許可関連の予定を管理する。
+/// 【機能撤去済み 2026-07-03】旧マイカレンダー (admin / manager 限定)。
+/// UI・API は未使用のため削除済み。テーブルとデータは残置（復活する場合はこのモデルを再利用）。
 /// visibility: 'private' = 作成者のみ閲覧 / 'shared' = admin/manager 全員に共有
 /// category: site_survey | meeting | road_permit_complete | road_permit_receive | road_permit_expiry | other
 model CalendarEvent {

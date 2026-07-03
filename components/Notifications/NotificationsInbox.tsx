@@ -66,7 +66,7 @@ const VALID_PAGES: ReadonlyArray<PageType> = [
     'profit-dashboard', 'estimates', 'site-surveys', 'invoices',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'settings', 'chat',
-    'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar',
+    'payment-schedules', 'payees', 'partner-work-volume',
 ];
 
 export default function NotificationsInbox({ variant = 'icon' }: Props) {
