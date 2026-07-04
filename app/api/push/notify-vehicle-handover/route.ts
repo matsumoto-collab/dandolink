@@ -18,6 +18,12 @@ import type { VehicleUsage } from '@/lib/vehicleHandover';
  * クライアント（DispatchConfirmModal）から確定／解除直後に呼ばれる。
  * 引き継ぎペアの「いまあるべき集合」を再計算し、VehicleHandoverNotice 表との差分で
  * 追加（送信＋INSERT）／削除（取消通知＋canceledAt セット）を行う。
+ *
+ * 過去情報の誤通知ガード:
+ *   - diff の対象は「入力手配日 ±30日」の窓内で完結する行のみ。desired 側は窓内の
+ *     候補からしか構築できないため、窓外の行まで比べると実態不変でも removed になる。
+ *   - 引き継ぎ日（to 側の使用日）が今日(JST)より前のペアは、追加・取消とも
+ *     テーブルへの記録だけ行い、通知は送らない。
  */
 
 const bodySchema = z.object({
@@ -178,7 +184,50 @@ export async function POST(request: NextRequest) {
                 notifiedUserIds: true,
             },
         });
-        const existingPairs: HandoverPair[] = existingRows.map(r => ({
+
+        // === 6-2. diff の対象を desired と同じ「±30日窓」に揃える ===
+        // desired は窓内の候補からしか構築できない。窓外の行まで diff に入れると、
+        // 実態が変わっていないのに毎回 removed 判定され、過去の引き継ぎに取消通知が
+        // 飛んでしまう。窓外の行には触らない。参照先の手配が削除済みの行だけは、
+        // desired に二度と現れず永遠に残るため、通知なしで無効化する。
+        const dateByAssignmentId = new Map<string, Date>();
+        for (const a of candidates) dateByAssignmentId.set(a.id, a.date);
+        const unresolvedIds = new Set<string>();
+        for (const r of existingRows) {
+            if (!dateByAssignmentId.has(r.fromAssignmentId)) unresolvedIds.add(r.fromAssignmentId);
+            if (!dateByAssignmentId.has(r.toAssignmentId)) unresolvedIds.add(r.toAssignmentId);
+        }
+        if (unresolvedIds.size > 0) {
+            // 候補外（確定解除直後の入力手配・窓外の手配など）でも、手配が残っていれば日付は解決できる
+            const extra = await prisma.projectAssignment.findMany({
+                where: { id: { in: Array.from(unresolvedIds) } },
+                select: { id: true, date: true },
+            });
+            for (const a of extra) dateByAssignmentId.set(a.id, a.date);
+        }
+        const inRange = (d: Date) =>
+            d.getTime() >= rangeStart.getTime() && d.getTime() < rangeEnd.getTime();
+
+        const orphanRowIds: string[] = [];
+        const diffableRows: typeof existingRows = [];
+        for (const r of existingRows) {
+            const fromDate = dateByAssignmentId.get(r.fromAssignmentId);
+            const toDate = dateByAssignmentId.get(r.toAssignmentId);
+            if (!fromDate || !toDate) {
+                orphanRowIds.push(r.id);
+                continue;
+            }
+            if (!inRange(fromDate) || !inRange(toDate)) continue;
+            diffableRows.push(r);
+        }
+        if (orphanRowIds.length > 0) {
+            await prisma.vehicleHandoverNotice.updateMany({
+                where: { id: { in: orphanRowIds } },
+                data: { canceledAt: new Date() },
+            });
+        }
+
+        const existingPairs: HandoverPair[] = diffableRows.map(r => ({
             vehicleId: r.vehicleId,
             fromAssignmentId: r.fromAssignmentId,
             toAssignmentId: r.toAssignmentId,
@@ -188,7 +237,7 @@ export async function POST(request: NextRequest) {
         // === 7. diff ===
         const { added, removed } = diffHandovers(desired, existingPairs);
         if (added.length === 0 && removed.length === 0) {
-            return NextResponse.json({ mode, added: 0, removed: 0 });
+            return NextResponse.json({ mode, added: 0, removed: 0, orphanedRows: orphanRowIds.length });
         }
 
         // === 8. 通知本文に必要なマスタを取得 ===
@@ -223,6 +272,11 @@ export async function POST(request: NextRequest) {
         const formatVehicleList = (vIds: string[]) =>
             vIds.map(id => vehicleById.get(id)?.name ?? '車両').join('・');
 
+        // 引き継ぎ日（to 側の使用日）が今日(JST)より前のペアは通知しない。
+        // 過去日の手配を後から確定・解除したときに、済んだ引き継ぎの案内や取消が
+        // 今さら届くのを防ぐ。テーブルへの記録は行い、差分の収束は保つ。
+        const todayKey = dateKeyJst(new Date());
+
         // === 9. added: (fromAssignmentId, toAssignmentId) 単位で集約 → 1通 ===
         // §I: 多車両は本文に「軽トラ①・ダンプ②」と連結
         // §H: 本文は「車両＋班＋日付」のみ
@@ -244,19 +298,18 @@ export async function POST(request: NextRequest) {
         }
 
         let addedSentGroups = 0;
+        let suppressedAddedPairs = 0;
         for (const g of addedGroups.values()) {
             const toA = assignmentById.get(g.pair.toAssignmentId);
             if (!toA) continue;
-            const teamName = foremanById.get(toA.assignedEmployeeId)?.displayName
-                ? `${foremanById.get(toA.assignedEmployeeId)!.displayName}班`
-                : 'ほかの班';
-            const vehicleList = formatVehicleList(g.vehicleIds);
-            const dateStr = formatJpShortDate(toA.date);
-            const body = `車両（${vehicleList}）は ${dateStr} ${teamName} が使用します`;
-            const pushTag = `vehicle-handover-${g.vehicleIds[0]}-${dateKeyJst(toA.date)}`;
-
-            // INSERT VehicleHandoverNotice rows（1 pair = 1 row, 多車両は同集約だが pair は別）
+            g.vehicleIds.sort(); // pushTag と本文の並びを再計算間で安定させる
+            const toDateKey = dateKeyJst(toA.date);
             const userIds = Array.from(g.userIds);
+            const shouldNotify = toDateKey >= todayKey && userIds.length > 0;
+
+            // INSERT VehicleHandoverNotice rows（1 pair = 1 row, 多車両は同集約だが pair は別）。
+            // 通知しないペアも受信者ゼロで「送ったことにして」記録する。記録しないと
+            // 次回の再計算でまた added に湧き、差分が収束しない。
             await prisma.$transaction(
                 g.vehicleIds.map(vid =>
                     prisma.vehicleHandoverNotice.create({
@@ -264,82 +317,98 @@ export async function POST(request: NextRequest) {
                             vehicleId: vid,
                             fromAssignmentId: g.pair.fromAssignmentId,
                             toAssignmentId: g.pair.toAssignmentId,
-                            notifiedUserIds: JSON.stringify(userIds),
+                            notifiedUserIds: JSON.stringify(shouldNotify ? userIds : []),
                         },
                     })
                 )
             );
 
-            if (userIds.length > 0) {
-                await notifyUsers({
-                    userIds,
-                    type: 'vehicle-handover',
-                    title: '【車両引き継ぎ】',
-                    body,
-                    url: '/?page=schedule&view=assignment',
-                    pushTag,
-                });
-                addedSentGroups += 1;
+            if (!shouldNotify) {
+                if (toDateKey < todayKey) suppressedAddedPairs += g.vehicleIds.length;
+                continue;
             }
+
+            const teamName = foremanById.get(toA.assignedEmployeeId)?.displayName
+                ? `${foremanById.get(toA.assignedEmployeeId)!.displayName}班`
+                : 'ほかの班';
+            const vehicleList = formatVehicleList(g.vehicleIds);
+            const dateStr = formatJpShortDate(toA.date);
+            const body = `車両（${vehicleList}）は ${dateStr} ${teamName} が使用します`;
+            const pushTag = `vehicle-handover-${g.vehicleIds[0]}-${toDateKey}`;
+
+            await notifyUsers({
+                userIds,
+                type: 'vehicle-handover',
+                title: '【車両引き継ぎ】',
+                body,
+                url: '/?page=schedule&view=assignment',
+                pushTag,
+            });
+            addedSentGroups += 1;
         }
 
-        // === 10. removed: fromAssignmentId 単位で集約 → 取消通知 + canceledAt セット ===
-        type RemovedGroup = {
-            fromAssignmentId: string;
-            vehicleIds: string[];
-            userIds: Set<string>;
-            rowIds: string[];
-        };
+        // === 10. removed: canceledAt を一括セット → 取消通知 ===
+        // 取消通知は added と同じ (fromAssignmentId, toAssignmentId) 単位で集約し、
+        // pushTag も added と同じ形（先頭車両 + to側日付）にして OS 通知を上書きさせる（P1-2）。
         const rowByKey = new Map<string, (typeof existingRows)[number]>();
-        for (const r of existingRows) {
+        for (const r of diffableRows) {
             rowByKey.set(`${r.vehicleId}|${r.fromAssignmentId}|${r.toAssignmentId}`, r);
         }
-        const removedGroups = new Map<string, RemovedGroup>();
+        const removedRowIds: string[] = [];
         for (const p of removed) {
-            const key = p.fromAssignmentId;
             const row = rowByKey.get(`${p.vehicleId}|${p.fromAssignmentId}|${p.toAssignmentId}`);
+            if (row) removedRowIds.push(row.id);
+        }
+        if (removedRowIds.length > 0) {
+            await prisma.vehicleHandoverNotice.updateMany({
+                where: { id: { in: removedRowIds } },
+                data: { canceledAt: new Date() },
+            });
+        }
+
+        type RemovedGroup = { vehicleIds: string[]; userIds: Set<string>; toDateKey: string };
+        const removedGroups = new Map<string, RemovedGroup>();
+        let suppressedRemovedPairs = 0;
+        for (const p of removed) {
+            const toA = assignmentById.get(p.toAssignmentId);
+            const toDateKey = toA ? dateKeyJst(toA.date) : null;
+            if (!toDateKey || toDateKey < todayKey) {
+                // 引き継ぎ日が過去（または参照先が消えている）＝済んだ話。取消は記録のみ。
+                suppressedRemovedPairs += 1;
+                continue;
+            }
+            const key = `${p.fromAssignmentId}|${p.toAssignmentId}`;
             const g = removedGroups.get(key);
             if (g) {
                 g.vehicleIds.push(p.vehicleId);
                 for (const u of p.notifiedUserIds) g.userIds.add(u);
-                if (row) g.rowIds.push(row.id);
             } else {
                 removedGroups.set(key, {
-                    fromAssignmentId: p.fromAssignmentId,
                     vehicleIds: [p.vehicleId],
                     userIds: new Set(p.notifiedUserIds),
-                    rowIds: row ? [row.id] : [],
+                    toDateKey,
                 });
             }
         }
 
         let removedSentGroups = 0;
         for (const g of removedGroups.values()) {
-            const fromA = assignmentById.get(g.fromAssignmentId);
-            const dateKey = fromA ? dateKeyJst(fromA.date) : 'unknown';
+            const userIds = Array.from(g.userIds);
+            if (userIds.length === 0) continue;
+            g.vehicleIds.sort();
             const vehicleList = formatVehicleList(g.vehicleIds);
             const body = `先ほどの車両引き継ぎ（${vehicleList}）は取り消されました／変更されました`;
-            const pushTag = `vehicle-handover-${g.vehicleIds[0]}-${dateKey}`;
+            const pushTag = `vehicle-handover-${g.vehicleIds[0]}-${g.toDateKey}`;
 
-            if (g.rowIds.length > 0) {
-                await prisma.vehicleHandoverNotice.updateMany({
-                    where: { id: { in: g.rowIds } },
-                    data: { canceledAt: new Date() },
-                });
-            }
-
-            const userIds = Array.from(g.userIds);
-            if (userIds.length > 0) {
-                await notifyUsers({
-                    userIds,
-                    type: 'vehicle-handover',
-                    title: '【車両引き継ぎ】',
-                    body,
-                    url: '/?page=schedule&view=assignment',
-                    pushTag,
-                });
-                removedSentGroups += 1;
-            }
+            await notifyUsers({
+                userIds,
+                type: 'vehicle-handover',
+                title: '【車両引き継ぎ】',
+                body,
+                url: '/?page=schedule&view=assignment',
+                pushTag,
+            });
+            removedSentGroups += 1;
         }
 
         return NextResponse.json({
@@ -348,6 +417,9 @@ export async function POST(request: NextRequest) {
             removed: removed.length,
             addedSentGroups,
             removedSentGroups,
+            suppressedAddedPairs,
+            suppressedRemovedPairs,
+            orphanedRows: orphanRowIds.length,
         });
     } catch (error) {
         return serverErrorResponse('車両引き継ぎ通知の送信', error);

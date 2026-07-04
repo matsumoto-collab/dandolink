@@ -53,8 +53,30 @@ function jstDate(yyyy: number, mm: number, dd: number): Date {
     return new Date(Date.UTC(yyyy, mm - 1, dd) - 9 * 60 * 60 * 1000);
 }
 
+// 「今日」を固定する（route は to側日付が今日より前のペアを通知しない）。
+// Date だけを fake する。タイマー系まで fake すると NextRequest の body 読み取りが
+// 固まる恐れがあるため doNotFake で除外する。
+function setToday(date: Date) {
+    jest.useFakeTimers({
+        now: date,
+        doNotFake: [
+            'hrtime', 'nextTick', 'performance', 'queueMicrotask',
+            'requestAnimationFrame', 'cancelAnimationFrame',
+            'requestIdleCallback', 'cancelIdleCallback',
+            'setImmediate', 'clearImmediate',
+            'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
+        ],
+    });
+}
+
 beforeEach(() => {
     jest.clearAllMocks();
+    // 既存ケースは 2026-05-18〜20 の手配を使うため「今日」を 5/18 JST に固定する
+    setToday(new Date(Date.UTC(2026, 4, 18, 3, 0, 0)));
+});
+
+afterEach(() => {
+    jest.useRealTimers();
 });
 
 describe('POST /api/push/notify-vehicle-handover', () => {
@@ -198,6 +220,8 @@ describe('POST /api/push/notify-vehicle-handover', () => {
         (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a1]);
         // existing pairs
         (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([existingRow]);
+        // 参照先 a2 は候補外（解除済み）なので日付解決の追加フェッチが走る
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'a2', date: jstDate(2026, 5, 19) }]);
         // involved
         (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a1, a2Empty]);
         (prisma.vehicle.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'v1', name: '軽トラ①' }]);
@@ -218,6 +242,8 @@ describe('POST /api/push/notify-vehicle-handover', () => {
         const call = (notifyUsers as jest.Mock).mock.calls[0][0];
         expect(call.body).toContain('取り消されました');
         expect(call.userIds).toEqual(['u-a']);
+        // pushTag は added と同じ形（先頭車両 + to側日付）＝ OS 通知を上書きする
+        expect(call.pushTag).toBe('vehicle-handover-v1-2026-05-19');
 
         // canceledAt セット
         expect(prisma.vehicleHandoverNotice.updateMany).toHaveBeenCalled();
@@ -249,6 +275,154 @@ describe('POST /api/push/notify-vehicle-handover', () => {
 
         // pushTag に 2026-05-19 が含まれる
         const call = (notifyUsers as jest.Mock).mock.calls[0][0];
+        expect(call.pushTag).toBe('vehicle-handover-v1-2026-05-19');
+    });
+
+    it('引き継ぎ日（to側）が過去 → 記録のみで通知しない', async () => {
+        // 「今日」を 5/25 に進める＝ 5/18 → 5/19 の引き継ぎは済んだ話
+        setToday(new Date(Date.UTC(2026, 4, 25, 3, 0, 0)));
+        const a1 = { id: 'a1', assignedEmployeeId: 'foreman-A', date: jstDate(2026, 5, 18), confirmedVehicleIds: JSON.stringify(['v1']), confirmedWorkerIds: JSON.stringify(['u-alice']), isDispatchConfirmed: true };
+        const a2 = { id: 'a2', assignedEmployeeId: 'foreman-B', date: jstDate(2026, 5, 19), confirmedVehicleIds: JSON.stringify(['v1']), confirmedWorkerIds: JSON.stringify(['u-carol']), isDispatchConfirmed: true };
+
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([]);
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a1, a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([]);
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a1, a2]);
+        (prisma.vehicle.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'v1', name: '軽トラ①' }]);
+        (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+            { id: 'foreman-A', displayName: '山田' },
+            { id: 'foreman-B', displayName: '佐藤' },
+        ]);
+        (prisma.vehicleHandoverNotice.create as jest.Mock).mockResolvedValue({ id: 'n1' });
+
+        const res = await POST(makeRequest({ assignmentIds: ['a2'], mode: 'confirm' }));
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.added).toBe(1);
+        expect(json.suppressedAddedPairs).toBe(1);
+        expect(notifyUsers).not.toHaveBeenCalled();
+
+        // 記録は残す（受信者ゼロ＝backfill と同じ「送ったことにする」扱い）
+        expect(prisma.vehicleHandoverNotice.create).toHaveBeenCalledTimes(1);
+        const createArg = (prisma.vehicleHandoverNotice.create as jest.Mock).mock.calls[0][0];
+        expect(createArg.data.notifiedUserIds).toBe('[]');
+    });
+
+    it('±30日窓の外にある古い有効行は removed 扱いしない（過去分の誤取消防止）', async () => {
+        setToday(new Date(Date.UTC(2026, 6, 10, 3, 0, 0))); // 今日 = 7/10
+        const a2 = { id: 'a2', assignedEmployeeId: 'foreman-B', date: jstDate(2026, 7, 10), confirmedVehicleIds: JSON.stringify(['v1']), confirmedWorkerIds: JSON.stringify(['u-b']), isDispatchConfirmed: true };
+        // 4月の引き継ぎ行（有効なまま残っている）＝窓 [6/10, 8/10) の外
+        const oldRow = { id: 'notice-old', vehicleId: 'v1', fromAssignmentId: 'b1', toAssignmentId: 'b2', notifiedUserIds: JSON.stringify(['u-old']) };
+
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([]);
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([oldRow]);
+        // b1/b2 は候補外なので日付解決の追加フェッチが走る
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([
+            { id: 'b1', date: jstDate(2026, 4, 1) },
+            { id: 'b2', date: jstDate(2026, 4, 3) },
+        ]);
+
+        const res = await POST(makeRequest({ assignmentIds: ['a2'], mode: 'confirm' }));
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.added).toBe(0);
+        expect(json.removed).toBe(0);
+        expect(notifyUsers).not.toHaveBeenCalled();
+        expect(prisma.vehicleHandoverNotice.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('参照先の手配が削除済みの行 → 通知なしで無効化（canceledAt のみ）', async () => {
+        setToday(new Date(Date.UTC(2026, 6, 10, 3, 0, 0)));
+        const a2 = { id: 'a2', assignedEmployeeId: 'foreman-B', date: jstDate(2026, 7, 10), confirmedVehicleIds: JSON.stringify(['v1']), confirmedWorkerIds: JSON.stringify(['u-b']), isDispatchConfirmed: true };
+        const ghostRow = { id: 'notice-ghost', vehicleId: 'v1', fromAssignmentId: 'gone-1', toAssignmentId: 'gone-2', notifiedUserIds: JSON.stringify(['u-old']) };
+
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([]);
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([ghostRow]);
+        // 参照先の手配が削除済み → 日付を解決できない
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([]);
+        (prisma.vehicleHandoverNotice.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+        const res = await POST(makeRequest({ assignmentIds: ['a2'], mode: 'confirm' }));
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.added).toBe(0);
+        expect(json.removed).toBe(0);
+        expect(json.orphanedRows).toBe(1);
+        expect(notifyUsers).not.toHaveBeenCalled();
+        expect(prisma.vehicleHandoverNotice.updateMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({ id: { in: ['notice-ghost'] } }),
+                data: expect.objectContaining({ canceledAt: expect.any(Date) }),
+            }),
+        );
+    });
+
+    it('取消も引き継ぎ日（to側）が過去なら通知しない（canceledAt のみ）', async () => {
+        setToday(new Date(Date.UTC(2026, 4, 25, 3, 0, 0))); // 今日 = 5/25
+        // a2 の車両を v1 → v2 に入れ替えて再確定 → 5/19 の v1 引き継ぎ (a1→a2) が removed になるが過去
+        const a1 = { id: 'a1', assignedEmployeeId: 'foreman-A', date: jstDate(2026, 5, 18), confirmedVehicleIds: JSON.stringify(['v1']), confirmedWorkerIds: JSON.stringify(['u-a']), isDispatchConfirmed: true };
+        const a2 = { id: 'a2', assignedEmployeeId: 'foreman-B', date: jstDate(2026, 5, 19), confirmedVehicleIds: JSON.stringify(['v2']), confirmedWorkerIds: JSON.stringify(['u-b']), isDispatchConfirmed: true };
+        const row = { id: 'notice-1', vehicleId: 'v1', fromAssignmentId: 'a1', toAssignmentId: 'a2', notifiedUserIds: JSON.stringify(['u-a']) };
+
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([{ vehicleId: 'v1' }]);
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a1, a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([row]);
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a1, a2]);
+        (prisma.vehicle.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'v1', name: '軽トラ①' }]);
+        (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+            { id: 'foreman-A', displayName: '山田' },
+            { id: 'foreman-B', displayName: '佐藤' },
+        ]);
+        (prisma.vehicleHandoverNotice.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+        const res = await POST(makeRequest({ assignmentIds: ['a2'], mode: 'confirm' }));
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.removed).toBe(1);
+        expect(json.suppressedRemovedPairs).toBe(1);
+        expect(notifyUsers).not.toHaveBeenCalled();
+        expect(prisma.vehicleHandoverNotice.updateMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({ id: { in: ['notice-1'] } }),
+                data: expect.objectContaining({ canceledAt: expect.any(Date) }),
+            }),
+        );
+    });
+
+    it('取消通知（引き継ぎ日が未来）は送信され pushTag が to側日付になる', async () => {
+        // 今日 = 5/18（beforeEach 既定）。5/19 の引き継ぎを車両入れ替えで取消 → 通知あり
+        const a1 = { id: 'a1', assignedEmployeeId: 'foreman-A', date: jstDate(2026, 5, 18), confirmedVehicleIds: JSON.stringify(['v1']), confirmedWorkerIds: JSON.stringify(['u-a']), isDispatchConfirmed: true };
+        const a2 = { id: 'a2', assignedEmployeeId: 'foreman-B', date: jstDate(2026, 5, 19), confirmedVehicleIds: JSON.stringify(['v2']), confirmedWorkerIds: JSON.stringify(['u-b']), isDispatchConfirmed: true };
+        const row = { id: 'notice-1', vehicleId: 'v1', fromAssignmentId: 'a1', toAssignmentId: 'a2', notifiedUserIds: JSON.stringify(['u-a']) };
+
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([{ vehicleId: 'v1' }]);
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a1, a2]);
+        (prisma.vehicleHandoverNotice.findMany as jest.Mock).mockResolvedValueOnce([row]);
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValueOnce([a1, a2]);
+        (prisma.vehicle.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'v1', name: '軽トラ①' }]);
+        (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+            { id: 'foreman-A', displayName: '山田' },
+            { id: 'foreman-B', displayName: '佐藤' },
+        ]);
+        (prisma.vehicleHandoverNotice.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+        const res = await POST(makeRequest({ assignmentIds: ['a2'], mode: 'confirm' }));
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.removed).toBe(1);
+        expect(json.suppressedRemovedPairs).toBe(0);
+
+        expect(notifyUsers).toHaveBeenCalledTimes(1);
+        const call = (notifyUsers as jest.Mock).mock.calls[0][0];
+        expect(call.body).toContain('取り消されました');
+        expect(call.userIds).toEqual(['u-a']);
         expect(call.pushTag).toBe('vehicle-handover-v1-2026-05-19');
     });
 });
