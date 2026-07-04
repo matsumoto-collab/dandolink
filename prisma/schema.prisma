@@ -2244,9 +2244,10 @@ model ExpenseCategory {
   @@schema("public")
 }
 
-/// 仕入先・リース会社・資材店などからの「支払側」請求書（買掛）。1枚=1レコード。
-/// アップロード→Claude API で抽出(extractedData)→人が案件・費目を仕分け→確定で
-/// ①案件原価に反映（confirmed を原価エンジンが集計）②振込予定表(PaymentSchedule)に自動登録。
+/// 【取込機能撤去 2026-07-03】仕入先などからの「支払側」請求書（買掛）。1枚=1レコード。
+/// 取込UI・API（アップロード→AI抽出→仕分け→確定）は未使用のため削除済み。
+/// ⚠️ 確定済みデータは現役＝原価エンジン(lib/projectCost.ts)が allocations を集計し
+/// 案件原価・利益数字に反映し続ける。テーブル・データは削除しないこと。
 model PurchaseInvoice {
   id     String @id @default(uuid())
   status String @default("pending") // 'pending'(未仕分け) | 'classified'(仕分け下書き) | 'confirmed'(確定)

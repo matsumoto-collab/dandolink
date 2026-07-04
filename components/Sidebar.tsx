@@ -15,7 +15,7 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'purchase-invoices' | 'receipts' | 'payees' | 'partner-work-volume' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'payees' | 'partner-work-volume' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
 }
@@ -44,7 +44,6 @@ const navigationSections: NavSection[] = [
             { name: '請求書', page: 'invoices' },
             { name: '請求待ち', page: 'billing-board', requiredRoles: ['admin', 'manager'] },
             { name: '協力業者出来高', page: 'partner-work-volume', requiredRoles: ['admin', 'manager'] },
-            { name: '仕入請求書', page: 'purchase-invoices', requiredRoles: ['admin', 'manager'] },
             { name: '領収書', page: 'receipts', requiredRoles: ['admin', 'manager'] },
             { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin'] },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },

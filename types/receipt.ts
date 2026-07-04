@@ -1,8 +1,18 @@
 // 領収書・レシートの型。API レスポンスに対応。
 // Decimal 系は Prisma が JSON で文字列にすることがあるため number | string を許容する（表示・集計は Number() を通す）。
-import type { ExpenseCategoryRef, ProjectMasterRef } from '@/types/purchaseInvoice';
 
-export type { ExpenseCategoryRef, ProjectMasterRef };
+// 参照型（旧 types/purchaseInvoice.ts から移設。仕入請求書機能の撤去後も領収書で使用）
+export interface ExpenseCategoryRef {
+    id: string;
+    name: string;
+    costBucket: string;
+}
+
+export interface ProjectMasterRef {
+    id: string;
+    title: string;
+    name: string | null;
+}
 
 // AI抽出の生データ（extractedData に保持）。摘要ヒント表示などに使う。
 export interface ReceiptExtractedData {
