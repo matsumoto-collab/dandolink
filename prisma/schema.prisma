@@ -32,6 +32,8 @@ model User {
   // role='PARTNER' のときに利用。'exclusive' = 税別請求、'inclusive' = 税込請求。
   // 出来高表のフッター計算と PDF 表示の分岐に使う。
   partnerTaxMode          String   @default("exclusive")
+  // 現金出納帳へのアクセス許可（個別ユーザー指定）。admin ロールでも false なら不可。
+  canAccessCashbook       Boolean  @default(false)
   company                 User?    @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: SetNull)
   members                 User[]   @relation("CompanyMembers")
   billingDrafts           BillingDraft[]
@@ -2238,6 +2240,7 @@ model ExpenseCategory {
   purchaseInvoices PurchaseInvoice[]
   allocations      PurchaseInvoiceAllocation[]
   receipts         Receipt[]
+  cashbookEntries  CashbookEntry[]
 
   @@index([sortOrder])
   @@index([isActive])
@@ -2399,5 +2402,50 @@ model Receipt {
   @@index([projectMasterId])
   @@index([createdAt])
   @@index([settled])
+  @@schema("public")
+}
+
+/// 現金出納帳の行。閲覧・編集は User.canAccessCashbook を持つユーザーのみ（個別許可制）。
+/// 入金('in')は手打ちのみ、出金('out')は手打ち＋領収書画像/PDFのAI読み取りで作成。
+/// 差引残高は DB に持たず、表示時に (date asc, seq asc) 順の累計で計算する。
+/// 既存の領収書(Receipt)・原価計算・利益計算とは完全に独立（連携しない）。
+model CashbookEntry {
+  id        String  @id @default(uuid())
+  /// 登録順の通し番号。同日内の行順と残高計算の決定性を担保する（並びは date asc, seq asc で一意）
+  seq       Int     @unique @default(autoincrement())
+  /// 取引日（UTC 0時固定。Receipt.issueDate と同じ扱い）
+  date      DateTime
+  /// 'in'(入金・手打ちのみ) | 'out'(出金・手打ち or 領収書取込)
+  entryType String
+  /// 摘要（店名・内容など）
+  description String?
+  /// 金額（正の値のみ。入金/出金の向きは entryType で表す）
+  amount            Decimal @db.Decimal(12, 2) @default(0)
+  expenseCategoryId String?
+
+  // 証憑ファイル（出金行の領収書。手打ち行は null。Receipt と同じ持ち方・Supabase Storage）
+  fileName                    String?
+  storagePath                 String?
+  thumbnailPath               String?
+  mimeType                    String?
+  fileSize                    Int?
+  sourceType                  String? // 'pdf' など
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+
+  // AI抽出の生データ（店名・日付・金額・税額・摘要・推定費目）
+  extractedData Json?
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenseCategory ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([expenseCategoryId])
+  @@index([createdAt])
   @@schema("public")
 }

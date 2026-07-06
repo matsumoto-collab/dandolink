@@ -150,7 +150,7 @@ describe('lib/auth', () => {
 
                 expect(prisma.user.findUnique).toHaveBeenCalledWith({
                     where: { id: '1' },
-                    select: { isActive: true, isLoginEnabled: true, role: true, displayName: true, companyId: true },
+                    select: { isActive: true, isLoginEnabled: true, role: true, displayName: true, companyId: true, canAccessCashbook: true },
                 });
                 expect(result.isActive).toBe(false);
             });

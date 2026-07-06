@@ -106,6 +106,7 @@ export const authOptions: NextAuthOptions = {
                         assignedProjects,
                         isActive: user.isActive,
                         companyId: user.companyId ?? null,
+                        canAccessCashbook: user.canAccessCashbook,
                     };
                 } catch (error) {
                     if (error instanceof Error) {
@@ -126,6 +127,7 @@ export const authOptions: NextAuthOptions = {
                 token.assignedProjects = user.assignedProjects;
                 token.isActive = user.isActive;
                 token.companyId = user.companyId ?? null;
+                token.canAccessCashbook = user.canAccessCashbook ?? false;
                 token.name = user.displayName; // session.user.name に displayName を流す
                 token.lastDbCheck = Date.now();
             } else if (token?.id) {
@@ -138,7 +140,7 @@ export const authOptions: NextAuthOptions = {
                     try {
                         const dbUser = await prisma.user.findUnique({
                             where: { id: token.id as string },
-                            select: { isActive: true, isLoginEnabled: true, role: true, displayName: true, companyId: true }
+                            select: { isActive: true, isLoginEnabled: true, role: true, displayName: true, companyId: true, canAccessCashbook: true }
                         });
 
                         if (!dbUser || !dbUser.isActive || !dbUser.isLoginEnabled) {
@@ -150,6 +152,7 @@ export const authOptions: NextAuthOptions = {
                             token.role = dbUser.role.toLowerCase() as UserRole;
                             token.name = dbUser.displayName;
                             token.companyId = dbUser.companyId ?? null;
+                            token.canAccessCashbook = dbUser.canAccessCashbook;
                             token.lastDbCheck = now;
                         }
                     } catch (error) {
@@ -168,6 +171,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.assignedProjects = token.assignedProjects;
                 session.user.isActive = token.isActive;
                 session.user.companyId = token.companyId ?? null;
+                session.user.canAccessCashbook = token.canAccessCashbook ?? false;
                 session.user.name = token.name ?? session.user.name ?? null;
             }
             return session;

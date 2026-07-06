@@ -15,9 +15,11 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'payees' | 'partner-work-volume' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'payees' | 'partner-work-volume' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
+    /** true なら User.canAccessCashbook を持つユーザーにのみ表示（ロールでは表現できない個別許可制） */
+    requiresCashbookAccess?: boolean;
 }
 
 interface NavSection {
@@ -45,6 +47,7 @@ const navigationSections: NavSection[] = [
             { name: '請求待ち', page: 'billing-board', requiredRoles: ['admin', 'manager'] },
             { name: '協力業者出来高', page: 'partner-work-volume', requiredRoles: ['admin', 'manager'] },
             { name: '領収書', page: 'receipts', requiredRoles: ['admin', 'manager'] },
+            { name: '現金出納帳', page: 'cashbook', requiresCashbookAccess: true },
             { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin'] },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },
         ],
@@ -232,9 +235,11 @@ export default function Sidebar() {
                     {navigationSections
                         .map(section => {
                             const role = session?.user?.role;
-                            // requiredRoles で各アイテムを事前フィルタ（管理者専用メニューの非表示）
+                            // requiredRoles で各アイテムを事前フィルタ（管理者専用メニューの非表示）。
+                            // 現金出納帳はロールではなく User.canAccessCashbook の個別許可で出し分ける。
                             const allowedItems = section.items.filter(item =>
-                                !item.requiredRoles || (role !== undefined && item.requiredRoles.includes(role))
+                                (!item.requiredRoles || (role !== undefined && item.requiredRoles.includes(role)))
+                                && (!item.requiresCashbookAccess || session?.user?.canAccessCashbook === true)
                             );
                             const filteredSection = { ...section, items: allowedItems };
 

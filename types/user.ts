@@ -20,6 +20,8 @@ export interface User {
     isLoginEnabled?: boolean;
     /** role='partner' のときの請求税区分（税別/税込）。他ロールでは未使用 */
     partnerTaxMode?: PartnerTaxMode;
+    /** 現金出納帳へのアクセス許可（ロールではなく個別ユーザー指定） */
+    canAccessCashbook?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
 }

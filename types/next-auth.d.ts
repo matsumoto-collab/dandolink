@@ -10,6 +10,7 @@ declare module 'next-auth' {
             assignedProjects?: string[];
             isActive: boolean;
             companyId?: string | null;
+            canAccessCashbook?: boolean;
         } & DefaultSession['user'];
     }
 
@@ -23,6 +24,7 @@ declare module 'next-auth' {
         isActive: boolean;
         teamId?: string | null;
         companyId?: string | null;
+        canAccessCashbook?: boolean;
     }
 }
 
@@ -35,5 +37,6 @@ declare module 'next-auth/jwt' {
         isActive: boolean;
         teamId?: string | null;
         companyId?: string | null;
+        canAccessCashbook?: boolean;
     }
 }

@@ -7,6 +7,7 @@ import {
     canManageUsers,
     canDispatch,
     isManagerOrAbove,
+    canAccessCashbook,
     getRoleDisplayName,
 } from '@/utils/permissions';
 
@@ -85,6 +86,23 @@ describe('permissions', () => {
             expect(isAdmin({ role: 'admin', isActive: false })).toBe(false);
             expect(isAdmin({ role: 'manager', isActive: true })).toBe(false);
             expect(canManageUsers({ role: 'admin', isActive: true })).toBe(true);
+        });
+    });
+
+    describe('canAccessCashbook', () => {
+        it('requires the per-user flag regardless of role', () => {
+            // admin でもフラグが無ければ不可（個別ユーザー許可制）
+            expect(canAccessCashbook({ role: 'admin', isActive: true })).toBe(false);
+            expect(canAccessCashbook({ role: 'admin', isActive: true, canAccessCashbook: false })).toBe(false);
+            expect(canAccessCashbook({ role: 'admin', isActive: true, canAccessCashbook: true })).toBe(true);
+            // ロールは不問（フラグを持つユーザーなら可）
+            expect(canAccessCashbook({ role: 'worker', isActive: true, canAccessCashbook: true })).toBe(true);
+        });
+
+        it('returns false for inactive or missing user', () => {
+            expect(canAccessCashbook({ role: 'admin', isActive: false, canAccessCashbook: true })).toBe(false);
+            expect(canAccessCashbook(null)).toBe(false);
+            expect(canAccessCashbook(undefined)).toBe(false);
         });
     });
 

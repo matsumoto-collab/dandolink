@@ -5,6 +5,7 @@ interface PermissionUser {
     role: UserRole | string;
     isActive: boolean;
     assignedProjects?: string[];
+    canAccessCashbook?: boolean;
 }
 
 // Role-based permissions configuration
@@ -147,6 +148,15 @@ export function canDispatch(user: PermissionUser | null | undefined): boolean {
 export function isManagerOrAbove(user: PermissionUser | null | undefined): boolean {
     if (!user || !user.isActive) return false;
     return user.role === 'admin' || user.role === 'manager';
+}
+
+/**
+ * 現金出納帳へのアクセス可否（ロールではなく個別ユーザー許可制）。
+ * admin ロールでも User.canAccessCashbook が true でなければ不可。
+ */
+export function canAccessCashbook(user: PermissionUser | null | undefined): boolean {
+    if (!user || !user.isActive) return false;
+    return user.canAccessCashbook === true;
 }
 
 /**

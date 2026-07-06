@@ -26,6 +26,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
         assignedProjects: [] as string[],
         dailyRate: '' as string | number,
         partnerTaxMode: 'exclusive' as PartnerTaxMode,
+        canAccessCashbook: false,
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -43,6 +44,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 assignedProjects: user.assignedProjects || [],
                 dailyRate: user.dailyRate != null ? user.dailyRate : '',
                 partnerTaxMode: user.partnerTaxMode ?? 'exclusive',
+                canAccessCashbook: user.canAccessCashbook ?? false,
             });
         } else {
             setFormData({
@@ -55,6 +57,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 assignedProjects: [],
                 dailyRate: '',
                 partnerTaxMode: 'exclusive',
+                canAccessCashbook: false,
             });
         }
         setError('');
@@ -72,6 +75,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 role: formData.role,
                 isActive: formData.isActive,
                 assignedProjects: formData.assignedProjects,
+                canAccessCashbook: formData.canAccessCashbook,
             };
 
             if (isAdminOrManager) {
@@ -248,6 +252,25 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                 <span className="ml-2 text-sm font-medium text-slate-700">アクティブ</span>
                             </label>
                         </div>
+
+                        {/* 現金出納帳アクセス許可（ロールではなく個別ユーザー許可制） */}
+                        {formData.role !== 'support' && (
+                            <div className="md:col-span-2">
+                                <label className="flex items-start cursor-pointer">
+                                    <input
+                                        id="canAccessCashbook"
+                                        type="checkbox"
+                                        checked={formData.canAccessCashbook}
+                                        onChange={(e) => setFormData({ ...formData, canAccessCashbook: e.target.checked })}
+                                        className="w-5 h-5 mt-0.5 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
+                                    />
+                                    <span className="ml-2">
+                                        <span className="block text-sm font-medium text-slate-700">現金出納帳へのアクセスを許可</span>
+                                        <span className="block mt-0.5 text-xs text-slate-500">許可したユーザーにのみ「現金出納帳」メニューが表示されます（管理者でも許可が必要です）。</span>
+                                    </span>
+                                </label>
+                            </div>
+                        )}
 
                         {/* Daily Rate - admin/manager only */}
                         {isAdminOrManager && (

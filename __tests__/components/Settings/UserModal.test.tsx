@@ -119,6 +119,7 @@ describe('UserModal', () => {
                 role: 'worker',
                 isActive: true,
                 assignedProjects: [],
+                canAccessCashbook: false,
             });
             expect(mockOnClose).toHaveBeenCalled();
         });

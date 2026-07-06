@@ -30,6 +30,7 @@ export const createUserSchema = z.object({
     companyId: z.string().optional().nullable(),
     isLoginEnabled: z.boolean().optional(),
     partnerTaxMode: partnerTaxModeSchema.optional(),
+    canAccessCashbook: z.boolean().optional(),
 }).refine(partnerMemberCompanyIdRefinement.check, {
     message: partnerMemberCompanyIdRefinement.message,
     path: [...partnerMemberCompanyIdRefinement.path],
@@ -59,6 +60,7 @@ export const updateUserSchema = z.object({
     companyId: z.string().optional().nullable(),
     isLoginEnabled: z.boolean().optional(),
     partnerTaxMode: partnerTaxModeSchema.optional(),
+    canAccessCashbook: z.boolean().optional(),
 }).refine(partnerMemberCompanyIdRefinement.check, {
     message: partnerMemberCompanyIdRefinement.message,
     path: [...partnerMemberCompanyIdRefinement.path],

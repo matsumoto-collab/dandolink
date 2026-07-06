@@ -205,6 +205,15 @@ jest.mock('@/lib/prisma', () => ({
             delete: jest.fn(),
             count: jest.fn(),
         },
+        cashbookEntry: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            count: jest.fn().mockResolvedValue(0),
+            groupBy: jest.fn().mockResolvedValue([]),
+        },
         expenseCategory: {
             findMany: jest.fn().mockResolvedValue([]),
         },
@@ -262,6 +271,7 @@ jest.mock('@/utils/permissions', () => ({
     isManagerOrAbove: jest.fn().mockReturnValue(true),
     canAccessProject: jest.fn().mockReturnValue(true),
     canManageUsers: jest.fn().mockReturnValue(true),
+    canAccessCashbook: jest.fn().mockReturnValue(true),
 }));
 
 // Mock @/lib/formatters
