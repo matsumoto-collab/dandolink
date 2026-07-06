@@ -10,12 +10,13 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, UserCheck, ChevronDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, UserCheck, ChevronDown, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import StatusPillSelect, { type StatusOption } from '@/components/ui/StatusPillSelect';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { PaymentStatusBadge } from '@/components/Invoices/PaymentStatusBadge';
+import { paymentStatusLabel, todayYmd } from '@/lib/invoicePayments';
 import InvoicePaymentQuickPopover, { type PaymentPopoverAnchor } from '@/components/Invoices/InvoicePaymentQuickPopover';
 import { logger } from '@/lib/logger';
 import { matchesSearch } from '@/utils/searchNormalize';
@@ -31,6 +32,17 @@ const InvoiceDetailModal = dynamic(
     () => import('@/components/Invoices/InvoiceDetailModal'),
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
+
+// CSV セルのエスケープ（現金出納帳・領収書と同じ実装）
+const csvCell = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+// CSV 用の日付表示（Excel が日付として認識できる YYYY/MM/DD）
+const csvDate = (d: Date | string | undefined): string => {
+    if (!d) return '';
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return '';
+    return `${dt.getFullYear()}/${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}`;
+};
 
 // 一覧から直接変更できるステータス選択肢（getStatusInfo が扱う 5 種。cancelled は UI 非対応のため除外）
 const INVOICE_STATUS_OPTIONS: StatusOption[] = [
@@ -277,6 +289,50 @@ export default function InvoiceListPage() {
         return filteredInvoices.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [filteredInvoices, currentPage]);
 
+    // CSV出力（検索・フィルタ・並び順を反映した表示中の全件。ページングは無視）
+    const exportCsv = () => {
+        // 案件名は画面の「他N件」省略ではなく全件を「、」連結で出す
+        const projectNames = (inv: Invoice): string => {
+            if (inv.projectMasters && inv.projectMasters.length > 0) {
+                return inv.projectMasters.map((pm) => pm.title).filter(Boolean).join('、');
+            }
+            if (!inv.projectId) return '';
+            return projectMasters.find((p) => p.id === inv.projectId)?.title ?? '';
+        };
+        const header = ['請求番号', 'タイトル', '顧客名', '案件名', '担当者', '小計(税抜)', '消費税', '合計(税込)', '入金状況', '入金額', '手数料', '残額', 'ステータス', '支払期限', '作成日'];
+        const rows = filteredInvoices.map((inv) => {
+            const s = inv.paymentSummary;
+            // legacyPaid（入金記録なしの旧「支払済み」）は入金額が不明のため空欄にし、残額のみ 0 を出す
+            const hasPayments = !!s && s.paymentCount > 0;
+            return [
+                inv.invoiceNumber || '',
+                inv.title || '',
+                getCustomerName(inv) ?? '',
+                projectNames(inv),
+                getInvoiceAssigneeNames(inv),
+                String(inv.subtotal ?? 0),
+                String(inv.tax ?? 0),
+                String(inv.total ?? 0),
+                s ? paymentStatusLabel(s.paymentStatus) : '',
+                hasPayments ? String(s.paidAmount) : '',
+                hasPayments ? String(s.feeAmount) : '',
+                s ? String(s.remaining) : '',
+                INVOICE_STATUS_OPTIONS.find((o) => o.value === inv.status)?.label ?? inv.status,
+                csvDate(inv.dueDate),
+                csvDate(inv.createdAt),
+            ];
+        });
+        // 先頭は UTF-8 BOM（Excel で文字化けさせないため）
+        const csv = '﻿' + [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `請求書一覧_${todayYmd()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     const handleDelete = async (id: string) => {
         if (confirm('この請求書を削除してもよろしいですか?')) {
             try {
@@ -391,8 +447,18 @@ export default function InvoiceListPage() {
                     </h1>
                     <p className="hidden sm:block text-sm text-slate-500 mt-1">登録されている全ての請求書を管理できます</p>
                 </div>
-                {canEdit && (
-                <div className="sm:hidden flex-shrink-0">
+                {/* CSV出力は閲覧のみ（税理士等）でも使えるよう canEdit の外に置く */}
+                <div className="sm:hidden flex-shrink-0 flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={exportCsv}
+                        disabled={filteredInvoices.length === 0}
+                        title="表示中の請求書をCSVでダウンロード"
+                        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm hover:bg-slate-50 inline-flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                        <Download className="w-4 h-4" />CSV
+                    </button>
+                    {canEdit && (
                     <Button
                         variant="primary"
                         onClick={handleAddNew}
@@ -400,8 +466,8 @@ export default function InvoiceListPage() {
                     >
                         新規作成
                     </Button>
+                    )}
                 </div>
-                )}
             </div>
 
 
@@ -482,9 +548,19 @@ export default function InvoiceListPage() {
                     </div>
                 </div>
 
-                {/* 新規追加ボタン（sm+ のみ。モバイルはタイトル行に表示） */}
-                {canEdit && (
-                <div className="hidden sm:block flex-shrink-0">
+                {/* CSV出力＋新規追加ボタン（sm+ のみ。モバイルはタイトル行に表示）
+                    CSV出力は閲覧のみ（税理士等）でも使えるよう canEdit の外に置く */}
+                <div className="hidden sm:flex flex-shrink-0 items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={exportCsv}
+                        disabled={filteredInvoices.length === 0}
+                        title="表示中の請求書をCSVでダウンロード"
+                        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm hover:bg-slate-50 inline-flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                        <Download className="w-4 h-4" />CSV出力
+                    </button>
+                    {canEdit && (
                     <Button
                         variant="primary"
                         onClick={handleAddNew}
@@ -492,8 +568,8 @@ export default function InvoiceListPage() {
                     >
                         新規請求書作成
                     </Button>
+                    )}
                 </div>
-                )}
             </div>
 
             {/* モバイルカードビュー */}
