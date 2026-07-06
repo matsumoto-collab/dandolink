@@ -13,6 +13,7 @@ jest.mock('@/lib/prisma', () => ({
         worker: { findMany: jest.fn() },
         constructionType: { findMany: jest.fn() },
         dailyReportWorkItem: { findMany: jest.fn() },
+        partnerWorkVolume: { findMany: jest.fn() },
     },
 }));
 
@@ -27,6 +28,7 @@ describe('lib/projectCost / computeProjectCosts', () => {
         (prisma.worker.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.constructionType.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.partnerWorkVolume.findMany as jest.Mock).mockResolvedValue([]);
     });
 
     it('配置の労務上書きを採用し、材料費・その他を加算する', async () => {
@@ -312,5 +314,114 @@ describe('lib/projectCost / computeProjectCosts', () => {
         (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
         const map = await computeProjectCosts(['none']);
         expect(map.get('none')!.breakdown.totalCost).toBe(0);
+    });
+
+    describe('協力業者出来高で確定した金額を外注費へ反映する', () => {
+        const D2 = new Date('2026-06-11T00:00:00.000Z');
+        // 予定単価: 作業費80000＋運搬費5000。partner職長の確定済み配置 a1(6/10)・a2(6/11)＝種別ごと初回のみ計上
+        const partnerPm = (a1Extra: Record<string, unknown> = {}) => ({
+            id: 'p1', materialCost: 0, otherExpenses: 0, loadingCost: 0,
+            subcontractorCosts: [{ constructionTypeId: 'ct1', amount: 80000, transportCost: 5000 }],
+            assignments: [
+                {
+                    id: 'a1', date: D, assignedEmployeeId: 'partner1', isDispatchConfirmed: true, constructionType: 'ct1',
+                    workers: '[]', memberCount: 1, vehicles: '[]',
+                    laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
+                    dailyReportWorkItems: [], ...a1Extra,
+                },
+                {
+                    id: 'a2', date: D2, assignedEmployeeId: 'partner1', isDispatchConfirmed: true, constructionType: 'ct1',
+                    workers: '[]', memberCount: 1, vehicles: '[]',
+                    laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
+                    dailyReportWorkItems: [],
+                },
+            ],
+        });
+        beforeEach(() => {
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'partner1', displayName: '協力P', role: 'PARTNER' }]);
+            (prisma.constructionType.findMany as jest.Mock).mockResolvedValue([{ id: 'ct1', name: '組立' }]);
+        });
+
+        it('出来高で金額編集された行はその金額を採用する（未編集の運搬費分は予定額のまま）', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([partnerPm()]);
+            (prisma.partnerWorkVolume.findMany as jest.Mock).mockResolvedValue([
+                { sourceAssignmentId: 'a1', rowType: 'work', partnerCompanyId: 'partner1', amount: 70000, amountOverridden: true, deletedAt: null },
+            ]);
+            const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+            expect(r.breakdown.subcontractorCost).toBe(75000); // 作業費70000(出来高) + 運搬費5000(予定)
+            const a1 = r.detail!.subcontractor.find(x => x.assignmentId === 'a1')!;
+            expect(a1.fromVolume).toBe(true);
+            expect(a1.effectiveCost).toBe(75000);
+        });
+
+        it('出来高で削除された行は支払い対象外(0円)として扱う', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([partnerPm()]);
+            (prisma.partnerWorkVolume.findMany as jest.Mock).mockResolvedValue([
+                { sourceAssignmentId: 'a1', rowType: 'work', partnerCompanyId: 'partner1', amount: 80000, amountOverridden: false, deletedAt: new Date('2026-06-30T00:00:00.000Z') },
+                { sourceAssignmentId: 'a1', rowType: 'transport', partnerCompanyId: 'partner1', amount: 5000, amountOverridden: false, deletedAt: new Date('2026-06-30T00:00:00.000Z') },
+            ]);
+            const r = (await computeProjectCosts(['p1'])).get('p1')!;
+            expect(r.breakdown.subcontractorCost).toBe(0); // 代表(a1)の予定額は削除で0円、a2は非代表で元々0
+        });
+
+        it('自動額のまま保存された行(完了操作のみ・amount=0)は従来どおり予定額で計上する', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([partnerPm()]);
+            (prisma.partnerWorkVolume.findMany as jest.Mock).mockResolvedValue([
+                { sourceAssignmentId: 'a1', rowType: 'work', partnerCompanyId: 'partner1', amount: 0, amountOverridden: false, deletedAt: null },
+            ]);
+            const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+            expect(r.breakdown.subcontractorCost).toBe(85000); // 80000+5000（種別ごと初回・従来どおり）
+            expect(r.detail!.subcontractor.find(x => x.assignmentId === 'a1')!.fromVolume).toBe(false);
+        });
+
+        it('出来高で明示的に0円にした行(amountOverridden)は0円を採用する', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([partnerPm()]);
+            (prisma.partnerWorkVolume.findMany as jest.Mock).mockResolvedValue([
+                { sourceAssignmentId: 'a1', rowType: 'work', partnerCompanyId: 'partner1', amount: 0, amountOverridden: true, deletedAt: null },
+            ]);
+            const r = (await computeProjectCosts(['p1'])).get('p1')!;
+            expect(r.breakdown.subcontractorCost).toBe(5000); // 作業費0円(明示) + 運搬費5000(予定)
+        });
+
+        it('配置ごとの上書き(subcontractorCostOverride)より出来高の確定金額を優先する', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([
+                partnerPm({ subcontractorCostOverride: 60000 }),
+            ]);
+            (prisma.partnerWorkVolume.findMany as jest.Mock).mockResolvedValue([
+                { sourceAssignmentId: 'a1', rowType: 'work', partnerCompanyId: 'partner1', amount: 70000, amountOverridden: true, deletedAt: null },
+            ]);
+            const r = (await computeProjectCosts(['p1'])).get('p1')!;
+            // 上書きは総額を作業費側に集約する既存仕様（運搬費側0）→ 作業費は出来高70000が上書き60000より優先
+            expect(r.breakdown.subcontractorCost).toBe(70000);
+        });
+
+        it('行の会社と現在の職長が異なる残骸行は反映しない（職長を別の協力業者へ変更したケース）', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([partnerPm()]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([
+                { id: 'partner1', displayName: '協力P', role: 'PARTNER' },
+                { id: 'partner2', displayName: '協力Q', role: 'PARTNER' },
+            ]);
+            (prisma.partnerWorkVolume.findMany as jest.Mock).mockResolvedValue([
+                // 職長が partner2 → partner1 に変わる前に保存された古い行
+                { sourceAssignmentId: 'a1', rowType: 'work', partnerCompanyId: 'partner2', amount: 99000, amountOverridden: true, deletedAt: null },
+            ]);
+            const r = (await computeProjectCosts(['p1'])).get('p1')!;
+            expect(r.breakdown.subcontractorCost).toBe(85000); // 残骸99000は無視し、予定額80000+5000のまま
+        });
+
+        it('職長が協力業者でなくなった配置の残骸行は反映しない（自社班へ変更・常用化したケース）', async () => {
+            // 実例: 出来高画面では常用(joyo)行に置き換わり非表示になる残骸 work 行が draft のまま残る
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([partnerPm({ assignedEmployeeId: 'foreman1' })]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([
+                { id: 'partner1', displayName: '協力P', role: 'PARTNER' },
+                { id: 'foreman1', displayName: '自社職長', role: 'FOREMAN2' },
+            ]);
+            (prisma.partnerWorkVolume.findMany as jest.Mock).mockResolvedValue([
+                { sourceAssignmentId: 'a1', rowType: 'work', partnerCompanyId: 'partner1', amount: 302400, amountOverridden: false, deletedAt: null },
+            ]);
+            const r = (await computeProjectCosts(['p1'])).get('p1')!;
+            // a1(自社職長)は外注費対象外＝残骸302400を拾わない。a2(partner1)が種別代表になり予定額85000を計上
+            expect(r.breakdown.subcontractorCost).toBe(85000);
+        });
     });
 });

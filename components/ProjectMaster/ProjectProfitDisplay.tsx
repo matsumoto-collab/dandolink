@@ -44,6 +44,8 @@ interface SubcontractorRow {
     foremanName: string | null;
     autoCost: number;
     override: number | null;
+    /** 協力業者出来高で確定した金額を採用した行。金額は出来高画面で編集する（ここでは上書き不可） */
+    fromVolume?: boolean;
     effectiveCost: number;
 }
 
@@ -649,7 +651,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                     <h4 className="text-sm font-semibold text-slate-700 mb-3">原価内訳</h4>
                     {editMode && (
                         <p className="text-xs text-slate-500 -mt-2 mb-3">
-                            各項目とも<span className="font-medium text-slate-600">手入力分</span>に摘要（例: 5月〇〇請求）＋金額の行を追加できます。人件費・車両費・外注費は配置(日付)ごとの自動計上も<span className="font-medium text-slate-600">行ごと</span>に上書きできます。
+                            各項目とも<span className="font-medium text-slate-600">手入力分</span>に摘要（例: 5月〇〇請求）＋金額の行を追加できます。人件費・車両費・外注費は配置(日付)ごとの自動計上も<span className="font-medium text-slate-600">行ごと</span>に上書きできます。外注費の<span className="font-medium text-sky-700">出来高</span>バッジの行は協力業者出来高で確定した金額のため、変更は出来高の画面で行います。
                         </p>
                     )}
                     <div className="divide-y divide-slate-100">
@@ -719,15 +721,22 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                                                             onChange={(v) => setAssignmentDraft(r.assignmentId, 'vehicleCostOverride', v)} />
                                                     </div>
                                                 ))}
-                                                {/* 外注費: 協力業者の手配確定由来の明細 */}
+                                                {/* 外注費: 協力業者の手配確定由来の明細。出来高で確定した行は出来高画面が正（ここでは上書き不可） */}
                                                 {subRows.map(r => (
                                                     <div key={r.assignmentId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
                                                         <span className="flex-1 min-w-0 truncate">
                                                             {formatDateMd(r.date)}　{r.constructionTypeName ?? '—'}　{r.foremanName ?? '—'}
                                                         </span>
-                                                        <AmountCell editMode={editMode} value={r.effectiveCost} auto={r.autoCost} override={r.override}
-                                                            draft={drafts.assignments[r.assignmentId]?.subcontractorCostOverride}
-                                                            onChange={(v) => setAssignmentDraft(r.assignmentId, 'subcontractorCostOverride', v)} />
+                                                        {r.fromVolume ? (
+                                                            <span className="inline-flex items-center gap-1.5 flex-shrink-0" title="協力業者出来高で確定した金額です。変更は協力業者出来高の画面で行ってください。">
+                                                                <span className="text-[10px] text-sky-700 px-1 py-0.5 bg-sky-50 rounded border border-sky-200">出来高</span>
+                                                                <span className="tabular-nums font-medium text-slate-700">{formatCurrency(r.effectiveCost)}</span>
+                                                            </span>
+                                                        ) : (
+                                                            <AmountCell editMode={editMode} value={r.effectiveCost} auto={r.autoCost} override={r.override}
+                                                                draft={drafts.assignments[r.assignmentId]?.subcontractorCostOverride}
+                                                                onChange={(v) => setAssignmentDraft(r.assignmentId, 'subcontractorCostOverride', v)} />
+                                                        )}
                                                     </div>
                                                 ))}
                                                 {/* 材料費・積込費・その他: 仕入請求書由来の明細（自動・表示のみ） */}

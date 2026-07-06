@@ -12,7 +12,9 @@ import type { CostBreakdown } from '@/utils/costCalculation';
  * - 人件費: 日報の作業時間 × 日当を、**同日(worker,date)の全案件作業時間で正確に按分**（掛け持ち日の過大計上を防ぐ）。
  *   配置ごとに `laborCostOverride` があれば採用（`override ?? auto`）。協力業者(role=partner)職長の配置は労務に計上しない。
  * - 車両費: **手配確定後のみ**計上。確定済みは confirmedVehicleIds(ID) × 車両マスタ日額、未確定は0。`vehicleCostOverride` は常に採用可。
- * - 外注費: 手配確定 × partner 職長 × 工事種別単価(作業費+運搬費) を**種別ごと初回計上**。`subcontractorCostOverride` 採用可。
+ * - 外注費: 手配確定 × partner 職長 × 工事種別単価(作業費+運搬費＝案件登録の「協力業者費（予定）」) を**種別ごと初回計上**。
+ *   ただし**協力業者出来高(PartnerWorkVolume)で保存された行（金額編集・削除）があれば、その金額を最優先で採用**し、
+ *   出来高画面の合計と外注費の自動計上分を常に一致させる（未保存の自動行は従来どおり予定額）。`subcontractorCostOverride` はその次。
  * - 材料費 / その他 / 積込: `ProjectMaster.materialCost / otherExpenses / loadingCost`。
  *
  * 手修正の入口は配置ごとの上書き（cost-override API・`ProjectProfitDisplay`）＋案件マスタの材料費等のみ（単一系統）。
@@ -44,6 +46,8 @@ export interface SubcontractorCostRow {
     foremanName: string | null;
     autoCost: number;
     override: number | null;
+    /** 協力業者出来高で確定した金額を採用した行か。true の行の金額は出来高画面で編集する（利益タブの上書き対象外） */
+    fromVolume: boolean;
     effectiveCost: number;
 }
 export interface PurchaseInvoiceCostRow {
@@ -94,6 +98,25 @@ function fallbackWorkers(confirmedJson: string | null | undefined, foremanId: st
     const conf = parseJsonField<string[]>(confirmedJson ?? null, []);
     if (conf.length === 0) return [];
     return foremanId && !conf.includes(foremanId) ? [...conf, foremanId] : conf;
+}
+
+// 協力業者出来高（PartnerWorkVolume）の保存済み行のうち外注費の判定に使う最小形。
+interface VolumeRowLite {
+    partnerCompanyId: string;
+    amount: number;
+    amountOverridden: boolean;
+    deletedAt: Date | null;
+}
+
+// 出来高行から「出来高側で確定した金額」を取り出す。null = 未確定（従来の予定単価計算に委ねる）。
+// - 削除された行 = 支払い対象外（0円）
+// - 金額が編集された行（amount≠0 または amountOverridden）= 出来高側で確定した金額
+// - 自動額のまま保存された行（完了操作のみ等）= null（出来高GETの再算出と同じく最新の予定単価で計算）
+function volumeAmountOf(r: VolumeRowLite | undefined): number | null {
+    if (!r) return null;
+    if (r.deletedAt) return 0;
+    if (r.amount !== 0 || r.amountOverridden) return r.amount;
+    return null;
 }
 
 /**
@@ -156,7 +179,7 @@ export async function computeProjectCosts(
         }
     }
 
-    const [settings, allVehicles, users, workers, foremanUsers, constructionTypes, denomItems] = await Promise.all([
+    const [settings, allVehicles, users, workers, foremanUsers, constructionTypes, denomItems, volumeRows] = await Promise.all([
         prisma.systemSettings.findFirst(),
         prisma.vehicle.findMany({ select: { id: true, name: true, dailyRate: true } }),
         workerIdSet.size > 0
@@ -180,6 +203,16 @@ export async function computeProjectCosts(
                 },
             })
             : Promise.resolve([] as Array<{ startTime: string | null; endTime: string | null; breakMinutes: number | null; workerIds: string[]; assignment: { workers: string | null; confirmedWorkerIds: string | null; assignedEmployeeId: string | null }; dailyReport: { date: Date } | null }>),
+        // 協力業者出来高の保存済み行（配置由来の作業費/運搬費のみ）。出来高画面で金額編集・削除された行を外注費へ反映する。
+        // 常用(joyo)行と手動追加行は案件に紐づかないため対象外。
+        prisma.partnerWorkVolume.findMany({
+            where: {
+                projectMasterId: { in: projectIds },
+                sourceAssignmentId: { not: null },
+                rowType: { in: ['work', 'transport'] },
+            },
+            select: { sourceAssignmentId: true, rowType: true, amount: true, amountOverridden: true, deletedAt: true, partnerCompanyId: true },
+        }),
     ]);
 
     const defaultDailyRate = Number(settings?.laborDailyRate ?? 18000);
@@ -193,6 +226,18 @@ export async function computeProjectCosts(
     const ctNameMap = new Map(constructionTypes.map(c => [c.id, c.name]));
     // 役割はDBに大文字(PARTNER等)で入る個体があるため小文字化して判定する（他箇所と同様）。
     const partnerForemanIds = new Set(foremanUsers.filter(u => (u.role ?? '').toLowerCase() === 'partner').map(u => u.id));
+
+    // 配置ID → 出来高の保存済み行（作業費/運搬費）。(sourceAssignmentId, rowType) は unique なので各スロット高々1行。
+    // 行の projectMasterId が古い等で配置が案件側に見つからない行は、単に参照されないだけ（二重計上しない）。
+    const volumeByAssignment = new Map<string, { work?: VolumeRowLite; transport?: VolumeRowLite }>();
+    for (const v of volumeRows) {
+        if (!v.sourceAssignmentId) continue;
+        const slot = volumeByAssignment.get(v.sourceAssignmentId) ?? {};
+        slot[v.rowType === 'transport' ? 'transport' : 'work'] = {
+            partnerCompanyId: v.partnerCompanyId, amount: v.amount, amountOverridden: v.amountOverridden, deletedAt: v.deletedAt,
+        };
+        volumeByAssignment.set(v.sourceAssignmentId, slot);
+    }
 
     // 分母: (worker|date) → その日の総作業分（全案件）
     const workerDayTotalMinutes = new Map<string, number>();
@@ -214,14 +259,18 @@ export async function computeProjectCosts(
     for (const pm of projectMasters) {
         let laborCost = 0, vehicleCost = 0, subcontractorCost = 0;
         const subcontractorTypeUsed = new Set<string>(); // 案件ごとに種別初回のみ自動計上
-        const subcontractorTypeAmount = new Map<string, number>(
-            pm.subcontractorCosts.map(c => [c.constructionTypeId, Number(c.amount || 0) + Number(c.transportCost || 0)]),
+        // 予定単価は作業費/運搬費を分けて保持する（出来高行が片側だけ保存されたケースの整合に必要）
+        const subcontractorTypeRates = new Map<string, { work: number; transport: number }>(
+            pm.subcontractorCosts.map(c => [c.constructionTypeId, { work: Number(c.amount || 0), transport: Number(c.transportCost || 0) }]),
         );
         const laborRows: LaborCostRow[] = [];
         const vehicleRows: VehicleCostRow[] = [];
         const subRows: SubcontractorCostRow[] = [];
 
-        for (const a of pm.assignments) {
+        // 外注費の「種別ごと初回」代表の選定を出来高画面（日付昇順）と揃えるため、配置は日付順に処理する。
+        // 人件費・車両費は配置ごと独立の加算＋明細は最後に日付ソートなので、順序を変えても結果は不変。
+        const assignmentsByDate = [...pm.assignments].sort((x, y) => x.date.getTime() - y.date.getTime());
+        for (const a of assignmentsByDate) {
             const dateStr = jstDateStr(a.date);
             const ctName = a.constructionType ? (ctNameMap.get(a.constructionType) ?? null) : null;
             const foremanName = foremanNameMap.get(a.assignedEmployeeId) ?? null;
@@ -295,21 +344,41 @@ export async function computeProjectCosts(
             }
 
             // ---- 外注費（協力業者） ----
-            const isPartnerSub = a.isDispatchConfirmed
-                && partnerForemanIds.has(a.assignedEmployeeId)
-                && !!a.constructionType
-                && subcontractorTypeAmount.has(a.constructionType);
-            const autoSub = isPartnerSub && a.constructionType && !subcontractorTypeUsed.has(a.constructionType)
-                ? (subcontractorTypeAmount.get(a.constructionType) ?? 0)
-                : 0;
-            if (autoSub > 0 && a.constructionType) subcontractorTypeUsed.add(a.constructionType);
+            // 予定額: 案件登録の「協力業者費（予定）」を、手配確定 × partner職長 × 工事種別で種別ごと初回のみ自動計上。
+            const rates = a.constructionType ? subcontractorTypeRates.get(a.constructionType) : undefined;
+            const isPartnerAssign = partnerForemanIds.has(a.assignedEmployeeId);
+            const isPartnerSub = a.isDispatchConfirmed && isPartnerAssign && rates != null;
+            let autoWork = 0, autoTransport = 0;
+            if (isPartnerSub && rates && a.constructionType
+                && (rates.work > 0 || rates.transport > 0)
+                && !subcontractorTypeUsed.has(a.constructionType)) {
+                subcontractorTypeUsed.add(a.constructionType);
+                autoWork = rates.work;
+                autoTransport = rates.transport;
+            }
+            const autoSub = autoWork + autoTransport;
+
+            // 確定額: 協力業者出来高で保存された行（金額編集・削除）があれば最優先で採用し、
+            // 出来高画面の合計と外注費の自動計上分を常に一致させる（未保存の自動行は予定額のまま）。
+            // 残骸ガード: 配置の職長が協力業者でない、または行の会社と現在の職長が異なる行は、
+            // 職長変更で残った古い行（出来高画面でも常用行等に置き換わり非表示）のため反映しない。
+            const vol = volumeByAssignment.get(a.id);
+            const liveVolRow = (r: VolumeRowLite | undefined): VolumeRowLite | undefined =>
+                r && isPartnerAssign && r.partnerCompanyId === a.assignedEmployeeId ? r : undefined;
+            const volWork = volumeAmountOf(liveVolRow(vol?.work));
+            const volTransport = volumeAmountOf(liveVolRow(vol?.transport));
+            const fromVolume = volWork != null || volTransport != null;
+
             const hasSubOv = a.subcontractorCostOverride != null;
-            const effSub = hasSubOv ? (a.subcontractorCostOverride as number) : autoSub;
+            // 配置ごとの上書き(subcontractorCostOverride)は総額を作業費側へ集約する既存仕様（運搬費側は0）
+            const baseWork = hasSubOv ? (a.subcontractorCostOverride as number) : autoWork;
+            const baseTransport = hasSubOv ? 0 : autoTransport;
+            const effSub = (volWork ?? baseWork) + (volTransport ?? baseTransport);
             subcontractorCost += effSub;
-            if (opts.withDetail && (isPartnerSub || hasSubOv)) {
+            if (opts.withDetail && (isPartnerSub || hasSubOv || fromVolume)) {
                 subRows.push({
                     assignmentId: a.id, date: dateStr, constructionTypeName: ctName, foremanName,
-                    autoCost: autoSub, override: a.subcontractorCostOverride, effectiveCost: effSub,
+                    autoCost: autoSub, override: a.subcontractorCostOverride, fromVolume, effectiveCost: effSub,
                 });
             }
         }

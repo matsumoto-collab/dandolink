@@ -208,6 +208,9 @@ jest.mock('@/lib/prisma', () => ({
         expenseCategory: {
             findMany: jest.fn().mockResolvedValue([]),
         },
+        partnerWorkVolume: {
+            findMany: jest.fn().mockResolvedValue([]),
+        },
         // Raw SQL (advisory lock 等) は no-op
         $executeRaw: jest.fn().mockResolvedValue(0),
         $executeRawUnsafe: jest.fn().mockResolvedValue(0),
