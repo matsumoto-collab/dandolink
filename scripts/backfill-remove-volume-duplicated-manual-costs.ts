@@ -74,7 +74,6 @@ async function main() {
             }),
             prisma.user.findMany({ select: { id: true, displayName: true, role: true } }),
         ]);
-        const nameById = new Map(users.map((u) => [u.id, u.displayName]));
         const partnerIds = new Set(users.filter((u) => (u.role ?? '').toLowerCase() === 'partner').map((u) => u.id));
 
         let totalRemoved = 0;
@@ -111,7 +110,6 @@ async function main() {
             const removedIdx = new Set<number>();
             for (const row of liveRows) {
                 const rowDateMd = jstDateKey(row.date).slice(5); // 'MM-DD'
-                const companyName = nameById.get(row.partnerCompanyId) ?? '';
                 for (let i = 0; i < items.length; i++) {
                     if (removedIdx.has(i)) continue;
                     const it = items[i];
