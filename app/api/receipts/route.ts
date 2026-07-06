@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, serverErrorResponse } from '@/lib/api/utils';
-import { isManagerOrAbove } from '@/utils/permissions';
+import { isManagerOrAbove, isManagerOrAccountant } from '@/utils/permissions';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
 import { randomUUID } from 'crypto';
 import sharp from 'sharp';
@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
-        if (!isManagerOrAbove(session!.user)) return errorResponse('権限がありません', 403);
+        // 閲覧は税理士(accountant)にも開放。アップロード(POST)は admin/manager のみ
+        if (!isManagerOrAccountant(session!.user)) return errorResponse('権限がありません', 403);
 
         const url = new URL(req.url);
         const status = url.searchParams.get('status');

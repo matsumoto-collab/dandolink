@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { useSession } from 'next-auth/react';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCompany } from '@/hooks/useCompany';
@@ -41,6 +42,9 @@ const INVOICE_STATUS_OPTIONS: StatusOption[] = [
 ];
 
 export default function InvoiceListPage() {
+    const { data: session } = useSession();
+    // 税理士(accountant)は閲覧のみ。作成・編集・削除の入口を出さない（API 側でも 403）
+    const canEdit = session?.user?.role === 'admin' || session?.user?.role === 'manager';
     const { invoices, isInitialized, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice, refreshInvoices } = useInvoices();
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
@@ -387,6 +391,7 @@ export default function InvoiceListPage() {
                     </h1>
                     <p className="hidden sm:block text-sm text-slate-500 mt-1">登録されている全ての請求書を管理できます</p>
                 </div>
+                {canEdit && (
                 <div className="sm:hidden flex-shrink-0">
                     <Button
                         variant="primary"
@@ -396,6 +401,7 @@ export default function InvoiceListPage() {
                         新規作成
                     </Button>
                 </div>
+                )}
             </div>
 
 
@@ -477,6 +483,7 @@ export default function InvoiceListPage() {
                 </div>
 
                 {/* 新規追加ボタン（sm+ のみ。モバイルはタイトル行に表示） */}
+                {canEdit && (
                 <div className="hidden sm:block flex-shrink-0">
                     <Button
                         variant="primary"
@@ -486,6 +493,7 @@ export default function InvoiceListPage() {
                         新規請求書作成
                     </Button>
                 </div>
+                )}
             </div>
 
             {/* モバイルカードビュー */}
@@ -523,6 +531,7 @@ export default function InvoiceListPage() {
                                         <span className="text-base font-semibold text-slate-600">
                                             {invoice.invoiceNumber}
                                         </span>
+                                        {canEdit && (
                                         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
@@ -539,6 +548,7 @@ export default function InvoiceListPage() {
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
+                                        )}
                                     </div>
 
                                     {/* タイトル */}
@@ -713,6 +723,8 @@ export default function InvoiceListPage() {
                                             {formatDate(invoice.createdAt, 'full')}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-[12px] font-medium" onClick={(e) => e.stopPropagation()}>
+                                            {canEdit && (
+                                            <>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
                                                 className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 mr-2 transition-colors"
@@ -725,6 +737,8 @@ export default function InvoiceListPage() {
                                             >
                                                 削除
                                             </button>
+                                            </>
+                                            )}
                                         </td>
                                     </tr>
                                 );

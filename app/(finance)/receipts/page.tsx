@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Upload, Loader2, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Download, CheckCircle2, XCircle } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
+import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import type { Receipt, ExpenseCategoryRef } from '@/types/receipt';
@@ -71,6 +72,9 @@ async function prepareFile(file: File): Promise<{ blob: Blob; name: string } | {
 }
 
 export default function ReceiptsPage() {
+    const { data: session } = useSession();
+    // 税理士(accountant)は閲覧のみ。取り込み・仕分け・精算トグル・削除の操作を出さない（API 側でも 403）
+    const canEdit = session?.user?.role === 'admin' || session?.user?.role === 'manager';
     const [activeTab, setActiveTab] = useState<TabId>('pending');
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -315,7 +319,8 @@ export default function ReceiptsPage() {
                 <p className="text-sm text-slate-500 mt-1">領収書・レシートを取り込み、AIが読み取った内容を確認して費目で仕分け・保管します。</p>
             </div>
 
-            {/* アップロードゾーン */}
+            {/* アップロードゾーン（閲覧のみユーザーには出さない） */}
+            {canEdit && (
             <div
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
@@ -347,6 +352,7 @@ export default function ReceiptsPage() {
                 <input ref={fileInputRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
                 <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
             </div>
+            )}
 
             {/* アップロード進捗 */}
             {uploadRows.length > 0 && (
@@ -411,12 +417,14 @@ export default function ReceiptsPage() {
                         )}
                     </div>
                     {/* 精算日として登録（未精算バッジのタップ時に使う日付・固定なので同じ日付を続けて使える） */}
+                    {canEdit && (
                     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
                         <span className="text-xs font-semibold text-emerald-800 whitespace-nowrap">精算日として登録</span>
                         <input type="date" value={settleDate} onChange={(e) => setSettleDate(e.target.value)} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                         <button type="button" onClick={() => setSettleDate(toYmd(new Date()))} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100">今日</button>
                         <span className="text-xs text-emerald-700/80 w-full sm:w-auto">この日付で「未精算」→「精算済み」を登録します（同じ日付を続けて使えます）。</span>
                     </div>
+                    )}
                     {/* 絞り込み・並び替え・CSV（スマホは縦積み） */}
                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                         <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
@@ -479,7 +487,7 @@ export default function ReceiptsPage() {
                     <p>{activeTab === 'pending' ? '未仕分けの領収書はありません' : 'この条件の仕分け済み領収書はありません'}</p>
                 </div>
             ) : activeTab === 'confirmed' ? (
-                <ConfirmedReceiptList rows={sorted} onSelect={setSelected} onToggleSettled={toggleSettled} sortKey={sortKey} sortDir={sortDir} onSort={changeSort} />
+                <ConfirmedReceiptList rows={sorted} onSelect={setSelected} onToggleSettled={toggleSettled} sortKey={sortKey} sortDir={sortDir} onSort={changeSort} canEdit={canEdit} />
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {sorted.map((r) => (
@@ -524,6 +532,7 @@ export default function ReceiptsPage() {
                     receipt={selected}
                     onClose={() => setSelected(null)}
                     onSaved={() => { setSelected(null); fetchReceipts(); }}
+                    viewerOnly={!canEdit}
                 />
             )}
         </div>
@@ -533,16 +542,18 @@ export default function ReceiptsPage() {
 // 仕分け済みの一覧。案件一覧・見積一覧と同じテーブル体裁（行クリックで画像プレビューのモーダル）。
 // 一覧ではサムネイル画像を出さず容量を節約し、クリック時に初めて画像を読み込む。
 // 見出しクリックで並び替え、精算バッジのタップで精算済み/未精算を切替。
-function ConfirmedReceiptList({ rows, onSelect, onToggleSettled, sortKey, sortDir, onSort }: {
+function ConfirmedReceiptList({ rows, onSelect, onToggleSettled, sortKey, sortDir, onSort, canEdit }: {
     rows: Receipt[];
     onSelect: (r: Receipt) => void;
     onToggleSettled: (r: Receipt) => void;
     sortKey: SortKey;
     sortDir: 'asc' | 'desc';
     onSort: (key: SortKey) => void;
+    canEdit: boolean;
 }) {
     const mark = (k: SortKey) => (sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
-    const settledPill = (r: Receipt) => (
+    // 閲覧のみユーザーには精算トグルを出さず、状態表示だけの静的なピルにする
+    const settledPill = (r: Receipt) => canEdit ? (
         <button
             onClick={(e) => { e.stopPropagation(); onToggleSettled(r); }}
             title="タップで精算済み/未精算を切替"
@@ -550,6 +561,10 @@ function ConfirmedReceiptList({ rows, onSelect, onToggleSettled, sortKey, sortDi
         >
             {r.settled ? '✓ 精算済み' : '未精算'}
         </button>
+    ) : (
+        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${r.settled ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+            {r.settled ? '✓ 精算済み' : '未精算'}
+        </span>
     );
     return (
         <>

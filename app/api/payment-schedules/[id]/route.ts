@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { updatePaymentScheduleSchema, validateRequest } from '@/lib/validations';
 import {
     requireAdmin,
+    requireAdminOrAccountant,
     notFoundResponse,
     serverErrorResponse,
     validationErrorResponse,
@@ -18,7 +19,8 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        const { error } = await requireAdmin();
+        // 閲覧は税理士(accountant)にも開放。編集(PATCH)・削除(DELETE)は admin のみ
+        const { error } = await requireAdminOrAccountant();
         if (error) return error;
 
         const item = await prisma.paymentSchedule.findUnique({

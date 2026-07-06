@@ -196,6 +196,8 @@ export default function UserManagement() {
                 return '管理者';
             case 'manager':
                 return 'マネージャー';
+            case 'accountant':
+                return '税理士';
             case 'foreman1':
                 return '職長1';
             case 'foreman2':

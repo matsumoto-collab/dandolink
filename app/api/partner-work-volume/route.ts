@@ -9,6 +9,8 @@ import {
 } from '@/lib/api/utils';
 
 const ADMIN_ROLES = ['admin', 'manager'];
+// 閲覧のみ許可するロールを含む（税理士は GET だけ。POST/削除/公開は ADMIN_ROLES のまま）
+const VIEWER_ROLES = ['admin', 'manager', 'accountant'];
 
 export type PartnerWorkVolumeRowStatus = 'draft' | 'completed';
 /** 行の費目区分。'work' = 作業費、'transport' = 運搬費、'joyo' = 常用（自社メンバーが他職長班に応援で入った分）。 */
@@ -135,9 +137,9 @@ export async function GET(req: NextRequest) {
         const includeDeletedParam = url.searchParams.get('includeDeleted') === '1';
 
         // 対象会社 ID を決定
-        // 閲覧可能ロール: admin / manager / partner (= 協力会社アカウント本体のみ)
+        // 閲覧可能ロール: admin / manager / accountant(税理士・閲覧のみ) / partner (= 協力会社アカウント本体のみ)
         let partnerCompanyId: string | null = null;
-        if (ADMIN_ROLES.includes(role)) {
+        if (VIEWER_ROLES.includes(role)) {
             if (!queryCompanyId) return validationErrorResponse('companyId が必要です');
             partnerCompanyId = queryCompanyId;
         } else if (role === 'partner') {
@@ -462,7 +464,8 @@ export async function GET(req: NextRequest) {
         // 削除済み (deletedAt != null) の行も usedAutoKeys に含めて auto 行の再生成を抑止する。
         const usedAutoKeys = new Set<string>();
         // 削除済み行を rows に含めるかは admin/manager + ?includeDeleted=1 のときのみ
-        const includeDeleted = includeDeletedParam && !isPartnerViewer;
+        // （partner はもちろん、閲覧のみの accountant にも見せない）
+        const includeDeleted = includeDeletedParam && ADMIN_ROLES.includes(role);
         let latestCompletedAt: Date | null = null;
         for (const row of saved) {
             const savedRowType: PartnerWorkVolumeRowType =

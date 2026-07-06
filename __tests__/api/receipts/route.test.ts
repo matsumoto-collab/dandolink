@@ -4,7 +4,7 @@
 import { GET } from '@/app/api/receipts/route';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/api/utils';
-import { isManagerOrAbove } from '@/utils/permissions';
+import { isManagerOrAbove, isManagerOrAccountant } from '@/utils/permissions';
 import { NextRequest } from 'next/server';
 
 jest.mock('@/lib/supabase-admin', () => ({
@@ -30,6 +30,7 @@ describe('/api/receipts GET', () => {
         jest.clearAllMocks();
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
         (isManagerOrAbove as jest.Mock).mockReturnValue(true);
+        (isManagerOrAccountant as jest.Mock).mockReturnValue(true);
         (prisma.receipt.findMany as jest.Mock).mockResolvedValue([row]);
     });
 
@@ -58,8 +59,9 @@ describe('/api/receipts GET', () => {
         expect(arg.where).toEqual({ status: 'confirmed' });
     });
 
-    it('403 for non-manager', async () => {
-        (isManagerOrAbove as jest.Mock).mockReturnValueOnce(false);
+    it('403 for a role without finance view access', async () => {
+        // GET の閲覧ガードは isManagerOrAccountant（税理士にも開放）に変わった
+        (isManagerOrAccountant as jest.Mock).mockReturnValueOnce(false);
         const res = await GET(new NextRequest('http://localhost/api/receipts?status=pending'));
         expect(res.status).toBe(403);
     });

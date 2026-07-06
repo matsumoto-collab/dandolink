@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
-import { isManagerOrAbove } from '@/utils/permissions';
+import { isManagerOrAbove, isManagerOrAccountant } from '@/utils/permissions';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
 import { logger } from '@/lib/logger';
 import { parseReceiptDate, RECEIPT_INCLUDE, withFreshSignedUrls } from '@/lib/receipt';
@@ -22,7 +22,8 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
-        if (!isManagerOrAbove(session!.user)) return errorResponse('権限がありません', 403);
+        // 閲覧は税理士(accountant)にも開放。編集(PATCH)・削除(DELETE)は admin/manager のみ
+        if (!isManagerOrAccountant(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
         const receipt = await prisma.receipt.findUnique({ where: { id }, include: RECEIPT_INCLUDE });

@@ -3,7 +3,7 @@
  */
 import { GET } from '@/app/api/billing-board/route';
 import { prisma } from '@/lib/prisma';
-import { requireManagerOrAbove } from '@/lib/api/utils';
+import { requireManagerOrAccountant } from '@/lib/api/utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -15,7 +15,7 @@ describe('GET /api/billing-board（案件×締め月の請求判断の解決）'
 
     beforeEach(() => {
         jest.clearAllMocks();
-        (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
+        (requireManagerOrAccountant as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
         (prisma.customer.findMany as jest.Mock).mockResolvedValue([{ id: 'c-1', closingDay: 0 }]);
         (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([
             {
@@ -96,7 +96,7 @@ describe('GET /api/billing-board（案件×締め月の請求判断の解決）'
 
     it('未認可なら 403', async () => {
         const errorRes = NextResponse.json({ error: 'forbidden' }, { status: 403 });
-        (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: null, error: errorRes });
+        (requireManagerOrAccountant as jest.Mock).mockResolvedValue({ session: null, error: errorRes });
         const req = new NextRequest('http://localhost:3000/api/billing-board?month=2026-06');
         const res = await GET(req);
         expect(res.status).toBe(403);

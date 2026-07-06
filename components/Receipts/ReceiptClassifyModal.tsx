@@ -12,6 +12,8 @@ interface Props {
     receipt: Receipt;
     onClose: () => void;
     onSaved: () => void;
+    /** 閲覧専用ユーザー（税理士など）。true なら編集・削除・確定・再読取の操作を出さない */
+    viewerOnly?: boolean;
 }
 
 const toInputDate = (s: string | null) => {
@@ -27,8 +29,8 @@ function summaryOf(r: Receipt): string | null {
     return d && typeof d.summary === 'string' && d.summary ? d.summary : null;
 }
 
-export default function ReceiptClassifyModal({ receipt, onClose, onSaved }: Props) {
-    const readOnly = receipt.status === 'confirmed';
+export default function ReceiptClassifyModal({ receipt, onClose, onSaved, viewerOnly = false }: Props) {
+    const readOnly = receipt.status === 'confirmed' || viewerOnly;
 
     const [storeName, setStoreName] = useState(receipt.storeName ?? '');
     const [issueDate, setIssueDate] = useState(toInputDate(receipt.issueDate));
@@ -264,7 +266,7 @@ export default function ReceiptClassifyModal({ receipt, onClose, onSaved }: Prop
 
                 <div className="flex-shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-t border-slate-200 bg-slate-50">
                     <div className="flex items-center gap-2">
-                        {confirmDelete ? (
+                        {viewerOnly ? null : confirmDelete ? (
                             <>
                                 <button onClick={handleDelete} disabled={deleting} className="px-3 py-2 text-sm bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50">{deleting ? '削除中…' : '本当に削除'}</button>
                                 <button onClick={() => setConfirmDelete(false)} className="px-3 py-2 text-sm text-slate-600">キャンセル</button>
@@ -281,7 +283,11 @@ export default function ReceiptClassifyModal({ receipt, onClose, onSaved }: Prop
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        {readOnly ? (
+                        {viewerOnly ? (
+                            <button onClick={onClose} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium">
+                                閉じる
+                            </button>
+                        ) : readOnly ? (
                             <button onClick={handleReopen} disabled={reopening} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium inline-flex items-center gap-2 disabled:opacity-50">
                                 {reopening ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
                                 再オープン

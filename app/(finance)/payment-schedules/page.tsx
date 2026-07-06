@@ -15,6 +15,7 @@ import {
     Copy,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/Button';
 import PaymentScheduleModal from '@/components/PaymentSchedules/PaymentScheduleModal';
 import CopyFromPreviousModal from '@/components/PaymentSchedules/CopyFromPreviousModal';
@@ -61,6 +62,9 @@ const yen = (n: number | string) => {
 const ITEMS_PER_PAGE = 20;
 
 export default function PaymentSchedulesPage() {
+    const { data: session } = useSession();
+    // 税理士(accountant)は閲覧のみ。追加・編集・削除・支払済みトグルは admin だけ（API 側でも 403）
+    const canEdit = session?.user?.role === 'admin';
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
@@ -317,6 +321,7 @@ export default function PaymentSchedulesPage() {
                         >
                             {pdfExporting ? 'PDF生成中...' : 'PDF出力（印刷用）'}
                         </Button>
+                        {canEdit && (
                         <Button
                             variant="primary"
                             leftIcon={<Plus className="w-5 h-5" />}
@@ -327,6 +332,7 @@ export default function PaymentSchedulesPage() {
                         >
                             この日に追加
                         </Button>
+                        )}
                     </div>
                 </div>
 
@@ -367,13 +373,14 @@ export default function PaymentSchedulesPage() {
                                 <div className="flex items-start gap-3">
                                     {/* 大きな完了チェックボタン */}
                                     <button
-                                        onClick={() => handleTogglePaid(item)}
+                                        onClick={() => canEdit && handleTogglePaid(item)}
+                                        disabled={!canEdit}
                                         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
                                             item.isPaid
-                                                ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
-                                                : 'border-slate-300 bg-white text-slate-400 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-500'
-                                        }`}
-                                        title={item.isPaid ? 'クリックで未払いに戻す' : 'クリックで支払い完了にする'}
+                                                ? 'border-emerald-500 bg-emerald-500 text-white'
+                                                : 'border-slate-300 bg-white text-slate-400'
+                                        } ${canEdit ? (item.isPaid ? 'hover:bg-emerald-600' : 'hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-500') : 'cursor-default'}`}
+                                        title={canEdit ? (item.isPaid ? 'クリックで未払いに戻す' : 'クリックで支払い完了にする') : undefined}
                                     >
                                         {item.isPaid ? (
                                             <Check className="w-6 h-6" strokeWidth={3} />
@@ -439,6 +446,7 @@ export default function PaymentSchedulesPage() {
                                         </div>
 
                                         {/* 編集・削除ボタン */}
+                                        {canEdit && (
                                         <div className="mt-3 flex justify-end gap-1">
                                             <button
                                                 onClick={() => {
@@ -456,6 +464,7 @@ export default function PaymentSchedulesPage() {
                                                 <Trash2 className="w-3.5 h-3.5" /> 削除
                                             </button>
                                         </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -488,6 +497,7 @@ export default function PaymentSchedulesPage() {
                         支払日ごとにリストを管理し、担当者間で進捗を共有できます
                     </p>
                 </div>
+                {canEdit && (
                 <div className="sm:hidden flex-shrink-0">
                     <Button
                         variant="primary"
@@ -500,6 +510,7 @@ export default function PaymentSchedulesPage() {
                         新規追加
                     </Button>
                 </div>
+                )}
             </div>
 
             {/* ツールバー（月切替 + ボタン群。モバイルの新規はタイトル行に表示） */}
@@ -530,6 +541,7 @@ export default function PaymentSchedulesPage() {
                     </button>
                 </div>
 
+                {canEdit && (
                 <div className="flex gap-2">
                     <Button
                         variant="secondary"
@@ -552,6 +564,7 @@ export default function PaymentSchedulesPage() {
                         </Button>
                     </div>
                 </div>
+                )}
             </div>
 
             {/* 月全体サマリー */}

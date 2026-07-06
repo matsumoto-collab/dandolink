@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'manager' | 'foreman1' | 'foreman2' | 'worker' | 'partner' | 'partner_member' | 'support';
+export type UserRole = 'admin' | 'manager' | 'accountant' | 'foreman1' | 'foreman2' | 'worker' | 'partner' | 'partner_member' | 'support';
 
 export type PartnerTaxMode = 'exclusive' | 'inclusive';
 

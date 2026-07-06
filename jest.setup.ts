@@ -250,6 +250,14 @@ jest.mock('@/lib/api/utils', () => {
             session: { user: { id: 'user-1', role: 'manager', isActive: true } },
             error: null
         }),
+        requireManagerOrAccountant: jest.fn().mockResolvedValue({
+            session: { user: { id: 'user-1', role: 'manager', isActive: true } },
+            error: null
+        }),
+        requireAdminOrAccountant: jest.fn().mockResolvedValue({
+            session: { user: { id: 'user-1', role: 'admin', isActive: true } },
+            error: null
+        }),
         applyRateLimit: jest.fn().mockReturnValue(null),
         RATE_LIMITS: { api: { limit: 100, window: 60 } },
         stringifyJsonField: (val: any) => JSON.stringify(val),
@@ -269,6 +277,7 @@ jest.mock('@/utils/permissions', () => ({
     hasPermission: jest.fn().mockReturnValue(true),
     isAdmin: jest.fn().mockReturnValue(true),
     isManagerOrAbove: jest.fn().mockReturnValue(true),
+    isManagerOrAccountant: jest.fn().mockReturnValue(true),
     canAccessProject: jest.fn().mockReturnValue(true),
     canManageUsers: jest.fn().mockReturnValue(true),
     canAccessCashbook: jest.fn().mockReturnValue(true),

@@ -7,6 +7,7 @@ import {
     canManageUsers,
     canDispatch,
     isManagerOrAbove,
+    isManagerOrAccountant,
     canAccessCashbook,
     getRoleDisplayName,
 } from '@/utils/permissions';
@@ -77,6 +78,18 @@ describe('permissions', () => {
             expect(isManagerOrAbove({ role: 'admin', isActive: true })).toBe(true);
             expect(isManagerOrAbove({ role: 'manager', isActive: true })).toBe(true);
             expect(isManagerOrAbove({ role: 'foreman1', isActive: true })).toBe(false);
+            // 税理士は閲覧のみ: 書き込み系ガードの isManagerOrAbove には含めない
+            expect(isManagerOrAbove({ role: 'accountant', isActive: true })).toBe(false);
+        });
+    });
+
+    describe('isManagerOrAccountant', () => {
+        it('admin, manager and accountant return true', () => {
+            expect(isManagerOrAccountant({ role: 'admin', isActive: true })).toBe(true);
+            expect(isManagerOrAccountant({ role: 'manager', isActive: true })).toBe(true);
+            expect(isManagerOrAccountant({ role: 'accountant', isActive: true })).toBe(true);
+            expect(isManagerOrAccountant({ role: 'foreman1', isActive: true })).toBe(false);
+            expect(isManagerOrAccountant({ role: 'accountant', isActive: false })).toBe(false);
         });
     });
 
@@ -110,6 +123,7 @@ describe('permissions', () => {
         it('returns Japanese role names', () => {
             expect(getRoleDisplayName('admin')).toBe('管理者');
             expect(getRoleDisplayName('manager')).toBe('マネージャー');
+            expect(getRoleDisplayName('accountant')).toBe('税理士');
             expect(getRoleDisplayName('foreman1')).toBe('職長1');
             expect(getRoleDisplayName('foreman2')).toBe('職長2');
             expect(getRoleDisplayName('worker')).toBe('職方');

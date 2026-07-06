@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
-    requireManagerOrAbove,
+    requireManagerOrAccountant,
     serverErrorResponse,
     parseJsonField,
 } from '@/lib/api/utils';
@@ -53,7 +53,8 @@ function jstInstant(ymd: string, end = false): Date {
  */
 export async function GET(req: NextRequest) {
     try {
-        const { error } = await requireManagerOrAbove();
+        // 閲覧は税理士(accountant)にも開放（このルートは GET のみ。請求判断の更新は別ルート）
+        const { error } = await requireManagerOrAccountant();
         if (error) return error;
 
         const { searchParams } = new URL(req.url);

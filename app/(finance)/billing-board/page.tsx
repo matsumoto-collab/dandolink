@@ -104,7 +104,9 @@ interface StagedLine {
 export default function BillingBoardPage() {
     const { data: session, status: sessionStatus } = useSession();
     const role = session?.user?.role;
-    const isAuthorized = role === 'admin' || role === 'manager';
+    // 税理士(accountant)は閲覧のみで開放（請求判断・請求書発行の操作は canEdit で制御）
+    const isAuthorized = role === 'admin' || role === 'manager' || role === 'accountant';
+    const canEdit = role === 'admin' || role === 'manager';
     const myId = session?.user?.id;
 
     const { ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
@@ -979,7 +981,7 @@ export default function BillingBoardPage() {
                     customerGroups.map((g) => {
                         const sc = g.customerId ? stagedByCustomer.get(g.customerId) : undefined;
                         const stagedCount = sc?.projectIds.length ?? 0;
-                        const canInvoice = tab !== 'billed' && !!g.customerId && stagedCount > 0;
+                        const canInvoice = canEdit && tab !== 'billed' && !!g.customerId && stagedCount > 0;
                         return (
                             <div key={g.key} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                                 {/* 顧客ヘッダー帯（この顧客の囲みの見出し） */}
@@ -1033,7 +1035,7 @@ export default function BillingBoardPage() {
                                             userMap={userMap}
                                             busy={busyRowId === row.id}
                                             tab={tab}
-                                            canDecide={mode === 'closing'}
+                                            canDecide={canEdit && mode === 'closing'}
                                             staged={
                                                 staged[row.id]
                                                     ? { amount: staged[row.id].total, note: staged[row.id].label }

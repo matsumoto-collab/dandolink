@@ -299,7 +299,7 @@ export default function MainContent() {
                 return <InvoiceListPage />;
 
             case 'billing-board':
-                if (userRole !== 'admin' && userRole !== 'manager') {
+                if (userRole !== 'admin' && userRole !== 'manager' && userRole !== 'accountant') {
                     return <PlaceholderPage title="アクセス権限がありません" />;
                 }
                 return <BillingBoardPage />;
@@ -341,13 +341,14 @@ export default function MainContent() {
                 return <CustomersPage />;
 
             case 'payment-schedules':
-                if (userRole !== 'admin') {
+                // 税理士(accountant)は閲覧のみで開放（manager には開放しない）
+                if (userRole !== 'admin' && userRole !== 'accountant') {
                     return <PlaceholderPage title="アクセス権限がありません" />;
                 }
                 return <PaymentSchedulesPage />;
 
             case 'receipts':
-                if (userRole !== 'admin' && userRole !== 'manager') {
+                if (userRole !== 'admin' && userRole !== 'manager' && userRole !== 'accountant') {
                     return <PlaceholderPage title="アクセス権限がありません" />;
                 }
                 return <ReceiptsPage />;
@@ -372,6 +373,7 @@ export default function MainContent() {
                 if (
                     userRole !== 'admin' &&
                     userRole !== 'manager' &&
+                    userRole !== 'accountant' &&
                     userRole !== 'partner'
                 ) {
                     return <PlaceholderPage title="アクセス権限がありません" />;

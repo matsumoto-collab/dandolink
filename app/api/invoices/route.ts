@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireManagerOrAbove, requireManagerOrAccountant, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 import { formatInvoice } from '@/lib/formatters';
 import { createInvoiceSchema, validateRequest } from '@/lib/validations';
 import { createInvoiceVersion } from '@/lib/versions/snapshot';
@@ -116,7 +116,8 @@ function attachPaymentSummaries<E extends { id: string }>(
 
 export async function GET(req: NextRequest) {
     try {
-        const { error } = await requireManagerOrAbove();
+        // 閲覧は税理士(accountant)にも開放。作成(POST)以降は admin/manager のみ
+        const { error } = await requireManagerOrAccountant();
         if (error) return error;
 
         const { searchParams } = new URL(req.url);

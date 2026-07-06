@@ -44,11 +44,11 @@ const navigationSections: NavSection[] = [
         items: [
             { name: '見積書', page: 'estimates' },
             { name: '請求書', page: 'invoices' },
-            { name: '請求待ち', page: 'billing-board', requiredRoles: ['admin', 'manager'] },
-            { name: '協力業者出来高', page: 'partner-work-volume', requiredRoles: ['admin', 'manager'] },
-            { name: '領収書', page: 'receipts', requiredRoles: ['admin', 'manager'] },
+            { name: '請求待ち', page: 'billing-board', requiredRoles: ['admin', 'manager', 'accountant'] },
+            { name: '協力業者出来高', page: 'partner-work-volume', requiredRoles: ['admin', 'manager', 'accountant'] },
+            { name: '領収書', page: 'receipts', requiredRoles: ['admin', 'manager', 'accountant'] },
             { name: '現金出納帳', page: 'cashbook', requiresCashbookAccess: true },
-            { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin'] },
+            { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin', 'accountant'] },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },
         ],
     },
@@ -130,6 +130,8 @@ export default function Sidebar() {
                 return '管理者';
             case 'manager':
                 return 'マネージャー';
+            case 'accountant':
+                return '税理士';
             case 'user':
                 return 'ユーザー';
             case 'viewer':
@@ -268,6 +270,16 @@ export default function Sidebar() {
                                         .map(item => ({ ...item, name: '出来高表' }));
                                     if (partnerItems.length === 0) return null;
                                     return { ...filteredSection, items: partnerItems };
+                                }
+                                return null;
+                            }
+                            // accountant(税理士): 書類・経理の閲覧対象のみ（見積書・利益ダッシュボードは見せない）
+                            if (role === 'accountant') {
+                                if (filteredSection.title === '書類・経理') {
+                                    const accountantPages = ['invoices', 'billing-board', 'partner-work-volume', 'receipts', 'payment-schedules', 'cashbook'];
+                                    const items = filteredSection.items.filter(item => accountantPages.includes(item.page));
+                                    if (items.length === 0) return null;
+                                    return { ...filteredSection, items };
                                 }
                                 return null;
                             }

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { emailSchema, passwordSchema } from './common';
 
-export const userRoleSchema = z.enum(['admin', 'manager', 'foreman1', 'foreman2', 'worker', 'partner', 'partner_member', 'support']);
+export const userRoleSchema = z.enum(['admin', 'manager', 'accountant', 'foreman1', 'foreman2', 'worker', 'partner', 'partner_member', 'support']);
 
 export const partnerTaxModeSchema = z.enum(['exclusive', 'inclusive']);
 

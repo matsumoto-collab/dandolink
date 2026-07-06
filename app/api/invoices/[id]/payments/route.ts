@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireManagerOrAbove, notFoundResponse, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { requireManagerOrAbove, requireManagerOrAccountant, notFoundResponse, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { createInvoicePaymentSchema, validateRequest } from '@/lib/validations';
 import { computePaymentSummary } from '@/lib/invoicePayments';
 import { formatInvoicePayment } from '@/lib/invoicePaymentsServer';
@@ -21,7 +21,8 @@ async function buildPaymentsResponse(invoiceId: string, total: number, status: s
 // GET: 請求書の入金一覧＋残額サマリ
 export async function GET(_req: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireManagerOrAbove();
+        // 入金履歴の閲覧は税理士(accountant)にも開放。登録(POST)は admin/manager のみ
+        const { error } = await requireManagerOrAccountant();
         if (error) return error;
 
         const { id } = await context.params;

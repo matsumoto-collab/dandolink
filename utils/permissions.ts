@@ -160,6 +160,16 @@ export function canAccessCashbook(user: PermissionUser | null | undefined): bool
 }
 
 /**
+ * 経理ドキュメントの閲覧権限: admin / manager / accountant(税理士)。
+ * ⚠️ GET（閲覧）系ルートの開放にのみ使うこと。書き込み系には isManagerOrAbove を使う
+ * （税理士は閲覧のみで、登録・編集・削除は不可）。
+ */
+export function isManagerOrAccountant(user: PermissionUser | null | undefined): boolean {
+    if (!user || !user.isActive) return false;
+    return user.role === 'admin' || user.role === 'manager' || user.role === 'accountant';
+}
+
+/**
  * Get role display name
  */
 export function getRoleDisplayName(role: string): string {
@@ -168,6 +178,8 @@ export function getRoleDisplayName(role: string): string {
             return '管理者';
         case 'manager':
             return 'マネージャー';
+        case 'accountant':
+            return '税理士';
         case 'foreman1':
             return '職長1';
         case 'foreman2':

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireManagerOrAbove, notFoundResponse, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { requireManagerOrAccountant, notFoundResponse, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { formatInvoice } from '@/lib/formatters';
 
 interface RouteContext { params: Promise<{ id: string; versionNumber: string }>; }
 
 export async function GET(_req: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireManagerOrAbove();
+        // 版スナップショットの閲覧は税理士(accountant)にも開放（このルートは GET のみ）
+        const { error } = await requireManagerOrAccountant();
         if (error) return error;
 
         const { id, versionNumber } = await context.params;

@@ -59,6 +59,9 @@ export default function PartnerWorkVolumePage() {
     const userId = session?.user?.id ?? '';
     const isAdminOrManager = role === 'admin' || role === 'manager';
     const isPartner = role === 'partner';
+    // 税理士(accountant)は全社の出来高を閲覧のみ（行編集・公開などの操作は不可）
+    const isAccountant = role === 'accountant';
+    const canViewAllCompanies = isAdminOrManager || isAccountant;
 
     const initial = todayJstYm();
     const [year, setYear] = useState<number>(initial.year);
@@ -84,9 +87,9 @@ export default function PartnerWorkVolumePage() {
     const [managerFilter, setManagerFilter] = useState<string>(MANAGER_FILTER_ALL);
     const [showDeleted, setShowDeleted] = useState<boolean>(false);
 
-    // admin / manager: 協力会社一覧を取得
+    // admin / manager / accountant: 協力会社一覧を取得
     useEffect(() => {
-        if (!isAdminOrManager) return;
+        if (!canViewAllCompanies) return;
         let cancelled = false;
         (async () => {
             try {
@@ -110,7 +113,7 @@ export default function PartnerWorkVolumePage() {
             cancelled = true;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAdminOrManager]);
+    }, [canViewAllCompanies]);
 
     const fetchRows = useCallback(async () => {
         if (!companyId) return;
@@ -539,7 +542,7 @@ export default function PartnerWorkVolumePage() {
         });
     }, [rows, managerFilter]);
 
-    if (!isAdminOrManager && !isPartner) {
+    if (!isAdminOrManager && !isPartner && !isAccountant) {
         return (
             <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
                 <p className="text-slate-500">閲覧権限がありません</p>
@@ -583,7 +586,7 @@ export default function PartnerWorkVolumePage() {
                             <ChevronRight className="w-5 h-5" />
                         </button>
                     </div>
-                    {isAdminOrManager && (
+                    {canViewAllCompanies && (
                         <select
                             value={companyId}
                             onChange={(e) => setCompanyId(e.target.value)}
@@ -764,7 +767,7 @@ export default function PartnerWorkVolumePage() {
                         )}
                         <PartnerWorkVolumeTable
                             rows={displayedRows}
-                            readOnly={isPartner}
+                            readOnly={isPartner || isAccountant}
                             savingRowKey={savingRowKey}
                             taxMode={taxMode}
                             onSave={handleSave}

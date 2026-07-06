@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { createPaymentScheduleSchema, validateRequest } from '@/lib/validations';
 import {
     requireAdmin,
+    requireAdminOrAccountant,
     serverErrorResponse,
     validationErrorResponse,
 } from '@/lib/api/utils';
@@ -20,7 +21,8 @@ import {
  */
 export async function GET(req: NextRequest) {
     try {
-        const { error } = await requireAdmin();
+        // 閲覧は税理士(accountant)にも開放。作成(POST)以降は admin のみ（manager には開放しない）
+        const { error } = await requireAdminOrAccountant();
         if (error) return error;
 
         const { searchParams } = new URL(req.url);

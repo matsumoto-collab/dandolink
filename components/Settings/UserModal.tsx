@@ -150,6 +150,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                             >
                                 <option value="admin">管理者</option>
                                 <option value="manager">マネージャー</option>
+                                <option value="accountant">税理士（経理閲覧）</option>
                                 <option value="foreman1">職長1（全般操作可）</option>
                                 <option value="foreman2">職長2（自班のみ操作可）</option>
                                 <option value="worker">職方（自班のみ表示）</option>

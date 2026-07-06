@@ -81,6 +81,53 @@ export async function requireManagerOrAbove() {
     return { session, error: null };
 }
 
+/**
+ * 経理閲覧権限: 管理者・マネージャー・税理士(accountant)。
+ * ⚠️ GET（閲覧）系ルート専用。書き込み系は requireManagerOrAbove を使う（税理士は閲覧のみ）。
+ */
+export async function requireManagerOrAccountant() {
+    const { session, error } = await requireAuth();
+
+    if (error) return { session: null, error };
+
+    const role = session!.user.role;
+    if (role !== 'admin' && role !== 'manager' && role !== 'accountant') {
+        return {
+            session: null,
+            error: NextResponse.json(
+                { error: '権限がありません' },
+                { status: 403, headers: { 'Cache-Control': 'no-store' } }
+            ),
+        };
+    }
+
+    return { session, error: null };
+}
+
+/**
+ * 経理閲覧権限: 管理者・税理士(accountant)。
+ * ⚠️ GET（閲覧）系ルート専用。admin 限定画面（支払予定）の閲覧を税理士にだけ開放する
+ * （requireManagerOrAccountant だと manager にまで開放されてしまうため分離）。
+ */
+export async function requireAdminOrAccountant() {
+    const { session, error } = await requireAuth();
+
+    if (error) return { session: null, error };
+
+    const role = session!.user.role;
+    if (role !== 'admin' && role !== 'accountant') {
+        return {
+            session: null,
+            error: NextResponse.json(
+                { error: '権限がありません' },
+                { status: 403, headers: { 'Cache-Control': 'no-store' } }
+            ),
+        };
+    }
+
+    return { session, error: null };
+}
+
 // ============================================
 // エラーレスポンス
 // ============================================
