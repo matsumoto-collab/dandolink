@@ -16,6 +16,12 @@ export interface CashbookEntry {
     amount: number | string;
     expenseCategoryId: string | null;
     expenseCategory: ExpenseCategoryRef | null;
+    /** 清算日（実際に現金が動いた日・任意）。月別表示と残高計算は settledAt ?? date 基準 */
+    settledAt: string | null;
+    /** 申請者（氏名・自由入力） */
+    applicantName: string | null;
+    /** 同一表示日内の手動並び順（null は seq 順） */
+    sortOrder: number | string | null;
     fileName: string | null;
     mimeType: string | null;
     sourceType: string | null;

@@ -18,6 +18,8 @@ const manualRow = {
     id: 'c1',
     seq: 1,
     date: new Date(Date.UTC(2026, 6, 5)),
+    settledAt: null,
+    sortOrder: null,
     entryType: 'in',
     amount: 10000,
     storagePath: null,
@@ -37,16 +39,33 @@ describe('/api/cashbook GET', () => {
         (prisma.cashbookEntry.groupBy as jest.Mock).mockResolvedValue([]);
     });
 
-    it('month scope filters by date range and orders by date/seq', async () => {
+    it('month scope filters by settledAt-first (settledAt ?? date) range', async () => {
         const res = await GET(new NextRequest('http://localhost/api/cashbook?scope=month&year=2026&month=7'));
         expect(res.status).toBe(200);
         const arg = (prisma.cashbookEntry.findMany as jest.Mock).mock.calls[0][0];
-        expect(arg.where.date.gte).toEqual(new Date(Date.UTC(2026, 6, 1)));
-        expect(arg.where.date.lt).toEqual(new Date(Date.UTC(2026, 7, 1)));
-        expect(arg.orderBy).toEqual([{ date: 'asc' }, { seq: 'asc' }]);
+        const monthStart = new Date(Date.UTC(2026, 6, 1));
+        const monthEnd = new Date(Date.UTC(2026, 7, 1));
+        // 清算日があればその月、なければ取引日の月に振り分ける OR 条件
+        expect(arg.where.OR).toEqual([
+            { settledAt: { gte: monthStart, lt: monthEnd } },
+            { settledAt: null, date: { gte: monthStart, lt: monthEnd } },
+        ]);
     });
 
-    it('month scope computes openingBalance from prior in/out sums', async () => {
+    it('sorts by display date (settledAt ?? date) then sortOrder/seq', async () => {
+        (prisma.cashbookEntry.findMany as jest.Mock).mockResolvedValue([
+            // 取引日 7/20 だが清算日 7/2 → 先頭に来るべき
+            { ...manualRow, id: 'late', seq: 5, date: new Date(Date.UTC(2026, 6, 20)), settledAt: new Date(Date.UTC(2026, 6, 2)) },
+            // 同日 7/10 の2行: sortOrder 指定行が seq より前に来る
+            { ...manualRow, id: 'b', seq: 3, date: new Date(Date.UTC(2026, 6, 10)), sortOrder: null },
+            { ...manualRow, id: 'a', seq: 4, date: new Date(Date.UTC(2026, 6, 10)), sortOrder: 1.5 },
+        ]);
+        const res = await GET(new NextRequest('http://localhost/api/cashbook?scope=month&year=2026&month=7'));
+        const body = await res.json();
+        expect(body.entries.map((e: { id: string }) => e.id)).toEqual(['late', 'a', 'b']);
+    });
+
+    it('month scope computes openingBalance from prior in/out sums (settledAt-first)', async () => {
         (prisma.cashbookEntry.groupBy as jest.Mock).mockResolvedValue([
             { entryType: 'in', _sum: { amount: 50000 } },
             { entryType: 'out', _sum: { amount: 12000 } },
@@ -55,9 +74,13 @@ describe('/api/cashbook GET', () => {
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.openingBalance).toBe(38000);
-        // 繰越の集計対象は当月開始より前の全期間
+        // 繰越の集計対象は当月開始より前の全期間（settledAt ?? date 基準）
         const groupArg = (prisma.cashbookEntry.groupBy as jest.Mock).mock.calls[0][0];
-        expect(groupArg.where.date.lt).toEqual(new Date(Date.UTC(2026, 6, 1)));
+        const monthStart = new Date(Date.UTC(2026, 6, 1));
+        expect(groupArg.where.OR).toEqual([
+            { settledAt: { lt: monthStart } },
+            { settledAt: null, date: { lt: monthStart } },
+        ]);
     });
 
     it('month scope without year/month returns 400', async () => {

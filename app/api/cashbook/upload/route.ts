@@ -137,6 +137,8 @@ export async function POST(req: NextRequest) {
                     date: parseReceiptDate(ex?.issueDate) ?? todayJst(),
                     amount: ex?.totalAmount ?? 0,
                     description: [ex?.storeName, ex?.summary].filter(Boolean).join(' ') || null,
+                    // 申請者は既定でアップロードした人（表で自由に変更可）。領収書機能の paidBy と同じ挙動
+                    applicantName: session!.user.name ?? null,
                     expenseCategoryId: resolveCategory(ex?.suggestedCategory),
                     fileName: file.name,
                     storagePath,

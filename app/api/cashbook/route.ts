@@ -5,6 +5,7 @@ import { requireAuth, errorResponse, serverErrorResponse } from '@/lib/api/utils
 import { canAccessCashbook } from '@/utils/permissions';
 import { parseReceiptDate } from '@/lib/receipt';
 import { CASHBOOK_INCLUDE, CASHBOOK_ENTRY_TYPES, withFreshCashbookSignedUrls } from '@/lib/cashbook';
+import { sortCashbookEntries } from '@/lib/cashbookSort';
 
 export async function GET(req: NextRequest) {
     try {
@@ -25,24 +26,33 @@ export async function GET(req: NextRequest) {
                 return errorResponse('year/month を指定してください', 400);
             }
             const monthStart = new Date(Date.UTC(year, month - 1, 1));
-            where.date = { gte: monthStart, lt: new Date(Date.UTC(year, month, 1)) };
+            const monthEnd = new Date(Date.UTC(year, month, 1));
+            // 月の振り分けは清算日を優先（清算日が未入力の行は取引日）。提出が遅れた領収書は精算した月に載る
+            where.OR = [
+                { settledAt: { gte: monthStart, lt: monthEnd } },
+                { settledAt: null, date: { gte: monthStart, lt: monthEnd } },
+            ];
 
-            // 前月繰越 = 当月より前の全期間の入金合計 − 出金合計
+            // 前月繰越 = 当月より前（settledAt ?? date 基準）の全期間の入金合計 − 出金合計
             const sums = await prisma.cashbookEntry.groupBy({
                 by: ['entryType'],
                 _sum: { amount: true },
-                where: { date: { lt: monthStart } },
+                where: {
+                    OR: [
+                        { settledAt: { lt: monthStart } },
+                        { settledAt: null, date: { lt: monthStart } },
+                    ],
+                },
             });
             const sumOf = (t: string) => Number(sums.find((s) => s.entryType === t)?._sum.amount ?? 0);
             openingBalance = sumOf('in') - sumOf('out');
         }
 
-        // 残高計算が決定的になるよう、日付→登録順(seq)の全順序で返す
-        const rows = await prisma.cashbookEntry.findMany({
-            where,
-            orderBy: [{ date: 'asc' }, { seq: 'asc' }],
-            include: CASHBOOK_INCLUDE,
-        });
+        // 表示日(settledAt ?? date)→手動並び順(sortOrder ?? seq)→seq の全順序で返す。
+        // coalesce ソートは Prisma で書けないため取得後に JS で並べる（個人帳簿の行数なので十分）。
+        const rows = sortCashbookEntries(
+            await prisma.cashbookEntry.findMany({ where, include: CASHBOOK_INCLUDE })
+        );
 
         // 署名付きURLを必要に応じて再生成（証憑ありの行のみ）
         const entries = await Promise.all(rows.map((r) => withFreshCashbookSignedUrls(r)));
@@ -75,6 +85,7 @@ export async function POST(req: NextRequest) {
                 entryType: body.entryType,
                 amount,
                 description: body.description?.toString().trim() || null,
+                applicantName: body.applicantName?.toString().trim() || null,
                 expenseCategoryId: body.expenseCategoryId || null,
                 createdBy: session!.user.id,
             },

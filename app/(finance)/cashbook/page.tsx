@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Upload, Loader2, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Download, CheckCircle2, XCircle, Trash2, Plus, X } from 'lucide-react';
+import { Upload, Loader2, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Download, CheckCircle2, XCircle, Trash2, Plus, X } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import type { CashbookEntry, CashbookListResponse } from '@/types/cashbook';
 import type { ExpenseCategoryRef } from '@/types/receipt';
+import { sortCashbookEntries, cashbookDisplayDate, cashbookSortKey } from '@/lib/cashbookSort';
 
 // Vercel のリクエストボディ上限（約4.5MB）。圧縮後の画像・PDF がこれを超えたら送信前に弾く。
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
@@ -65,6 +66,8 @@ export default function CashbookPage() {
     const [scope, setScope] = useState<'month' | 'all'>('month');
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
+    // 「精算日として登録」に使う日付（既定=今日・固定なので同じ日付を続けて使える）。未精算バッジのタップで各行に適用
+    const [settleDate, setSettleDate] = useState(() => toYmd(new Date()));
 
     const fetchEntries = useCallback(async () => {
         setIsLoading(true);
@@ -153,10 +156,12 @@ export default function CashbookPage() {
                 throw new Error(e.error);
             }
             const updated: CashbookEntry = await res.json();
-            if (scope === 'month' && 'date' in patch) {
-                const d = new Date(updated.date);
+            // 表示月の判定は清算日優先（settledAt ?? date）。日付・清算日の変更で月外に出たら再取得して行を外す
+            if (scope === 'month' && ('date' in patch || 'settledAt' in patch)) {
+                const displayYmd = updated.settledAt ?? updated.date;
+                const d = new Date(displayYmd);
                 if (d.getUTCFullYear() !== year || d.getUTCMonth() + 1 !== month) {
-                    toast.success(`${fmtDate(updated.date)} へ移動しました（表示中の月の外）`);
+                    toast.success(`${fmtDate(displayYmd)} へ移動しました（表示中の月の外）`);
                     await fetchEntries();
                     return;
                 }
@@ -242,34 +247,53 @@ export default function CashbookPage() {
         }
     };
 
-    // 差引残高つきの表示行（並びは API の date asc, seq asc をそのまま使う）
+    // 表示順は清算日優先（settledAt ?? date）→手動並び順（sortOrder ?? seq）→seq。
+    // API も同じ順で返すが、セル編集後の行差し替えでも正しい位置に並ぶようクライアントでも常にソートする。
+    const sortedEntries = useMemo(() => sortCashbookEntries(entries), [entries]);
+
+    // 差引残高つきの表示行（表示順どおりに累計）
     const rowsWithBalance = useMemo(() => {
         let bal = scope === 'month' ? openingBalance : 0;
-        return entries.map((entry) => {
+        return sortedEntries.map((entry) => {
             const amt = Number(entry.amount || 0);
             bal += entry.entryType === 'in' ? amt : -amt;
             return { entry, balance: bal };
         });
-    }, [entries, openingBalance, scope]);
+    }, [sortedEntries, openingBalance, scope]);
+
+    // 行の上下移動（同じ表示日の中のみ）。移動先は隣接行との中間値を sortOrder に設定する
+    const moveRow = (index: number, dir: -1 | 1) => {
+        const row = sortedEntries[index];
+        const neighbor = sortedEntries[index + dir];
+        if (!row || !neighbor) return;
+        if (cashbookDisplayDate(neighbor) !== cashbookDisplayDate(row)) return;
+        const beyond = sortedEntries[index + dir * 2];
+        const nKey = cashbookSortKey(neighbor);
+        const sameGroupBeyond = beyond && cashbookDisplayDate(beyond) === cashbookDisplayDate(row);
+        const newOrder = sameGroupBeyond ? (nKey + cashbookSortKey(beyond)) / 2 : nKey + dir;
+        applyPatch(row.id, { sortOrder: newOrder });
+    };
 
     const totalIn = useMemo(() => entries.reduce((s, e) => s + (e.entryType === 'in' ? Number(e.amount || 0) : 0), 0), [entries]);
     const totalOut = useMemo(() => entries.reduce((s, e) => s + (e.entryType === 'out' ? Number(e.amount || 0) : 0), 0), [entries]);
     const closingBalance = (scope === 'month' ? openingBalance : 0) + totalIn - totalOut;
 
     const exportCsv = () => {
-        const header = ['日付', '費目', '摘要', '入金額', '出金額', '差引残高'];
+        const header = ['日付', '費目', '摘要', '氏名', '入金額', '出金額', '差引残高', '清算日'];
         const rows: string[][] = [];
         if (scope === 'month') {
-            rows.push(['', '', '前月繰越', '', '', String(openingBalance)]);
+            rows.push(['', '', '前月繰越', '', '', '', String(openingBalance), '']);
         }
         for (const { entry, balance } of rowsWithBalance) {
             rows.push([
                 fmtDate(entry.date),
                 entry.expenseCategory?.name ?? '',
                 entry.description ?? '',
+                entry.applicantName ?? '',
                 entry.entryType === 'in' ? String(Number(entry.amount || 0)) : '',
                 entry.entryType === 'out' ? String(Number(entry.amount || 0)) : '',
                 String(balance),
+                entry.settledAt ? fmtDate(entry.settledAt) : '',
             ]);
         }
         const csv = '﻿' + [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
@@ -380,23 +404,34 @@ export default function CashbookPage() {
                 </div>
             </div>
 
+            {/* 精算日として登録（未精算バッジのタップ時に使う日付・固定なので同じ日付を続けて使える） */}
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <span className="text-xs font-semibold text-emerald-800 whitespace-nowrap">精算日として登録</span>
+                <input type="date" value={settleDate} onChange={(e) => setSettleDate(e.target.value)} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <button type="button" onClick={() => setSettleDate(toYmd(new Date()))} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100">今日</button>
+                <span className="text-xs text-emerald-700/80 w-full sm:w-auto">行の「未精算」をタップするとこの日付が清算日に入ります。清算日を入れた行はその月のページに移り、残高も清算日の順で計算されます。</span>
+            </div>
+
             {/* 帳簿テーブル */}
             {isLoading ? (
                 <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>
             ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="min-w-[900px] w-full divide-y divide-slate-200">
+                        <table className="min-w-[1150px] w-full divide-y divide-slate-200">
                             <thead className="bg-slate-100">
                                 <tr>
-                                    <th className="px-3 py-3 text-left text-xs font-bold text-slate-700 w-[140px]">日付</th>
-                                    <th className="px-3 py-3 text-left text-xs font-bold text-slate-700 w-[150px]">費目</th>
+                                    <th className="px-3 py-3 text-left text-xs font-bold text-slate-700 w-[136px]">日付</th>
+                                    <th className="px-3 py-3 text-left text-xs font-bold text-slate-700 w-[130px]">費目</th>
                                     <th className="px-3 py-3 text-left text-xs font-bold text-slate-700">摘要</th>
-                                    <th className="px-3 py-3 text-right text-xs font-bold text-slate-700 w-[130px]">入金額</th>
-                                    <th className="px-3 py-3 text-right text-xs font-bold text-slate-700 w-[130px]">出金額</th>
-                                    <th className="px-3 py-3 text-right text-xs font-bold text-slate-700 w-[140px]">差引残高</th>
-                                    <th className="px-3 py-3 text-center text-xs font-bold text-slate-700 w-[64px]">証憑</th>
-                                    <th className="px-3 py-3 w-[48px]"><span className="sr-only">削除</span></th>
+                                    <th className="px-3 py-3 text-left text-xs font-bold text-slate-700 w-[110px]">氏名</th>
+                                    <th className="px-3 py-3 text-right text-xs font-bold text-slate-700 w-[112px]">入金額</th>
+                                    <th className="px-3 py-3 text-right text-xs font-bold text-slate-700 w-[112px]">出金額</th>
+                                    <th className="px-3 py-3 text-right text-xs font-bold text-slate-700 w-[124px]">差引残高</th>
+                                    <th className="px-3 py-3 text-left text-xs font-bold text-slate-700 w-[152px]">清算日</th>
+                                    <th className="px-3 py-3 text-center text-xs font-bold text-slate-700 w-[56px]">証憑</th>
+                                    <th className="px-1 py-3 w-[60px]"><span className="sr-only">並び替え</span></th>
+                                    <th className="px-1 py-3 w-[44px]"><span className="sr-only">削除</span></th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-100">
@@ -407,26 +442,34 @@ export default function CashbookPage() {
                                         <td className="px-3 py-2.5 text-sm font-medium text-slate-600">前月繰越</td>
                                         <td className="px-3 py-2.5" />
                                         <td className="px-3 py-2.5" />
+                                        <td className="px-3 py-2.5" />
                                         <td className={`px-3 py-2.5 text-right text-sm font-semibold whitespace-nowrap ${openingBalance < 0 ? 'text-red-600' : 'text-slate-700'}`}>{yen(openingBalance)}</td>
                                         <td className="px-3 py-2.5" />
                                         <td className="px-3 py-2.5" />
+                                        <td className="px-1 py-2.5" />
+                                        <td className="px-1 py-2.5" />
                                     </tr>
                                 )}
                                 {rowsWithBalance.length === 0 && (
                                     <tr>
-                                        <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                                        <td colSpan={11} className="px-4 py-12 text-center text-slate-500">
                                             <FileText className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                                             {scope === 'month' ? 'この月の記帳はまだありません。' : 'まだ記帳がありません。'}「入金行を追加」または領収書の取り込みから始めてください。
                                         </td>
                                     </tr>
                                 )}
-                                {rowsWithBalance.map(({ entry, balance }) => (
+                                {rowsWithBalance.map(({ entry, balance }, i) => (
                                     <CashbookRow
                                         key={entry.id}
                                         entry={entry}
                                         balance={balance}
                                         categories={categories}
                                         saving={savingId === entry.id}
+                                        canMoveUp={i > 0 && cashbookDisplayDate(rowsWithBalance[i - 1].entry) === cashbookDisplayDate(entry)}
+                                        canMoveDown={i < rowsWithBalance.length - 1 && cashbookDisplayDate(rowsWithBalance[i + 1].entry) === cashbookDisplayDate(entry)}
+                                        onMoveUp={() => moveRow(i, -1)}
+                                        onMoveDown={() => moveRow(i, 1)}
+                                        onSettle={() => applyPatch(entry.id, { settledAt: settleDate })}
                                         onPatch={(patch) => applyPatch(entry.id, patch)}
                                         onDelete={() => deleteRow(entry)}
                                         onOpenImage={() => setLightbox(entry)}
@@ -436,11 +479,11 @@ export default function CashbookPage() {
                             {rowsWithBalance.length > 0 && (
                                 <tfoot className="bg-slate-50 border-t-2 border-slate-200">
                                     <tr>
-                                        <td colSpan={3} className="px-3 py-3 text-right text-sm font-semibold text-slate-600">{scope === 'month' ? `${month}月合計` : '合計'}</td>
+                                        <td colSpan={4} className="px-3 py-3 text-right text-sm font-semibold text-slate-600">{scope === 'month' ? `${month}月合計` : '合計'}</td>
                                         <td className="px-3 py-3 text-right text-sm font-bold text-slate-900 whitespace-nowrap">{yen(totalIn)}</td>
                                         <td className="px-3 py-3 text-right text-sm font-bold text-slate-900 whitespace-nowrap">{yen(totalOut)}</td>
                                         <td className={`px-3 py-3 text-right text-sm font-bold whitespace-nowrap ${closingBalance < 0 ? 'text-red-600' : 'text-slate-900'}`}>{yen(closingBalance)}</td>
-                                        <td colSpan={2} />
+                                        <td colSpan={4} />
                                     </tr>
                                 </tfoot>
                             )}
@@ -464,17 +507,23 @@ export default function CashbookPage() {
 }
 
 // 1行分。セルの blur / 選択でそのまま保存する（行単位オートセーブ）。
-function CashbookRow({ entry, balance, categories, saving, onPatch, onDelete, onOpenImage }: {
+function CashbookRow({ entry, balance, categories, saving, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onSettle, onPatch, onDelete, onOpenImage }: {
     entry: CashbookEntry;
     balance: number;
     categories: ExpenseCategoryRef[];
     saving: boolean;
+    canMoveUp: boolean;
+    canMoveDown: boolean;
+    onMoveUp: () => void;
+    onMoveDown: () => void;
+    onSettle: () => void;
     onPatch: (patch: Record<string, unknown>) => void;
     onDelete: () => void;
     onOpenImage: () => void;
 }) {
     const amount = Number(entry.amount || 0);
     const dateYmd = entry.date.slice(0, 10);
+    const settledYmd = entry.settledAt ? entry.settledAt.slice(0, 10) : null;
     const isPdf = entry.mimeType === 'application/pdf' || entry.sourceType === 'pdf';
 
     return (
@@ -523,6 +572,22 @@ function CashbookRow({ entry, balance, categories, saving, onPatch, onDelete, on
                     className="w-full min-w-[180px] rounded-lg border border-transparent hover:border-slate-200 px-2 py-1.5 text-sm text-slate-800 bg-transparent placeholder:text-slate-300 focus:bg-white focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
             </td>
+            {/* 氏名（申請者） */}
+            <td className="px-2 py-1.5">
+                <input
+                    type="text"
+                    key={`a-${entry.id}-${entry.applicantName ?? ''}`}
+                    defaultValue={entry.applicantName ?? ''}
+                    placeholder="氏名"
+                    disabled={saving}
+                    onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v !== (entry.applicantName ?? '')) onPatch({ applicantName: v });
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                    className="w-full min-w-[90px] rounded-lg border border-transparent hover:border-slate-200 px-2 py-1.5 text-sm text-slate-800 bg-transparent placeholder:text-slate-300 focus:bg-white focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+            </td>
             {/* 入金額 / 出金額（反対側に入力すると行の向きごと移す） */}
             <AmountCell
                 active={entry.entryType === 'in'}
@@ -539,6 +604,43 @@ function CashbookRow({ entry, balance, categories, saving, onPatch, onDelete, on
             {/* 差引残高 */}
             <td className={`px-3 py-1.5 text-right text-sm font-semibold whitespace-nowrap ${balance < 0 ? 'text-red-600' : 'text-slate-800'}`}>
                 {yen(balance)}
+            </td>
+            {/* 清算日（実際に現金が動いた日）。未精算バッジのタップで「精算日として登録」の日付を適用 */}
+            <td className="px-2 py-1.5">
+                {settledYmd ? (
+                    <div className="flex items-center gap-0.5">
+                        <input
+                            type="date"
+                            key={`s-${entry.id}-${settledYmd}`}
+                            defaultValue={settledYmd}
+                            disabled={saving}
+                            onBlur={(e) => {
+                                const v = e.target.value;
+                                if (/^\d{4}-\d{2}-\d{2}$/.test(v) && v !== settledYmd) onPatch({ settledAt: v });
+                                else if (!v) e.target.value = settledYmd; // 空にされたら元へ戻す（クリアは×ボタンで）
+                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                            className="w-full rounded-lg border border-transparent hover:border-emerald-200 px-1.5 py-1.5 text-sm text-emerald-800 bg-transparent focus:bg-white focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                        <button
+                            onClick={() => onPatch({ settledAt: null })}
+                            disabled={saving}
+                            title="清算日を消す（未精算に戻す）"
+                            className="shrink-0 px-1 text-slate-300 hover:text-slate-600"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={onSettle}
+                        disabled={saving}
+                        title="タップで「精算日として登録」の日付を清算日に入れる"
+                        className="w-full px-2 py-1 text-xs font-semibold rounded-full border bg-slate-100 text-slate-600 border-slate-200 hover:bg-emerald-100 hover:text-emerald-700 hover:border-emerald-200 transition-colors"
+                    >
+                        未精算
+                    </button>
+                )}
             </td>
             {/* 証憑 */}
             <td className="px-2 py-1.5 text-center">
@@ -563,8 +665,27 @@ function CashbookRow({ entry, balance, categories, saving, onPatch, onDelete, on
                     </button>
                 )}
             </td>
+            {/* 並び替え（同じ表示日の中のみ↑↓で移動・差引残高もその順で再計算） */}
+            <td className="px-1 py-1.5 text-center whitespace-nowrap">
+                <button
+                    onClick={onMoveUp}
+                    disabled={saving || !canMoveUp}
+                    title={canMoveUp ? '上へ移動' : undefined}
+                    className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                >
+                    <ChevronUp className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={onMoveDown}
+                    disabled={saving || !canMoveDown}
+                    title={canMoveDown ? '下へ移動' : undefined}
+                    className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                >
+                    <ChevronDown className="w-4 h-4" />
+                </button>
+            </td>
             {/* 削除 */}
-            <td className="px-2 py-1.5 text-center">
+            <td className="px-1 py-1.5 text-center">
                 {saving ? (
                     <Loader2 className="w-4 h-4 animate-spin text-slate-400 inline-block" />
                 ) : (

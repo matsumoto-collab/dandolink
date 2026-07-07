@@ -39,6 +39,27 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             data.amount = n;
         }
         if ('expenseCategoryId' in body) data.expenseCategoryId = body.expenseCategoryId || null;
+        // 清算日は null でクリア可能（未精算に戻す）。値があれば YYYY-MM-DD として検証
+        if ('settledAt' in body) {
+            if (body.settledAt == null || body.settledAt === '') {
+                data.settledAt = null;
+            } else {
+                const d = parseReceiptDate(body.settledAt);
+                if (!d) return errorResponse('清算日が不正です', 400);
+                data.settledAt = d;
+            }
+        }
+        if ('applicantName' in body) data.applicantName = body.applicantName?.toString().trim() || null;
+        // 手動並び順（上下移動）。null でリセット（seq 順に戻る）
+        if ('sortOrder' in body) {
+            if (body.sortOrder == null) {
+                data.sortOrder = null;
+            } else {
+                const n = Number(body.sortOrder);
+                if (!Number.isFinite(n)) return errorResponse('並び順の値が不正です', 400);
+                data.sortOrder = n;
+            }
+        }
 
         if (Object.keys(data).length === 0) return errorResponse('更新対象が指定されていません', 400);
 
