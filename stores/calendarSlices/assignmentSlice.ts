@@ -11,6 +11,19 @@ const DEFAULT_RETRY_DELAY_MS = 2000;
 // 連打時に前回の in-flight リクエストをキャンセルするためのコントローラ
 let currentAbortController: AbortController | null = null;
 
+// 配置リストの内容シグネチャ。id + updatedAt（+ projectMaster.updatedAt）で同一性を判定する。
+// ポーリング（Realtime補完）の再フェッチは内容不変が大半なので、同一なら set をスキップして
+// カレンダー全体の再レンダーを防ぐ。配置への変更は Prisma の @updatedAt で必ず updatedAt が
+// 進むため、updatedAt 比較で内容変化を検出できる。
+function assignmentsSignature(
+    list: { id: string; updatedAt: Date; projectMaster?: { updatedAt: Date } }[]
+): string {
+    return list
+        .map((a) => `${a.id}:${a.updatedAt.getTime()}:${a.projectMaster?.updatedAt?.getTime() ?? 0}`)
+        .sort()
+        .join('|');
+}
+
 // 復元API（POST /api/assignments もしくは /restore）が返す formatAssignment 形を
 // ストア用に Date 化する。parse の流儀は fetchAssignments と揃える。
 function parseRestoredAssignment(
@@ -35,7 +48,7 @@ function parseRestoredAssignment(
 }
 
 type AssignmentSlice = Pick<CalendarState, 'assignments' | 'projectsLoading' | 'projectsInitialized'> &
-    Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'restoreAssignment' | 'restoreDeletedAssignment' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
+    Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'restoreAssignment' | 'restoreDeletedAssignment' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'upsertAssignments' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
 
 export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) => ({
     assignments: [],
@@ -75,6 +88,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                         updatedAt: new Date(a.projectMaster.updatedAt),
                     } : undefined,
                 }));
+                const { assignments: currentAssignments, projectsInitialized } = get();
+                if (projectsInitialized && assignmentsSignature(parsed) === assignmentsSignature(currentAssignments)) {
+                    // 内容不変: set をスキップ（projectsLoading は finally で戻す）
+                    return;
+                }
                 set({ assignments: parsed, projectsInitialized: true });
             } else if (response.status === 429 && _retryCount < MAX_RETRY_COUNT) {
                 const retryAfter = response.headers.get('Retry-After');
@@ -603,6 +621,45 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 return { assignments: [...state.assignments, assignment] };
             }
         });
+    },
+
+    upsertAssignments: (incoming, removeIds = []) => {
+        if (incoming.length === 0 && removeIds.length === 0) return;
+        const current = get().assignments;
+        const incomingById = new Map(incoming.map((a) => [a.id, a]));
+        const removeSet = new Set(removeIds);
+        let changed = false;
+        const next: typeof current = [];
+        for (const existing of current) {
+            if (removeSet.has(existing.id)) {
+                changed = true;
+                continue;
+            }
+            const replacement = incomingById.get(existing.id);
+            if (replacement) {
+                incomingById.delete(existing.id);
+                // updatedAt が同一なら既存参照を維持（無駄な再レンダー防止）
+                const sameStamp =
+                    replacement.updatedAt.getTime() === existing.updatedAt.getTime() &&
+                    (replacement.projectMaster?.updatedAt?.getTime() ?? 0) === (existing.projectMaster?.updatedAt?.getTime() ?? 0);
+                if (sameStamp) {
+                    next.push(existing);
+                } else {
+                    next.push(replacement);
+                    changed = true;
+                }
+            } else {
+                next.push(existing);
+            }
+        }
+        // 残りは新規追加分
+        incomingById.forEach((a) => {
+            next.push(a);
+            changed = true;
+        });
+        if (changed) {
+            set({ assignments: next });
+        }
     },
 
     removeAssignmentById: (id) => {

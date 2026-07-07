@@ -1,4 +1,4 @@
-import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap } from './types';
+import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap, recordEquals } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { logger } from '@/lib/logger';
 
@@ -31,7 +31,11 @@ export const createCellRemarkSlice: CalendarSlice<CellRemarkSlice> = (set, get) 
                         cellRemarksInitialized: true,
                     }));
                 } else {
-                    set({ cellRemarks: data, cellRemarksInitialized: true });
+                    // 内容不変なら既存参照を維持（購読側の再レンダー防止）
+                    set((state) => ({
+                        cellRemarks: recordEquals(state.cellRemarks, data) ? state.cellRemarks : data,
+                        cellRemarksInitialized: true,
+                    }));
                 }
             } else {
                 // 失敗時もinitializedを立ててUIをアンブロック（空メモとして扱う）

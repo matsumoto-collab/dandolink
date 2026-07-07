@@ -22,10 +22,29 @@ export interface DateKeyRange {
 }
 
 /**
+ * 2つのマップが同一内容かを判定する。
+ * ポーリング（Realtime補完）の再フェッチは内容が変わっていないことが大半なので、
+ * 同一なら既存参照を使い回してカレンダー全体の再レンダーを抑える用途。
+ * vacations のように値がオブジェクトのマップがあるため、値は JSON で比較する。
+ */
+export function recordEquals<V>(a: Record<string, V>, b: Record<string, V>): boolean {
+    const aKeys = Object.keys(a);
+    if (aKeys.length !== Object.keys(b).length) return false;
+    for (const key of aKeys) {
+        const av = a[key];
+        const bv = b[key];
+        if (av === bv) continue;
+        if (bv === undefined || JSON.stringify(av) !== JSON.stringify(bv)) return false;
+    }
+    return true;
+}
+
+/**
  * 範囲フェッチ結果をマップへ反映する共通ロジック。
  * 既存マップから範囲内のキーを除去してからフェッチ結果を上書きする
  * （範囲内で削除されたエントリを確実に消し、範囲外のキャッシュは保持）。
  * cellRemarks のような複合キーは extractDateKey で dateKey 部分を取り出す。
+ * マージ結果が現在値と同一なら現在の参照をそのまま返す（購読側の再レンダー防止）。
  */
 export function mergeRangeFetchedMap<V>(
     current: Record<string, V>,
@@ -39,7 +58,8 @@ export function mergeRangeFetchedMap<V>(
         if (dateKey >= range.from && dateKey <= range.to) continue; // 範囲内は破棄して差し替え
         next[key] = value;
     }
-    return Object.assign(next, fetched);
+    Object.assign(next, fetched);
+    return recordEquals(current, next) ? current : next;
 }
 
 // Types
@@ -220,6 +240,9 @@ export interface CalendarActions {
     getProjects: () => Project[];
     // Realtime incremental sync
     upsertAssignment: (assignment: ProjectAssignment & { projectMaster?: ProjectMaster }) => void;
+    // 複数件を1回の set で反映する（Realtimeイベントのまとめ反映用）。
+    // removeIds は表示範囲外へ移動した配置の掃除用。内容が変わらなければ状態を更新しない。
+    upsertAssignments: (assignments: (ProjectAssignment & { projectMaster?: ProjectMaster })[], removeIds?: string[]) => void;
     removeAssignmentById: (id: string) => void;
     updateProjectMasterInAssignments: (projectMaster: ProjectMaster) => void;
 

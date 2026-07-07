@@ -1,4 +1,4 @@
-import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap } from './types';
+import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap, recordEquals } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { logger } from '@/lib/logger';
 
@@ -25,7 +25,11 @@ export const createMemberAdjustmentSlice: CalendarSlice<MemberAdjustmentSlice> =
                         memberAdjustmentsInitialized: true,
                     }));
                 } else {
-                    set({ memberAdjustments: data, memberAdjustmentsInitialized: true });
+                    // 内容不変なら既存参照を維持（購読側の再レンダー防止）
+                    set((state) => ({
+                        memberAdjustments: recordEquals(state.memberAdjustments, data) ? state.memberAdjustments : data,
+                        memberAdjustmentsInitialized: true,
+                    }));
                 }
             } else {
                 // 失敗時もinitializedを立ててUIをアンブロック（調整0として扱う）

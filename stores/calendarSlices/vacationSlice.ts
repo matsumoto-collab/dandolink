@@ -1,4 +1,4 @@
-import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap } from './types';
+import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap, recordEquals } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { logger } from '@/lib/logger';
 
@@ -33,7 +33,11 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
                             vacationsInitialized: true,
                         }));
                     } else {
-                        set({ vacations: data, vacationsInitialized: true });
+                        // 内容不変なら既存参照を維持（購読側の再レンダー防止）
+                        set((state) => ({
+                            vacations: recordEquals(state.vacations, data) ? state.vacations : data,
+                            vacationsInitialized: true,
+                        }));
                     }
                 }
             } else {

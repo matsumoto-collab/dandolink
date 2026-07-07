@@ -1,4 +1,4 @@
-import { CalendarSlice, CalendarActions, CalendarState } from './types';
+import { CalendarSlice, CalendarActions, CalendarState, recordEquals } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { logger } from '@/lib/logger';
 
@@ -16,7 +16,11 @@ export const createRemarkSlice: CalendarSlice<RemarkSlice> = (set, get) => ({
             const response = await fetch('/api/calendar/remarks', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
-                set({ remarks: data, remarksInitialized: true });
+                // 内容不変なら既存参照を維持（購読側の再レンダー防止）
+                set((state) => ({
+                    remarks: recordEquals(state.remarks, data) ? state.remarks : data,
+                    remarksInitialized: true,
+                }));
             }
         } catch (error) {
             logger.error('Failed to fetch remarks:', error);
