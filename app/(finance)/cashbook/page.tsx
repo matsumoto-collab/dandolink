@@ -404,13 +404,16 @@ export default function CashbookPage() {
                 </div>
             </div>
 
-            {/* 精算日として登録（未精算バッジのタップ時に使う日付・固定なので同じ日付を続けて使える） */}
-            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-                <span className="text-xs font-semibold text-emerald-800 whitespace-nowrap">精算日として登録</span>
-                <input type="date" value={settleDate} onChange={(e) => setSettleDate(e.target.value)} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                <button type="button" onClick={() => setSettleDate(toYmd(new Date()))} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100">今日</button>
-                <span className="text-xs text-emerald-700/80 w-full sm:w-auto">行の「未精算」をタップするとこの日付が清算日に入ります。清算日を入れた行はその月のページに移り、残高も清算日の順で計算されます。</span>
+            {/* 精算日として登録（未精算バッジのタップ時に使う日付・固定なので同じ日付を続けて使える）。
+                下の方の行からもスクロールせず日付を変えられるよう、バーは画面上部（モバイルはヘッダー下）に追従する */}
+            <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] lg:top-0 z-10 bg-slate-50 pb-2">
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 shadow-sm">
+                    <span className="text-xs font-semibold text-emerald-800 whitespace-nowrap">精算日として登録</span>
+                    <input type="date" value={settleDate} onChange={(e) => setSettleDate(e.target.value)} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    <button type="button" onClick={() => setSettleDate(toYmd(new Date()))} className="rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100">今日</button>
+                </div>
             </div>
+            <p className="mb-4 px-1 text-xs text-emerald-700/80">行の「未精算」をタップするとこの日付が清算日に入ります。清算日を入れた行はその月のページに移り、残高も清算日の順で計算されます。</p>
 
             {/* 帳簿テーブル */}
             {isLoading ? (
