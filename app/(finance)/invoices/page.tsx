@@ -149,19 +149,19 @@ export default function InvoiceListPage() {
         return { name: c?.name || customerName, honorific: c?.honorific, postalCode: c?.postalCode, address: c?.address };
     }, [projectMasters, customers]);
 
-    // ステータスアイコンとカラー
+    // ステータスアイコンとカラー（灰=未完成 / 橙=送付待ち / 青=入金待ち / 緑=完了 / 赤=超過）
     const getStatusInfo = (status: Invoice['status']) => {
         switch (status) {
             case 'draft':
-                return { icon: Clock, color: 'text-slate-500', bg: 'bg-slate-100', label: '下書き' };
+                return { icon: Clock, color: 'text-slate-600', bg: 'bg-slate-100', label: '下書き' };
             case 'confirmed':
-                return { icon: UserCheck, color: 'text-slate-600', bg: 'bg-slate-100', label: '担当確認済み' };
+                return { icon: UserCheck, color: 'text-amber-700', bg: 'bg-amber-100', label: '担当確認済み' };
             case 'sent':
-                return { icon: FileText, color: 'text-slate-600', bg: 'bg-slate-100', label: '送付済み' };
+                return { icon: FileText, color: 'text-blue-700', bg: 'bg-blue-100', label: '送付済み' };
             case 'paid':
-                return { icon: CheckCircle, color: 'text-slate-600', bg: 'bg-slate-100', label: '支払済み' };
+                return { icon: CheckCircle, color: 'text-green-700', bg: 'bg-green-100', label: '支払済み' };
             case 'overdue':
-                return { icon: AlertCircle, color: 'text-slate-600', bg: 'bg-slate-100', label: '期限超過' };
+                return { icon: AlertCircle, color: 'text-red-700', bg: 'bg-red-100', label: '期限超過' };
         }
     };
 
