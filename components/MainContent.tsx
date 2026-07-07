@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useNavigation, PageType } from '@/contexts/NavigationContext';
@@ -180,6 +180,16 @@ export default function MainContent() {
     const userRole = session?.user?.role;
     const userId = session?.user?.id;
 
+    // 税理士(accountant)にはスケジュールを見せないため、ログイン直後の初期表示(schedule)を請求書に切り替える。
+    // ?page= のディープリンクがある場合はそちらの処理（上の useEffect）に任せ、消化後に schedule のままなら切り替える。
+    const didSetAccountantHome = useRef(false);
+    useEffect(() => {
+        if (didSetAccountantHome.current || userRole !== 'accountant') return;
+        if (searchParams?.get('page')) return;
+        didSetAccountantHome.current = true;
+        if (activePage === 'schedule') setActivePage('invoices');
+    }, [userRole, activePage, searchParams, setActivePage]);
+
     // アクセシビリティ/SEO 向けのページタイトル（h1 として読み上げソフトに伝える）
     const pageTitleMap: Record<PageType, string> = {
         'schedule': '工程管理',
@@ -213,6 +223,10 @@ export default function MainContent() {
     const renderContent = () => {
         switch (activePage) {
             case 'schedule':
+                // 税理士(accountant)はスケジュール対象外（サイドバーにも出さない）。?page=schedule の直接アクセスもブロック
+                if (userRole === 'accountant') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
                 // workerロールの場合は手配表のみ表示（タブなし）
                 if (userRole === 'worker') {
                     return (
