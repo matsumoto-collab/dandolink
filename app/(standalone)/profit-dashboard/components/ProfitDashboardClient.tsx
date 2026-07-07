@@ -205,7 +205,7 @@ export default function ProfitDashboardClient({
                     {isLoading && <div className="text-sm text-slate-500">読み込み中…</div>}
                 </div>
 
-                {/* 月次売上（送付済み以降・作成日ベース・税抜）— フィルタ非依存。月送りで過去月も確認可 */}
+                {/* 月次売上（送付済み以降・作成日ベース・税込）— フィルタ非依存。月送りで過去月も確認可 */}
                 <MonthlySalesPanel data={monthlySales} />
 
                 {/* フィルタパネル（モバイルは「絞り込み」で折りたたみ。sm+ は常時表示） */}

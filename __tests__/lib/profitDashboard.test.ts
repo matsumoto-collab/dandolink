@@ -121,8 +121,8 @@ describe('lib/profitDashboard', () => {
 
         it('当月・前月を JST 月で振り分け、前月比を算出する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { subtotal: 100000, createdAt: new Date('2026-06-10T03:00:00Z') }, // JST 6月
-                { subtotal: 50000, createdAt: new Date('2026-05-20T03:00:00Z') },  // JST 5月
+                { total: 100000, createdAt: new Date('2026-06-10T03:00:00Z') }, // JST 6月
+                { total: 50000, createdAt: new Date('2026-05-20T03:00:00Z') },  // JST 5月
             ]);
 
             const r = await fetchMonthlySales(12, now);
@@ -144,8 +144,8 @@ describe('lib/profitDashboard', () => {
 
         it('UTC 月末深夜は JST 翌月（=当月）として集計する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { subtotal: 30000, createdAt: new Date('2026-05-31T15:30:00Z') }, // JST 6/1 00:30 → 6月
-                { subtotal: 70000, createdAt: new Date('2026-05-31T14:30:00Z') }, // JST 5/31 23:30 → 5月
+                { total: 30000, createdAt: new Date('2026-05-31T15:30:00Z') }, // JST 6/1 00:30 → 6月
+                { total: 70000, createdAt: new Date('2026-05-31T14:30:00Z') }, // JST 5/31 23:30 → 5月
             ]);
 
             const r = await fetchMonthlySales(12, now);
@@ -154,7 +154,7 @@ describe('lib/profitDashboard', () => {
             expect(r.previous.sales).toBe(70000);
         });
 
-        it('送付済み以降のみ計上する where 条件と JST 月範囲でクエリする', async () => {
+        it('送付済み以降のみ計上する where 条件と JST 月範囲・税込(total)でクエリする', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
 
             await fetchMonthlySales(12, now);
@@ -165,6 +165,8 @@ describe('lib/profitDashboard', () => {
                         status: { in: ['sent', 'paid', 'overdue'] },
                         createdAt: expect.objectContaining({ gte: expect.any(Date), lt: expect.any(Date) }),
                     }),
+                    // 月次売上は税込（kei 決定 2026-07-07）。担当者別/顧客別内訳は税抜のまま
+                    select: { total: true, createdAt: true },
                 }),
             );
             // lt は翌月初(JST) = 2026-07-01 00:00 JST = 2026-06-30T15:00:00Z
@@ -176,7 +178,7 @@ describe('lib/profitDashboard', () => {
 
         it('前月が 0 のとき momPercent は null', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { subtotal: 80000, createdAt: new Date('2026-06-05T03:00:00Z') },
+                { total: 80000, createdAt: new Date('2026-06-05T03:00:00Z') },
             ]);
 
             const r = await fetchMonthlySales(12, now);

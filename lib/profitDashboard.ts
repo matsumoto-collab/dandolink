@@ -74,7 +74,7 @@ export interface FilterOptions {
 export interface MonthlySalesPoint {
     year: number;          // JST 年
     month: number;         // JST 月 (1-12)
-    sales: number;         // その JST 月に発行された Invoice.subtotal(税抜) 合計、cancelled 除外
+    sales: number;         // その JST 月に発行された Invoice.total(税込) 合計、cancelled 除外
     invoiceCount: number;
 }
 
@@ -530,7 +530,9 @@ export async function fetchProfitDashboardData(
 /**
  * 「今月の売上」とその月次推移を集計する（請求日ベース）。
  *
- * - 売上＝当該 JST 月に作成された請求書（Invoice）の subtotal(税抜) 合計。
+ * - 売上＝当該 JST 月に作成された請求書（Invoice）の total(税込) 合計（kei 決定 2026-07-07。
+ *   税抜統一で一度 subtotal にしたが、月商は請求額＝税込の感覚で見たいとの要望で税込へ戻した。
+ *   担当者別/顧客別内訳 fetchMonthlyAssigneeBreakdown は粗利＝売上−原価(税抜)の正確さを保つため税抜のまま）。
  *   `Invoice.createdAt` が請求日（作成日）として保存されている（InvoiceForm の請求日入力 → createdAt、
  *   BillingDraft 確定経由は確定時刻）。
  * - 計上対象は **送付済み以降**（status: sent/paid/overdue）。下書き・担当確認済み・取消は除外（kei 決定 2026-06-02）。
@@ -563,7 +565,7 @@ export async function fetchMonthlySales(
             createdAt: { gte: rangeStart, lt: rangeEnd },
             status: { in: [...SALES_INVOICE_STATUSES] },
         },
-        select: { subtotal: true, createdAt: true },
+        select: { total: true, createdAt: true },
     });
 
     // 月バケットを古い順に生成（Date.UTC は月のアンダーフローを正規化＝年跨ぎ対応）
@@ -581,7 +583,7 @@ export async function fetchMonthlySales(
         const jst = new Date(inv.createdAt.getTime() + 9 * 60 * 60 * 1000);
         const idx = indexByKey.get(`${jst.getUTCFullYear()}-${jst.getUTCMonth()}`);
         if (idx == null) continue;
-        trend[idx].sales += Number(inv.subtotal);
+        trend[idx].sales += Number(inv.total);
         trend[idx].invoiceCount += 1;
     }
 

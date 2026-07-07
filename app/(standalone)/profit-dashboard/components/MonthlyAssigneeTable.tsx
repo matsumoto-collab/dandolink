@@ -56,7 +56,7 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
     // 説明文（PC=常時表示 / モバイル=折りたたみ）で共用
     const explainer = (
         <>
-            {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。<strong className="text-slate-500">その期間に請求した案件のみ</strong>表示（売上=請求額、原価=案件の確定原価＝人件費＋車両費＋材料費＋外注費＋その他、主担当に全額計上）。
+            {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。<strong className="text-slate-500">その期間に請求した案件のみ</strong>表示（売上=請求額（税抜）、原価=案件の確定原価＝人件費＋車両費＋材料費＋外注費＋その他、主担当に全額計上）。上の月次売上は税込のため、この表の売上合計とは消費税分ずれます。
             <strong className="text-slate-500">原価の修正は案件詳細の利益タブ</strong>（配置ごとの上書き・材料費等）で行います。
         </>
     );
@@ -64,7 +64,8 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
     return (
         <div className="mt-6 border-t border-slate-200 pt-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                <h3 className="text-sm font-semibold text-slate-700">{axisLabel}（{periodLabel}）</h3>
+                {/* 上の月次売上KPIは税込・この表は粗利（売上−原価(税抜)）の正確さを保つため税抜（kei 決定 2026-07-07） */}
+                <h3 className="text-sm font-semibold text-slate-700">{axisLabel}（{periodLabel}・税抜）</h3>
                 {/* 幅が足りないときはボタンを潰さずグループ単位で折り返す（文字の縦書き化防止） */}
                 <div className="flex flex-wrap items-center gap-2">
                     <Segmented
