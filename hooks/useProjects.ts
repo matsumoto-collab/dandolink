@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { Project, CalendarEvent, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
+import { Project, CalendarEvent, ProjectAssignment, ProjectMaster, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
 import { useMasterStore } from '@/stores/masterStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { initBroadcastChannel, onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
@@ -15,6 +15,106 @@ export type { Project, CalendarEvent, ProjectAssignment, ProjectMaster } from '@
 
 // Re-export ConflictUpdateError for use in components
 export { ConflictUpdateError } from '@/stores/calendarStore';
+
+// ---- Realtime同期のモジュールスコープ状態 ----
+// ストア（useCalendarStore）はアプリ全体で1つなので、「ロード済みの表示日付範囲」も
+// モジュールで1つ持つ。以前は useProjects インスタンスごとの ref だったため、
+// モーダル等の別インスタンスの購読が範囲不明のまま無条件 upsert する歪みがあった。
+let currentDateRange: { start: string; end: string } | null = null;
+
+// Realtime/broadcast で届いた変更IDのキュー。
+// 同じ変更が Supabase broadcast と postgres_changes(WAL) の二重で届いたり、
+// 一括操作でIDが連続で届いたりするため、IDを Set に貯めて500msデバウンスで
+// まとめて1回フェッチ→1回の set で反映する（従来はIDごとに個別フェッチ+set が走り、
+// 閲覧中の端末でもイベントのたびにカレンダー全体が再レンダーされていた）。
+const pendingSyncIds = new Set<string>();
+let syncFlushTimer: ReturnType<typeof setTimeout> | null = null;
+const SYNC_FLUSH_DEBOUNCE_MS = 500;
+// これを超えるIDが貯まったら個別取得をやめて表示範囲の一括再フェッチに切り替える
+// （fetchAssignments 側に内容不変スキップがあるため二重反映のコストは低い）
+const SYNC_IDS_LIMIT = 50;
+
+type AssignmentWithMaster = ProjectAssignment & { projectMaster?: ProjectMaster };
+
+// APIレスポンスの日付文字列を Date 化する（fetchAssignments と同じ流儀）
+function parseAssignmentDates(data: AssignmentWithMaster & {
+    date: string; createdAt: string; updatedAt: string;
+    workStartedAt?: string | null; workEndedAt?: string | null;
+    projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string };
+}): AssignmentWithMaster {
+    return {
+        ...data,
+        date: new Date(data.date),
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
+        workStartedAt: data.workStartedAt ? new Date(data.workStartedAt) : null,
+        workEndedAt: data.workEndedAt ? new Date(data.workEndedAt) : null,
+        projectMaster: data.projectMaster ? {
+            ...data.projectMaster,
+            createdAt: new Date(data.projectMaster.createdAt),
+            updatedAt: new Date(data.projectMaster.updatedAt),
+        } : undefined,
+    };
+}
+
+function scheduleAssignmentSync(id: string | null | undefined): void {
+    // ガード: broadcast/Realtime payload に id が欠けて undefined が流入することがあり、
+    // 文字列 "undefined" として URL に埋め込まれて 404 を量産する事故を防ぐ
+    if (!id) return;
+    pendingSyncIds.add(id);
+    if (syncFlushTimer) clearTimeout(syncFlushTimer);
+    syncFlushTimer = setTimeout(() => { void flushAssignmentSync(); }, SYNC_FLUSH_DEBOUNCE_MS);
+}
+
+async function flushAssignmentSync(): Promise<void> {
+    syncFlushTimer = null;
+    const ids = Array.from(pendingSyncIds);
+    pendingSyncIds.clear();
+    if (ids.length === 0) return;
+    try {
+        if (ids.length > SYNC_IDS_LIMIT) {
+            const store = useCalendarStore.getState();
+            if (currentDateRange) {
+                await store.fetchAssignments(currentDateRange.start, currentDateRange.end);
+            } else {
+                await store.fetchAssignments();
+            }
+            return;
+        }
+        const url = ids.length === 1
+            ? `/api/assignments/${ids[0]}`
+            : `/api/assignments?ids=${ids.join(',')}`;
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) return; // 404=削除済み等。削除は DELETE イベント側が担う
+        const data = await response.json();
+        const parsed: AssignmentWithMaster[] = (Array.isArray(data) ? data : [data]).map(parseAssignmentDates);
+        const range = currentDateRange;
+        const inRange: AssignmentWithMaster[] = [];
+        const removeIds: string[] = [];
+        for (const assignment of parsed) {
+            const dateKey = formatDateKey(assignment.date);
+            if (!range || (dateKey >= range.start && dateKey <= range.end)) {
+                inRange.push(assignment);
+            } else {
+                // 表示範囲外へ移動された配置は旧位置の残骸を掃除（従来はポーリングまで残った）
+                removeIds.push(assignment.id);
+            }
+        }
+        useCalendarStore.getState().upsertAssignments(inRange, removeIds);
+    } catch (error) {
+        logger.error('Failed to sync assignments from realtime events:', error);
+    }
+}
+
+// テスト専用: モジュールスコープの同期状態をリセットする
+export function __resetAssignmentSyncForTests(): void {
+    currentDateRange = null;
+    pendingSyncIds.clear();
+    if (syncFlushTimer) {
+        clearTimeout(syncFlushTimer);
+        syncFlushTimer = null;
+    }
+}
 
 // This hook wraps the Zustand store and handles initialization/realtime
 export function useProjects() {
@@ -41,12 +141,8 @@ export function useProjects() {
     const fetchCellRemarksStore = useCalendarStore((state) => state.fetchCellRemarks);
     const fetchMemberAdjustmentsStore = useCalendarStore((state) => state.fetchMemberAdjustments);
     const fetchVacationsStore = useCalendarStore((state) => state.fetchVacations);
-    const upsertAssignmentStore = useCalendarStore((state) => state.upsertAssignment);
     const removeAssignmentByIdStore = useCalendarStore((state) => state.removeAssignmentById);
     const updateProjectMasterInAssignmentsStore = useCalendarStore((state) => state.updateProjectMasterInAssignments);
-
-    // Use ref for date range to avoid callback recreation
-    const currentDateRangeRef = useRef<{ start: string; end: string } | null>(null);
 
     // Cleanup timeouts on unmount
     useEffect(() => {
@@ -63,7 +159,7 @@ export function useProjects() {
     // Reset state when unauthenticated
     useEffect(() => {
         if (status === 'unauthenticated') {
-            currentDateRangeRef.current = null;
+            currentDateRange = null;
         }
     }, [status]);
 
@@ -77,7 +173,7 @@ export function useProjects() {
         const endStr = formatDateKey(endDate);
 
         // Skip if same range is already loaded and has data
-        const currentRange = currentDateRangeRef.current;
+        const currentRange = currentDateRange;
         const { projectsInitialized, assignments } = useCalendarStore.getState();
         if (currentRange?.start === startStr && currentRange?.end === endStr && projectsInitialized && assignments.length > 0) {
             return;
@@ -95,7 +191,7 @@ export function useProjects() {
                 const resolvers = [...fetchResolversRef.current];
                 fetchResolversRef.current = [];
 
-                currentDateRangeRef.current = { start: startStr, end: endStr };
+                currentDateRange = { start: startStr, end: endStr };
 
                 // セルメモ・人数調整はカレンダーヘッダー/セルに直接効く一次データ。
                 // 遅延フェッチすると初回paintで残り人数が誤算出され、メモも欠落するため
@@ -115,71 +211,48 @@ export function useProjects() {
         });
     }, [fetchAssignmentsStore, fetchCellRemarksStore, fetchMemberAdjustmentsStore]);
 
-    // 単一配置をAPIから取得してstoreに差し込む（Realtime incremental sync用）
-    const fetchAndUpsertAssignment = useCallback(async (id: string) => {
-        // ガード: broadcast/Realtime payload に id が欠けて undefined が流入することがあり、
-        // 文字列 "undefined" として URL に埋め込まれて 404 を量産する事故を防ぐ
-        if (!id) return;
-        try {
-            const response = await fetch(`/api/assignments/${id}`);
-            if (!response.ok) return;
-            const data = await response.json();
-            const assignment = {
-                ...data,
-                date: new Date(data.date),
-                createdAt: new Date(data.createdAt),
-                updatedAt: new Date(data.updatedAt),
-                projectMaster: data.projectMaster ? {
-                    ...data.projectMaster,
-                    createdAt: new Date(data.projectMaster.createdAt),
-                    updatedAt: new Date(data.projectMaster.updatedAt),
-                } : undefined,
-            };
-            // 現在の表示日付範囲内のみstoreに追加
-            const range = currentDateRangeRef.current;
-            if (range) {
-                const assignmentDate = formatDateKey(assignment.date);
-                if (assignmentDate >= range.start && assignmentDate <= range.end) {
-                    upsertAssignmentStore(assignment);
-                }
-            } else {
-                upsertAssignmentStore(assignment);
-            }
-        } catch (error) {
-            logger.error('Failed to fetch assignment for realtime sync:', error);
-        }
-    }, [upsertAssignmentStore]);
-
     // Supabase Realtime subscription
     useEffect(() => {
         if (status !== 'authenticated') return;
 
         let channel: RealtimeChannel | null = null;
 
+        // INSERT/UPDATE 共通: payload.new.date で表示範囲を事前判定し、範囲外なら
+        // フェッチ自体を省く（従来は全社の全変更で毎回フェッチ+再レンダーが走っていた）。
+        // 範囲内→範囲外へ移動された配置はストアから掃除する。
+        const handleAssignmentUpserted = (payload: { new: Record<string, unknown> }) => {
+            if (isUpdatingRef.current) return;
+            const id = payload.new?.id as string | undefined;
+            if (!id) return;
+            const range = currentDateRange;
+            const rawDate = payload.new?.date as string | undefined;
+            if (range && rawDate) {
+                const dateKey = formatDateKey(new Date(rawDate));
+                if (dateKey < range.start || dateKey > range.end) {
+                    if (useCalendarStore.getState().assignments.some((a) => a.id === id)) {
+                        removeAssignmentByIdStore(id);
+                    }
+                    return;
+                }
+            }
+            scheduleAssignmentSync(id);
+        };
+
         const setupRealtime = async () => {
             try {
                 const { supabase } = await import('@/lib/supabase');
                 channel = supabase
                     .channel('project_assignments_changes_zustand')
-                    // ProjectAssignment: INSERT → 1件だけ取得してupsert
+                    // ProjectAssignment: INSERT/UPDATE → キューに積んでまとめて取得・反映
                     .on(
                         'postgres_changes',
                         { event: 'INSERT', schema: 'public', table: 'ProjectAssignment' },
-                        (payload) => {
-                            if (!isUpdatingRef.current) {
-                                fetchAndUpsertAssignment(payload.new.id as string);
-                            }
-                        }
+                        handleAssignmentUpserted
                     )
-                    // ProjectAssignment: UPDATE → 1件だけ取得してupsert
                     .on(
                         'postgres_changes',
                         { event: 'UPDATE', schema: 'public', table: 'ProjectAssignment' },
-                        (payload) => {
-                            if (!isUpdatingRef.current) {
-                                fetchAndUpsertAssignment(payload.new.id as string);
-                            }
-                        }
+                        handleAssignmentUpserted
                     )
                     // ProjectAssignment: DELETE → APIコールなしでstoreから削除
                     .on(
@@ -237,7 +310,7 @@ export function useProjects() {
                     });
             }
         };
-    }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore, updateProjectMasterInAssignmentsStore]);
+    }, [status, removeAssignmentByIdStore, updateProjectMasterInAssignmentsStore]);
 
     // Supabase broadcast シングルトンを初期化し、案件配置・セル備考の受信リスナーを登録
     // 起動直後のネットワーク集中を避けるため、初期化を少し遅らせる
@@ -249,12 +322,12 @@ export function useProjects() {
         const cleanups = [
             onBroadcast('assignment_updated', (payload) => {
                 if (!isUpdatingRef.current && payload?.id) {
-                    fetchAndUpsertAssignment(payload.id as string);
+                    scheduleAssignmentSync(payload.id as string);
                 }
             }),
             onBroadcast('assignments_batch_updated', (payload) => {
                 if (!isUpdatingRef.current && Array.isArray(payload?.ids)) {
-                    (payload.ids as string[]).forEach((id: string) => fetchAndUpsertAssignment(id));
+                    (payload.ids as string[]).forEach((id: string) => scheduleAssignmentSync(id));
                 }
             }),
             onBroadcast('assignment_deleted', (payload) => {
@@ -274,7 +347,7 @@ export function useProjects() {
             clearTimeout(initTimer);
             cleanups.forEach(cleanup => cleanup());
         };
-    }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore]);
+    }, [status, removeAssignmentByIdStore]);
 
     // BroadcastChannel セットアップ（同一デバイスの別タブへ通知）
     useEffect(() => {
@@ -286,9 +359,9 @@ export function useProjects() {
             if (isUpdatingRef.current) return; // 自分が更新中なら無視
             const { type, id, ids } = event.data ?? {};
             if (type === 'assignment_updated' && id) {
-                fetchAndUpsertAssignment(id);
+                scheduleAssignmentSync(id);
             } else if (type === 'assignments_batch_updated' && Array.isArray(ids)) {
-                ids.forEach((assignmentId: string) => fetchAndUpsertAssignment(assignmentId));
+                ids.forEach((assignmentId: string) => scheduleAssignmentSync(assignmentId));
             } else if (type === 'assignment_deleted' && id) {
                 removeAssignmentByIdStore(id);
             }
@@ -298,7 +371,7 @@ export function useProjects() {
             ch.close();
             broadcastRef.current = null;
         };
-    }, [fetchAndUpsertAssignment, removeAssignmentByIdStore]);
+    }, [removeAssignmentByIdStore]);
 
     // Wrapper functions for backward compatibility
     const addProject = useCallback(async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -422,11 +495,11 @@ export function useProjects() {
     const refreshProjects = useCallback(async () => {
         // 表示中の範囲が分かっていればその範囲のみ再取得（全件フェッチ回避）。
         // 範囲未確定（カレンダー未マウント等）の場合のみ従来どおり全件。
-        const range = currentDateRangeRef.current;
-        currentDateRangeRef.current = null;
+        const range = currentDateRange;
+        currentDateRange = null;
         if (range) {
             await fetchAssignmentsStore(range.start, range.end);
-            currentDateRangeRef.current = range;
+            currentDateRange = range;
         } else {
             await fetchAssignmentsStore();
         }
@@ -440,7 +513,7 @@ export function useProjects() {
         if (isUpdatingRef.current) return; // 自分が更新中なら跳ばす
         const startStr = formatDateKey(startDate);
         const endStr = formatDateKey(endDate);
-        currentDateRangeRef.current = null; // キャッシュをクリアして強制再フェッチ
+        currentDateRange = null; // キャッシュをクリアして強制再フェッチ
         // 副次データもポーリングでは表示範囲のみ再取得（全件フェッチはテーブル成長とともに肥大するため）。
         // ストア側は範囲内キーだけ差し替えるので、範囲外の既存キャッシュは消えない。
         const sideRange = { from: startStr, to: endStr };
@@ -450,7 +523,7 @@ export function useProjects() {
             fetchVacationsStore(sideRange),
             fetchCellRemarksStore(sideRange),
         ]);
-        currentDateRangeRef.current = { start: startStr, end: endStr };
+        currentDateRange = { start: startStr, end: endStr };
     }, [fetchAssignmentsStore, fetchMemberAdjustmentsStore, fetchVacationsStore, fetchCellRemarksStore]);
 
     // Subscribe to assignments changes to trigger re-renders

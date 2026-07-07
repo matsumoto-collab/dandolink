@@ -20,9 +20,16 @@ export async function GET(req: NextRequest) {
         const endDate = searchParams.get('endDate');
         const assignedEmployeeId = searchParams.get('assignedEmployeeId');
         const projectMasterId = searchParams.get('projectMasterId');
+        const idsParam = searchParams.get('ids');
 
         const where: Record<string, unknown> = {};
 
+        // Realtime同期のまとめ取り用: id指定の一括取得（上限100件）
+        if (idsParam) {
+            const ids = idsParam.split(',').filter(Boolean).slice(0, 100);
+            if (ids.length === 0) return NextResponse.json([]);
+            where.id = { in: ids };
+        }
         if (startDate || endDate) {
             where.date = {};
             if (startDate) (where.date as Record<string, Date>).gte = new Date(startDate);
