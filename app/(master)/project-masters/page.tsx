@@ -530,19 +530,21 @@ function ProjectMasterListPageContent() {
         if (!viewingEstimate?.projectId) return null;
         const pm = projectMasters.find(p => p.id === viewingEstimate.projectId);
         if (!pm) return null;
+        // 宛名は顧客マスタの現在値を優先（顧客名・敬称の変更に追従）。スナップショットはフォールバック
+        const cust = pm.customerId ? customers.find(c => c.id === pm.customerId) : undefined;
         return {
             id: pm.id,
             title: pm.title,
             startDate: new Date(),
             category: 'construction' as const,
             color: '#3B82F6',
-            customer: pm.customerName || pm.customerShortName || '',
-            customerHonorific: '御中',
+            customer: cust?.name || pm.customerName || pm.customerShortName || '',
+            customerHonorific: cust?.honorific || '御中',
             location: pm.location || '',
             createdAt: pm.createdAt,
             updatedAt: pm.updatedAt,
         };
-    }, [viewingEstimate, projectMasters]);
+    }, [viewingEstimate, projectMasters, customers]);
 
     const viewingEstimateCustomer = useMemo(() => {
         if (!viewingEstimate?.customerId) return { name: undefined, honorific: undefined };
@@ -579,19 +581,21 @@ function ProjectMasterListPageContent() {
         if (!viewingInvoice?.projectId) return null;
         const pm = projectMasters.find(p => p.id === viewingInvoice.projectId);
         if (!pm) return null;
+        // 宛名は顧客マスタの現在値を優先（顧客名・敬称の変更に追従）。スナップショットはフォールバック
+        const cust = pm.customerId ? customers.find(c => c.id === pm.customerId) : undefined;
         return {
             id: pm.id,
             title: pm.title,
             startDate: new Date(),
             category: 'construction' as const,
             color: '#3B82F6',
-            customer: pm.customerName || pm.customerShortName || '',
-            customerHonorific: '御中',
+            customer: cust?.name || pm.customerName || pm.customerShortName || '',
+            customerHonorific: cust?.honorific || '御中',
             location: pm.location || '',
             createdAt: pm.createdAt,
             updatedAt: pm.updatedAt,
         };
-    }, [viewingInvoice, projectMasters]);
+    }, [viewingInvoice, projectMasters, customers]);
 
     const viewingInvoiceCustomer = useMemo(() => {
         const empty = { name: undefined, honorific: undefined, postalCode: undefined, address: undefined };

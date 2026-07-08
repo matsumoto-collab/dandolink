@@ -663,10 +663,12 @@ export default function EstimateListPage() {
                     project={selectedEstimate?.projectId ? (() => {
                         const pm = projectMasters.find(p => p.id === selectedEstimate.projectId);
                         if (!pm) return null;
+                        // 宛名は顧客マスタの現在値を優先（顧客名・敬称の変更に追従）。スナップショットはフォールバック
+                        const cust = pm.customerId ? customers.find(c => c.id === pm.customerId) : undefined;
                         return {
                             id: pm.id, title: pm.title, startDate: new Date(), category: 'construction' as const,
-                            color: '#3B82F6', customer: pm.customerName || pm.customerShortName || '',
-                            customerHonorific: '御中', location: pm.location || '',
+                            color: '#3B82F6', customer: cust?.name || pm.customerName || pm.customerShortName || '',
+                            customerHonorific: cust?.honorific || '御中', location: pm.location || '',
                             createdAt: pm.createdAt, updatedAt: pm.updatedAt,
                         };
                     })() : null}

@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { useEstimates } from '@/hooks/useEstimates';
 import { useCompany } from '@/hooks/useCompany';
+import { useCustomers } from '@/hooks/useCustomers';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useDebounce } from '@/hooks/useDebounce';
 import { flattenEstimateItems, newBillingItemId } from '@/lib/billing/estimateToBillingItems';
@@ -111,6 +112,7 @@ export default function BillingBoardPage() {
 
     const { ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
+    const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
 
     const [rows, setRows] = useState<Row[]>([]);
@@ -199,6 +201,7 @@ export default function BillingBoardPage() {
         if (!isAuthorized) return;
         ensureEstimatesLoaded();
         ensureCompanyLoaded();
+        ensureCustomersLoaded();
         fetchProjectMasters();
         (async () => {
             try {
@@ -233,7 +236,7 @@ export default function BillingBoardPage() {
                 logger.error('請求項目マスタの取得に失敗:', e);
             }
         })();
-    }, [isAuthorized, ensureEstimatesLoaded, ensureCompanyLoaded, fetchProjectMasters]);
+    }, [isAuthorized, ensureEstimatesLoaded, ensureCompanyLoaded, ensureCustomersLoaded, fetchProjectMasters]);
 
     // 既定の担当者フィルタ＝自分（自分が担当の案件が在るときだけ。無ければ全員のまま）。初回のみ。
     const didInitAssignee = useRef(false);
@@ -570,14 +573,16 @@ export default function BillingBoardPage() {
             if (!companyInfo || !requestDialog) return null;
             const pm = projectMasters.find((p) => p.id === requestDialog.row.id);
             if (!pm) return null;
+            // 宛名は顧客マスタの現在値を優先（顧客名・敬称の変更に追従）。スナップショットはフォールバック
+            const cust = pm.customerId ? customers.find((c) => c.id === pm.customerId) : undefined;
             const project = {
                 id: pm.id,
                 title: pm.title,
                 startDate: new Date(),
                 category: 'construction' as const,
                 color: '#3B82F6',
-                customer: pm.customerName || pm.customerShortName || '',
-                customerHonorific: '御中',
+                customer: cust?.name || pm.customerName || pm.customerShortName || '',
+                customerHonorific: cust?.honorific || '御中',
                 location: pm.location || '',
                 createdAt: pm.createdAt,
                 updatedAt: pm.updatedAt,
@@ -585,7 +590,7 @@ export default function BillingBoardPage() {
             const { generateEstimatePDFBlobOnlyReact } = await import('@/utils/reactPdfGenerator');
             return generateEstimatePDFBlobOnlyReact(est, project, companyInfo, { includeDetails: true });
         },
-        [companyInfo, projectMasters, requestDialog],
+        [companyInfo, projectMasters, customers, requestDialog],
     );
 
     // ── 請求判断（保留 / 対象外 / 戻す）───────────────────────
