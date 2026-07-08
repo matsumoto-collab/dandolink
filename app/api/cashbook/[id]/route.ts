@@ -43,10 +43,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if ('settledAt' in body) {
             if (body.settledAt == null || body.settledAt === '') {
                 data.settledAt = null;
+                // 未精算に戻したら精算方法もリセット（後続の settleMethod 指定があればそちらが優先）
+                data.settleMethod = null;
             } else {
                 const d = parseReceiptDate(body.settledAt);
                 if (!d) return errorResponse('清算日が不正です', 400);
                 data.settledAt = d;
+            }
+        }
+        // 精算方法（'cash'=現金 | 'transfer'=振込）。null で現金（既定）扱いに戻す
+        if ('settleMethod' in body) {
+            if (body.settleMethod == null || body.settleMethod === '') {
+                data.settleMethod = null;
+            } else if (body.settleMethod === 'cash' || body.settleMethod === 'transfer') {
+                data.settleMethod = body.settleMethod;
+            } else {
+                return errorResponse('精算方法が不正です', 400);
             }
         }
         if ('applicantName' in body) data.applicantName = body.applicantName?.toString().trim() || null;

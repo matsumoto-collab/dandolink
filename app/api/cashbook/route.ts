@@ -33,7 +33,8 @@ export async function GET(req: NextRequest) {
                 { settledAt: null, date: { gte: monthStart, lt: monthEnd } },
             ];
 
-            // 前月繰越 = 当月より前（settledAt ?? date 基準）の全期間の入金合計 − 出金合計
+            // 前月繰越 = 当月より前（settledAt ?? date 基準）の全期間の入金合計 − 出金合計。
+            // 振込精算（settleMethod='transfer'）は現金が動いていないため現金残高から除外する（null=現金扱い）
             const sums = await prisma.cashbookEntry.groupBy({
                 by: ['entryType'],
                 _sum: { amount: true },
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
                         { settledAt: { lt: monthStart } },
                         { settledAt: null, date: { lt: monthStart } },
                     ],
+                    AND: [{ OR: [{ settleMethod: null }, { settleMethod: 'cash' }] }],
                 },
             });
             const sumOf = (t: string) => Number(sums.find((s) => s.entryType === t)?._sum.amount ?? 0);

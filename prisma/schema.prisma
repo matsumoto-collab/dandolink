@@ -2430,6 +2430,8 @@ model CashbookEntry {
   applicantName String?
   /// 同一表示日内の手動並び順（上下移動で隣接行との中間値を設定。null は seq 順）
   sortOrder     Float?
+  /// 精算方法。'cash'(現金) | 'transfer'(振込)。null=現金扱い。振込精算は現金残高の計算から除外する
+  settleMethod  String?
 
   // 証憑ファイル（出金行の領収書。手打ち行は null。Receipt と同じ持ち方・Supabase Storage）
   fileName                    String?
