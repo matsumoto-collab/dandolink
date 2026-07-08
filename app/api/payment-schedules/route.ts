@@ -139,6 +139,7 @@ export async function POST(req: NextRequest) {
                 isPaid: data.isPaid ?? false,
                 notes: data.notes || null,
                 sortOrder: data.sortOrder ?? 0,
+                listKey: data.listKey || null,
                 updatedBy: session!.user.id,
             },
             include: { payee: true },

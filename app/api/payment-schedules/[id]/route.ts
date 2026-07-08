@@ -72,6 +72,7 @@ export async function PATCH(
         if (data.accountHolder !== undefined) updateData.accountHolder = data.accountHolder || null;
         if (data.notes !== undefined) updateData.notes = data.notes || null;
         if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
+        if (data.listKey !== undefined) updateData.listKey = data.listKey || null;
 
         // 支払済切り替え時に paidAt/paidBy を自動セット
         if (data.isPaid !== undefined) {

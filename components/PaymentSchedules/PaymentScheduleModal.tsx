@@ -13,6 +13,10 @@ interface PaymentScheduleModalProps {
     onSubmit: (data: PaymentScheduleInput) => Promise<void>;
     initial?: PaymentSchedule | null;
     defaultPaymentDate?: string; // YYYY-MM-DD
+    /** 「この日に追加」用: 追加先リストを固定（listKey null=旧データのリスト）。未指定なら追加先を選択できる */
+    fixedList?: { listKey: string | null } | null;
+    /** 追加先リストの選択肢を出すための表示中の月の明細（新規追加時のみ使用） */
+    monthItems?: PaymentSchedule[];
 }
 
 const formatDate = (d: Date | string | null | undefined) => {
@@ -26,6 +30,12 @@ const formatDate = (d: Date | string | null | undefined) => {
 };
 
 const todayStr = () => formatDate(new Date());
+
+// 新しいリストのグループキーを生成（crypto.randomUUID 非対応の古いブラウザ向けフォールバック付き）
+const genListKey = (): string =>
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `lk-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 const empty: PaymentScheduleInput = {
     paymentDate: todayStr(),
@@ -51,12 +61,16 @@ export default function PaymentScheduleModal({
     onSubmit,
     initial,
     defaultPaymentDate,
+    fixedList,
+    monthItems,
 }: PaymentScheduleModalProps) {
     const { payees } = usePayees({ activeOnly: true });
     const [form, setForm] = useState<PaymentScheduleInput>(empty);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [payeeSearch, setPayeeSearch] = useState('');
+    // 追加先リスト: 'new'=新しいリストを作成 / それ以外=sameDateLists のインデックス
+    const [targetList, setTargetList] = useState<string>('new');
 
     useEffect(() => {
         if (initial) {
@@ -76,6 +90,7 @@ export default function PaymentScheduleModal({
                 isPaid: initial.isPaid,
                 notes: initial.notes ?? '',
                 sortOrder: initial.sortOrder,
+                listKey: initial.listKey ?? null,
             });
         } else {
             setForm({
@@ -86,6 +101,35 @@ export default function PaymentScheduleModal({
         setPayeeSearch('');
         setError(null);
     }, [initial, isOpen, defaultPaymentDate]);
+
+    // 追加先リストの選択肢（新規追加＝追加先が固定されていない時のみ）。
+    // 支払日と同じ日付の既存リストを、一覧カードと同じ順（最初の明細の作成順）で並べる。
+    const sameDateLists = useMemo(() => {
+        if (initial || fixedList || !monthItems || !form.paymentDate) return [];
+        const groups = new Map<
+            string,
+            { listKey: string | null; count: number; total: number; types: Set<string>; minCreatedAt: string }
+        >();
+        for (const it of monthItems) {
+            if (formatDate(it.paymentDate) !== form.paymentDate) continue;
+            const gk = it.listKey ?? '';
+            let g = groups.get(gk);
+            if (!g) {
+                g = { listKey: it.listKey ?? null, count: 0, total: 0, types: new Set(), minCreatedAt: it.createdAt };
+                groups.set(gk, g);
+            }
+            g.count += 1;
+            g.total += Number(it.amount);
+            g.types.add(it.paymentType);
+            if (it.createdAt < g.minCreatedAt) g.minCreatedAt = it.createdAt;
+        }
+        return Array.from(groups.values()).sort((a, b) => a.minCreatedAt.localeCompare(b.minCreatedAt));
+    }, [initial, fixedList, monthItems, form.paymentDate]);
+
+    // 日付を変えると選択肢が変わるので追加先を「新しいリスト」に戻す
+    useEffect(() => {
+        setTargetList('new');
+    }, [form.paymentDate, isOpen]);
 
     const filteredPayees = useMemo(() => {
         const q = payeeSearch.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
@@ -136,11 +180,24 @@ export default function PaymentScheduleModal({
         try {
             setSubmitting(true);
             setError(null);
+            // 追加先リストの決定（編集時は元のリストを維持）:
+            // 「この日に追加」= fixedList のリストへ / 新規追加 = 選択した既存リスト or 新しいリストキーを発行
+            let listKey = form.listKey ?? null;
+            if (!initial) {
+                if (fixedList) {
+                    listKey = fixedList.listKey;
+                } else if (targetList !== 'new' && sameDateLists[Number(targetList)]) {
+                    listKey = sameDateLists[Number(targetList)].listKey;
+                } else {
+                    listKey = genListKey();
+                }
+            }
             await onSubmit({
                 ...form,
                 amount: Number(form.amount),
                 payeeId: form.payeeId || null,
                 dueDate: form.dueDate || null,
+                listKey,
             });
             onClose();
         } catch (err) {
@@ -279,6 +336,36 @@ export default function PaymentScheduleModal({
                             </div>
                         )}
                     </div>
+
+                    {/* 追加先リスト（新規追加で、同じ日付に既存リストがある場合のみ表示） */}
+                    {!initial && !fixedList && sameDateLists.length > 0 && (
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-slate-700">追加先リスト</label>
+                            <select
+                                value={targetList}
+                                onChange={(e) => setTargetList(e.target.value)}
+                                className="w-full rounded border border-slate-300 px-3 py-2"
+                            >
+                                <option value="new">新しいリストを作成</option>
+                                {sameDateLists.map((g, i) => {
+                                    const types = [
+                                        g.types.has('transfer') ? '振込' : null,
+                                        g.types.has('payment_slip') ? '払込' : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join('・');
+                                    return (
+                                        <option key={i} value={String(i)}>
+                                            {`リスト${i + 1}（${types} ${g.count}件 ¥${g.total.toLocaleString()}）に追加`}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                            <p className="mt-1 text-xs text-slate-500">
+                                同じ日付に既存のリストがあります。新しいリストを作るか、既存リストに追加するかを選べます
+                            </p>
+                        </div>
+                    )}
 
                     {/* 2. 振込先指定 */}
                     <div>

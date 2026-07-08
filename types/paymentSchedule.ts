@@ -22,6 +22,7 @@ export interface PaymentSchedule {
     paidBy?: string | null;
     notes?: string | null;
     sortOrder: number;
+    listKey?: string | null;         // 同一支払日内でリストを分けるグループキー（null=旧データは日付単位で1リスト）
     createdAt: string;
     updatedAt: string;
     updatedBy?: string | null;
@@ -45,4 +46,5 @@ export interface PaymentScheduleInput {
     isPaid?: boolean;
     notes?: string | null;
     sortOrder?: number;
+    listKey?: string | null;
 }

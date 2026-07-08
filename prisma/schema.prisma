@@ -2061,6 +2061,7 @@ model PaymentSchedule {
   paidBy        String? // 支払処理した人
   notes         String? // 備考
   sortOrder     Int       @default(0) // 同じ支払日内の表示順
+  listKey       String? // 同一支払日内でリストを分けるグループキー（UUID。NULL=旧データは日付単位で1リスト扱い）
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   updatedBy     String?
@@ -2072,6 +2073,7 @@ model PaymentSchedule {
   @@index([paymentType])
   @@index([isPaid])
   @@index([paymentDate, paymentType])
+  @@index([listKey])
   @@schema("public")
 }
 

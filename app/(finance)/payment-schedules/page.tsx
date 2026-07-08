@@ -59,6 +59,21 @@ const yen = (n: number | string) => {
     return `¥${v.toLocaleString()}`;
 };
 
+// リストのグループキー（支払日×listKey）。listKey が無い旧データは日付単位で1リスト扱い
+const groupKeyOf = (item: PaymentSchedule): string =>
+    `${formatDateKey(item.paymentDate)}::${item.listKey ?? ''}`;
+
+// 同一日付内での連番付きラベル（例: 7月10日 / 7月10日（2））
+interface ListGroup {
+    key: string;
+    dateKey: string;
+    items: PaymentSchedule[];
+    seq: number;
+    sameDateCount: number;
+}
+const groupLabelOf = (g: Pick<ListGroup, 'dateKey' | 'seq' | 'sameDateCount'>): string =>
+    `${formatDateFull(g.dateKey)}${g.sameDateCount > 1 ? `（${g.seq}）` : ''}`;
+
 const ITEMS_PER_PAGE = 20;
 
 export default function PaymentSchedulesPage() {
@@ -68,7 +83,8 @@ export default function PaymentSchedulesPage() {
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
-    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    // 選択中リストのグループキー（`YYYY-MM-DD::listKey`。同じ日付に複数リストを持てる）
+    const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     // 支払リスト（明細）の並び順: 手動（sortOrder）/ 名義あいうえお順
     const [detailSort, setDetailSort] = useState<'manual' | 'kana'>('manual');
@@ -95,7 +111,7 @@ export default function PaymentSchedulesPage() {
 
     // 月切替（詳細画面なら閉じる）
     const goPrev = () => {
-        setSelectedDate(null);
+        setSelectedGroupKey(null);
         setCurrentPage(1);
         if (month === 1) {
             setYear(year - 1);
@@ -105,7 +121,7 @@ export default function PaymentSchedulesPage() {
         }
     };
     const goNext = () => {
-        setSelectedDate(null);
+        setSelectedGroupKey(null);
         setCurrentPage(1);
         if (month === 12) {
             setYear(year + 1);
@@ -115,35 +131,50 @@ export default function PaymentSchedulesPage() {
         }
     };
     const goToday = () => {
-        setSelectedDate(null);
+        setSelectedGroupKey(null);
         setCurrentPage(1);
         const t = new Date();
         setYear(t.getFullYear());
         setMonth(t.getMonth() + 1);
     };
 
-    // 日付ごとにグルーピング
-    const dateGroups = useMemo(() => {
+    // リスト（支払日×listKey）ごとにグルーピング。日付順→リスト作成順（先頭明細の作成日時）で並べる
+    const listGroups = useMemo((): ListGroup[] => {
         const map = new Map<string, PaymentSchedule[]>();
         for (const item of items) {
-            const key = formatDateKey(item.paymentDate);
+            const key = groupKeyOf(item);
             if (!map.has(key)) map.set(key, []);
             map.get(key)!.push(item);
         }
-        return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+        const groups = Array.from(map.entries()).map(([key, list]) => ({
+            key,
+            dateKey: key.split('::')[0],
+            items: list,
+            minCreatedAt: list.reduce((m, x) => (x.createdAt < m ? x.createdAt : m), list[0].createdAt),
+        }));
+        groups.sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.minCreatedAt.localeCompare(b.minCreatedAt));
+        // 同一日付に複数リストがある場合の連番（「7月10日（2）」表示用）
+        const sameDateCounts = new Map<string, number>();
+        for (const g of groups) sameDateCounts.set(g.dateKey, (sameDateCounts.get(g.dateKey) ?? 0) + 1);
+        const seqCounter = new Map<string, number>();
+        return groups.map((g) => {
+            const seq = (seqCounter.get(g.dateKey) ?? 0) + 1;
+            seqCounter.set(g.dateKey, seq);
+            return { key: g.key, dateKey: g.dateKey, items: g.items, seq, sameDateCount: sameDateCounts.get(g.dateKey)! };
+        });
     }, [items]);
 
     // ページネーション計算
-    const totalPages = Math.max(1, Math.ceil(dateGroups.length / ITEMS_PER_PAGE));
-    const paginatedDateGroups = useMemo(() => {
+    const totalPages = Math.max(1, Math.ceil(listGroups.length / ITEMS_PER_PAGE));
+    const paginatedListGroups = useMemo(() => {
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return dateGroups.slice(start, start + ITEMS_PER_PAGE);
-    }, [dateGroups, currentPage]);
+        return listGroups.slice(start, start + ITEMS_PER_PAGE);
+    }, [listGroups, currentPage]);
 
     // 詳細画面で表示するアイテム
     const selectedItems = useMemo(() => {
-        if (!selectedDate) return [];
-        const base = items.filter((i) => formatDateKey(i.paymentDate) === selectedDate);
+        if (!selectedGroupKey) return [];
+        const base = items.filter((i) => groupKeyOf(i) === selectedGroupKey);
         if (detailSort === 'kana') {
             // 名義（口座名義カナ→フリガナ→振込先名）をあいうえお順に。書かれた文字どおり比較
             // （「カ）アームズ」はカ行・「ユ）〜」はヤ行。表記ゆれ＝かな種別/全半角/空白のみ吸収）。
@@ -154,7 +185,7 @@ export default function PaymentSchedulesPage() {
             );
         }
         return [...base].sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
-    }, [items, selectedDate, detailSort]);
+    }, [items, selectedGroupKey, detailSort]);
 
     // 月全体サマリー
     const monthlyTotals = useMemo(() => {
@@ -211,14 +242,15 @@ export default function PaymentSchedulesPage() {
 
     // 支払予定リストPDFを出力
     const handleExportPDF = async () => {
-        if (!selectedDate || selectedItems.length === 0) {
+        const dateKey = selectedGroupKey?.split('::')[0];
+        if (!dateKey || selectedItems.length === 0) {
             toast.error('PDFに出力する支払予定がありません');
             return;
         }
         try {
             setPdfExporting(true);
             const { exportPaymentSchedulePDF } = await import('@/utils/paymentSchedulePdf');
-            await exportPaymentSchedulePDF(selectedItems, selectedDate);
+            await exportPaymentSchedulePDF(selectedItems, dateKey);
             toast.success('PDFをダウンロードしました');
         } catch (e) {
             logger.error('Failed to export PDF', e);
@@ -229,13 +261,18 @@ export default function PaymentSchedulesPage() {
     };
 
     // ============= 詳細リスト表示 =============
-    if (selectedDate) {
+    if (selectedGroupKey) {
         const list = selectedItems;
         const total = list.reduce((s, x) => s + Number(x.amount), 0);
         const paid = list.filter((x) => x.isPaid).reduce((s, x) => s + Number(x.amount), 0);
         const paidCount = list.filter((x) => x.isPaid).length;
         const progressPct = list.length > 0 ? Math.round((paidCount / list.length) * 100) : 0;
-        const dateLabel = formatDateFull(selectedDate);
+        const selectedDateKey = selectedGroupKey.split('::')[0];
+        const selectedListKey = selectedGroupKey.split('::')[1] || null;
+        const selectedGroup = listGroups.find((g) => g.key === selectedGroupKey);
+        const dateLabel = selectedGroup ? groupLabelOf(selectedGroup) : formatDateFull(selectedDateKey);
+        const hasTransfer = list.some((x) => x.paymentType === 'transfer');
+        const hasSlip = list.some((x) => x.paymentType === 'payment_slip');
         const allPaid = list.length > 0 && paidCount === list.length;
 
         return (
@@ -243,7 +280,7 @@ export default function PaymentSchedulesPage() {
                 {/* 戻るボタン */}
                 <div className="mb-3 flex-shrink-0">
                     <button
-                        onClick={() => setSelectedDate(null)}
+                        onClick={() => setSelectedGroupKey(null)}
                         className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
                     >
                         <ArrowLeft className="w-4 h-4" /> 支払日リストに戻る
@@ -256,6 +293,12 @@ export default function PaymentSchedulesPage() {
                         <h1 className="text-2xl font-bold text-slate-800">
                             {year}年{dateLabel} 支払リスト
                         </h1>
+                        {hasTransfer && (
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">振込</span>
+                        )}
+                        {hasSlip && (
+                            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">払込</span>
+                        )}
                         {allPaid && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
                                 すべて支払済
@@ -480,7 +523,8 @@ export default function PaymentSchedulesPage() {
                     }}
                     onSubmit={editing ? handleUpdate : handleAdd}
                     initial={editing}
-                    defaultPaymentDate={selectedDate}
+                    defaultPaymentDate={selectedDateKey}
+                    fixedList={{ listKey: selectedListKey }}
                 />
             </div>
         );
@@ -600,27 +644,28 @@ export default function PaymentSchedulesPage() {
                             </div>
                         ))}
                     </div>
-                ) : dateGroups.length === 0 ? (
+                ) : listGroups.length === 0 ? (
                     <div className="text-center py-12 bg-slate-50 rounded-lg">
                         <CalendarDays className="w-12 h-12 mx-auto mb-4 text-slate-300" />
                         <p className="text-slate-500">{year}年{month}月の支払予定はまだありません</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
-                        {paginatedDateGroups.map(([dateKey, list]) => {
+                        {paginatedListGroups.map((group) => {
+                            const list = group.items;
                             const total = list.reduce((s, x) => s + Number(x.amount), 0);
                             const paidCount = list.filter((x) => x.isPaid).length;
                             const allPaid = paidCount === list.length;
                             const progressPct = list.length > 0 ? Math.round((paidCount / list.length) * 100) : 0;
-                            const label = formatDateFull(dateKey);
+                            const label = groupLabelOf(group);
                             const types = Array.from(new Set(list.map((x) => x.paymentType)));
                             const hasTransfer = types.includes('transfer');
                             const hasSlip = types.includes('payment_slip');
 
                             return (
                                 <button
-                                    key={dateKey}
-                                    onClick={() => setSelectedDate(dateKey)}
+                                    key={group.key}
+                                    onClick={() => setSelectedGroupKey(group.key)}
                                     className={`bg-white border rounded-xl p-4 text-left transition-all hover:shadow-md ${
                                         allPaid ? 'border-emerald-300 bg-emerald-50/60' : 'border-slate-200'
                                     }`}
@@ -706,29 +751,30 @@ export default function PaymentSchedulesPage() {
                                         <td className="px-6 py-4 text-right"><div className="h-4 bg-slate-200 rounded w-20 ml-auto"></div></td>
                                     </tr>
                                 ))
-                            ) : dateGroups.length === 0 ? (
+                            ) : listGroups.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                                         {year}年{month}月の支払予定はまだありません
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedDateGroups.map(([dateKey, list]) => {
+                                paginatedListGroups.map((group) => {
+                                    const list = group.items;
                                     const total = list.reduce((s, x) => s + Number(x.amount), 0);
                                     const paidCount = list.filter((x) => x.isPaid).length;
                                     const unpaidCount = list.length - paidCount;
                                     const allPaid = paidCount === list.length;
                                     const progressPct = list.length > 0 ? Math.round((paidCount / list.length) * 100) : 0;
-                                    const label = formatDateFull(dateKey);
+                                    const label = groupLabelOf(group);
                                     const types = Array.from(new Set(list.map((x) => x.paymentType)));
                                     const hasTransfer = types.includes('transfer');
                                     const hasSlip = types.includes('payment_slip');
 
                                     return (
                                         <tr
-                                            key={dateKey}
+                                            key={group.key}
                                             className="hover:bg-slate-50 transition-all duration-200 cursor-pointer"
-                                            onClick={() => setSelectedDate(dateKey)}
+                                            onClick={() => setSelectedGroupKey(group.key)}
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="text-[14px] font-semibold text-slate-900">{label}</span>
@@ -781,7 +827,7 @@ export default function PaymentSchedulesPage() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-[12px] font-medium" onClick={(e) => e.stopPropagation()}>
                                                 <button
-                                                    onClick={() => setSelectedDate(dateKey)}
+                                                    onClick={() => setSelectedGroupKey(group.key)}
                                                     className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
                                                 >
                                                     リストを開く
@@ -821,7 +867,7 @@ export default function PaymentSchedulesPage() {
 
             {/* 統計情報 */}
             <div className="mt-4 flex-shrink-0 text-sm text-slate-600">
-                全 {dateGroups.length} 件の支払日
+                全 {listGroups.length} 件の支払リスト
             </div>
 
             <PaymentScheduleModal
@@ -833,6 +879,7 @@ export default function PaymentSchedulesPage() {
                 onSubmit={editing ? handleUpdate : handleAdd}
                 initial={editing}
                 defaultPaymentDate={`${year}-${String(month).padStart(2, '0')}-01`}
+                monthItems={items}
             />
 
             <CopyFromPreviousModal

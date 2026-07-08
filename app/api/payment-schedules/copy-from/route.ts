@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
@@ -141,11 +142,20 @@ export async function POST(req: NextRequest) {
         }
 
         // データを生成（新しい支払日 + 「未払」状態でコピー）
+        // 元のリスト構成（支払日×listKey）を保ったまま、コピー先には新しいリストキーを割り当てる
         const userId = session!.user.id;
+        const newListKeyBySourceGroup = new Map<string, string>();
         const data = filtered.map((item) => {
             const newDate = adjustDateToNewMonth(new Date(item.paymentDate), toYear, toMonth);
+            const sourceGroup = `${new Date(item.paymentDate).toISOString().slice(0, 10)}::${item.listKey ?? ''}`;
+            let listKey = newListKeyBySourceGroup.get(sourceGroup);
+            if (!listKey) {
+                listKey = randomUUID();
+                newListKeyBySourceGroup.set(sourceGroup, listKey);
+            }
             return {
                 paymentDate: newDate,
+                listKey,
                 paymentType: item.paymentType,
                 payeeId: item.payeeId,
                 payeeName: item.payeeName,

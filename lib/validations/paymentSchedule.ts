@@ -33,6 +33,7 @@ export const createPaymentScheduleSchema = z.object({
     isPaid: z.boolean().optional().default(false),
     notes: z.string().max(2000, '備考は2000文字以内で入力してください').optional().nullable(),
     sortOrder: z.number().int().optional().default(0),
+    listKey: z.string().max(64).optional().nullable(),
 });
 
 export const updatePaymentScheduleSchema = createPaymentScheduleSchema.partial();
