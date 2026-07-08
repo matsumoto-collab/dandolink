@@ -8,6 +8,7 @@ import { useMasterStore } from '@/stores/masterStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { initBroadcastChannel, onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { parseWalTimestamp } from '@/lib/walTimestamp';
 import { logger } from '@/lib/logger';
 
 // Re-export types for backward compatibility
@@ -227,13 +228,19 @@ export function useProjects() {
             const range = currentDateRange;
             const rawDate = payload.new?.date as string | undefined;
             if (range && rawDate) {
-                const dateKey = formatDateKey(new Date(rawDate));
-                if (dateKey < range.start || dateKey > range.end) {
-                    if (useCalendarStore.getState().assignments.some((a) => a.id === id)) {
-                        removeAssignmentByIdStore(id);
+                // WALのtimestampはタイムゾーン表記なしのUTC文字列。素のnew Date()だと
+                // JST環境で日付が1日前にズレ、週初日の配置を誤って範囲外掃除していた
+                const parsed = parseWalTimestamp(rawDate);
+                if (!isNaN(parsed.getTime())) {
+                    const dateKey = formatDateKey(parsed);
+                    if (dateKey < range.start || dateKey > range.end) {
+                        if (useCalendarStore.getState().assignments.some((a) => a.id === id)) {
+                            removeAssignmentByIdStore(id);
+                        }
+                        return;
                     }
-                    return;
                 }
+                // パース不能な形式は範囲判定せずフェッチに回す（flush側が正しい日付で再判定する）
             }
             scheduleAssignmentSync(id);
         };
