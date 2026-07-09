@@ -39,6 +39,14 @@ describe('/api/card-receipts/[id]', () => {
             expect(data.totalAmount).toBe(12980);
         });
 
+        it('trims applicantName and nulls it when emptied', async () => {
+            await PATCH(patchReq({ applicantName: ' 山田太郎 ' }), ctx('cr1'));
+            expect((prisma.cardReceipt.update as jest.Mock).mock.calls[0][0].data.applicantName).toBe('山田太郎');
+
+            await PATCH(patchReq({ applicantName: '' }), ctx('cr1'));
+            expect((prisma.cardReceipt.update as jest.Mock).mock.calls[1][0].data.applicantName).toBeNull();
+        });
+
         it('400 when no editable field is present', async () => {
             const res = await PATCH(patchReq({ unknown: 1 }), ctx('cr1'));
             expect(res.status).toBe(400);

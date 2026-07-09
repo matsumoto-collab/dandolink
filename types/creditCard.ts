@@ -38,6 +38,7 @@ export interface CardReceipt {
     taxAmount: number | string | null;
     expenseCategoryId: string | null;
     notes: string | null;
+    applicantName: string | null;
     createdAt: string;
     expenseCategory: ExpenseCategoryRef | null;
     // 紐付け済みなら行への逆参照が載る（未紐付け = null）

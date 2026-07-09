@@ -25,6 +25,7 @@ export default function CardReceiptEditModal({ receipt, categories, onClose, onS
     const [taxAmount, setTaxAmount] = useState(toAmountStr(receipt.taxAmount));
     const [expenseCategoryId, setExpenseCategoryId] = useState(receipt.expenseCategoryId ?? '');
     const [cardLabel, setCardLabel] = useState(receipt.cardLabel ?? '');
+    const [applicantName, setApplicantName] = useState(receipt.applicantName ?? '');
     const [notes, setNotes] = useState(receipt.notes ?? '');
 
     const [saving, setSaving] = useState(false);
@@ -47,6 +48,7 @@ export default function CardReceiptEditModal({ receipt, categories, onClose, onS
                     taxAmount: taxAmount || null,
                     expenseCategoryId: expenseCategoryId || null,
                     cardLabel: cardLabel || null,
+                    applicantName: applicantName || null,
                     notes: notes || null,
                 }),
             });
@@ -160,13 +162,21 @@ export default function CardReceiptEditModal({ receipt, categories, onClose, onS
                             </div>
                         </div>
 
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">費目</label>
+                                <select value={expenseCategoryId} onChange={(e) => setExpenseCategoryId(e.target.value)} className={inputCls}>
+                                    <option value="">費目を選択</option>
+                                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">担当名</label>
+                                <input value={applicantName} onChange={(e) => setApplicantName(e.target.value)} className={inputCls} placeholder="例: 山田太郎" />
+                            </div>
+                        </div>
                         <div>
-                            <label className="block text-xs font-semibold text-slate-600 mb-1">費目</label>
-                            <select value={expenseCategoryId} onChange={(e) => setExpenseCategoryId(e.target.value)} className={inputCls}>
-                                <option value="">費目を選択</option>
-                                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            {summary && <p className="text-xs text-slate-400 mt-1">AI摘要: {summary}</p>}
+                            {summary && <p className="text-xs text-slate-400">AI摘要: {summary}</p>}
                             <p className="text-xs text-slate-400 mt-1">明細行への紐付け時、行の費目が未設定ならこの費目を引き継ぎます。</p>
                         </div>
 

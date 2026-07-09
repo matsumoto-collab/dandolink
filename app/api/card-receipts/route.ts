@@ -155,6 +155,8 @@ export async function POST(req: NextRequest) {
                     totalAmount: ex?.totalAmount ?? null,
                     taxAmount: ex?.taxAmount ?? null,
                     expenseCategoryId: resolveCategory(ex?.suggestedCategory),
+                    // 担当名は既定でアップロードした人（表で自由に変更可）。出納帳の applicantName と同じ挙動
+                    applicantName: session!.user.name ?? null,
                     fileName: file.name,
                     storagePath,
                     thumbnailPath,

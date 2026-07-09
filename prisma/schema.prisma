@@ -2495,6 +2495,8 @@ model CardReceipt {
   /// AI費目候補。明細行への紐付け時に行側へ引き継ぐ
   expenseCategoryId String?
   notes             String?
+  /// 担当名（氏名・自由入力。既定はアップロードした人。CashbookEntry.applicantName と同じ扱い）
+  applicantName     String?
 
   uploadedBy String?
   createdAt  DateTime @default(now())

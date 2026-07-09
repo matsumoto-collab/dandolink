@@ -36,6 +36,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if ('taxAmount' in body) data.taxAmount = amt(body.taxAmount);
         if ('expenseCategoryId' in body) data.expenseCategoryId = body.expenseCategoryId || null;
         if ('cardLabel' in body) data.cardLabel = body.cardLabel?.toString().trim() || null;
+        if ('applicantName' in body) data.applicantName = body.applicantName?.toString().trim() || null;
         if ('notes' in body) data.notes = body.notes?.toString().trim() || null;
 
         if (Object.keys(data).length === 0) return errorResponse('更新対象が指定されていません', 400);
