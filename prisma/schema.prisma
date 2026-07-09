@@ -2239,10 +2239,12 @@ model ExpenseCategory {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  purchaseInvoices PurchaseInvoice[]
-  allocations      PurchaseInvoiceAllocation[]
-  receipts         Receipt[]
-  cashbookEntries  CashbookEntry[]
+  purchaseInvoices   PurchaseInvoice[]
+  allocations        PurchaseInvoiceAllocation[]
+  receipts           Receipt[]
+  cashbookEntries    CashbookEntry[]
+  cardReceipts       CardReceipt[]
+  cardStatementLines CardStatementLine[]
 
   @@index([sortOrder])
   @@index([isActive])
@@ -2458,5 +2460,137 @@ model CashbookEntry {
   @@index([settledAt])
   @@index([expenseCategoryId])
   @@index([createdAt])
+  @@schema("public")
+}
+
+/// クレジットカード利用レシートの受け箱。アップロード→Claude APIで読み取り→明細行(CardStatementLine)と照合する。
+/// 領収書(Receipt)・現金出納帳・原価計算・利益計算とは完全に独立（連携しない）。閲覧・編集は User.canAccessCashbook 保持者のみ。
+/// 紐付け状態は status 列を持たず、CardStatementLine.cardReceiptId からの1:1逆参照(statementLine)で導出する。
+model CardReceipt {
+  id        String  @id @default(uuid())
+  /// カード名ラベル（例「AMEX 今井」）。アップロード時に任意指定
+  cardLabel String?
+
+  // ファイル（Receipt と同じ持ち方・Supabase Storage。prefix は card-receipts/）
+  fileName                    String
+  storagePath                 String
+  thumbnailPath               String?
+  mimeType                    String
+  fileSize                    Int
+  sourceType                  String? // 'pdf' など
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+
+  // AI抽出の生データ（店名・日付・金額・税額・摘要・推定費目）
+  extractedData Json?
+
+  // 抽出値（手修正可）
+  storeName         String?
+  /// 発行日（UTC 0時固定。Receipt.issueDate と同じ扱い）
+  issueDate         DateTime?
+  totalAmount       Decimal?  @db.Decimal(12, 2)
+  taxAmount         Decimal?  @db.Decimal(12, 2)
+  /// AI費目候補。明細行への紐付け時に行側へ引き継ぐ
+  expenseCategoryId String?
+  notes             String?
+
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  expenseCategory ExpenseCategory?   @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+  statementLine   CardStatementLine?
+
+  @@index([issueDate])
+  @@index([totalAmount])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+/// クレジットカード「ご利用代金明細書」。1PDF=1件。Claude APIで明細行を全行抽出し CardStatementLine を作成する。
+/// 費目仕分けは会計用途のみで原価エンジン・Payee・支払予定には反映しない。明細書レベルの status は持たない（照合進捗は行の集計で表示）。
+model CardStatement {
+  id        String @id @default(uuid())
+  /// カード名ラベル（例「AMEX 今井」）。アップロード時に必須入力
+  cardLabel String
+
+  // AI抽出ヘッダ（手修正可）
+  memberName  String? // 会員氏名
+  cardLast4   String? // 会員番号 下4桁
+  /// 明細書作成日（締め日）。UTC 0時固定。明細行の年補完の基準
+  closingDate DateTime?
+  /// 「今月ご利用額合計」（検算用。行合計と不一致なら UI で警告）
+  totalAmount Decimal?  @db.Decimal(12, 2)
+
+  // ファイル（Receipt と同じ持ち方・Supabase Storage。prefix は card-statements/。PDF主体だが画像も許容）
+  fileName                    String
+  storagePath                 String
+  thumbnailPath               String?
+  mimeType                    String
+  fileSize                    Int
+  sourceType                  String? // 'pdf' など
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+
+  // AI抽出の生データ + 検算メタ（{ reportedTotal, computedTotal, lineCount }）
+  extractedData Json?
+
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  lines CardStatementLine[]
+
+  @@index([cardLabel])
+  @@index([closingDate])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+/// 明細書の1行。status: 'unmatched'(未照合) | 'matched'(照合済み・cardReceiptId 必須) | 'no_receipt'(レシート不要=サブスク等)。
+/// cardReceiptId の @unique が同一レシートの二重紐付けをDBレベルで防ぐ。明細書削除は Cascade で行ごと消え、レシートは自動的に未紐付けへ戻る。
+model CardStatementLine {
+  id          String @id @default(uuid())
+  statementId String
+  status      String @default("unmatched")
+  /// PDF上の行順
+  sortOrder   Int    @default(0)
+
+  /// 利用日（明細書の「5月15日」形式を締め日基準で年補完済み・UTC 0時固定）
+  useDate       DateTime
+  storeName     String
+  storeCategory String? // 店舗カテゴリ（旅行代理店/専門店 等）
+  /// 海外利用時の外貨金額（国内利用は null）
+  foreignAmount Decimal? @db.Decimal(14, 2)
+  currency      String? // 通貨（USD 等）
+  exchangeRate  Decimal? @db.Decimal(12, 4)
+  /// 円金額。返金・キャンセル行はマイナス
+  amount        Decimal  @db.Decimal(12, 2)
+  /// 商品明細サブ行（数量/金額/商品名）を1行にまとめた表示用テキスト
+  itemDetails   String?
+
+  /// 費目仕分け（会計用途のみ・原価には計上しない）
+  expenseCategoryId String?
+  notes             String?
+
+  /// 照合済みレシート（1:1）
+  cardReceiptId String?   @unique
+  matchedAt     DateTime?
+  matchedBy     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statement       CardStatement    @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  expenseCategory ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+  cardReceipt     CardReceipt?     @relation(fields: [cardReceiptId], references: [id], onDelete: SetNull)
+
+  @@index([statementId])
+  @@index([status])
+  @@index([expenseCategoryId])
   @@schema("public")
 }
