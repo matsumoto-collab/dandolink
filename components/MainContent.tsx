@@ -15,7 +15,7 @@ const VALID_PAGES: PageType[] = [
     'profit-dashboard', 'estimates', 'invoices', 'billing-drafts', 'billing-board',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'material-returns', 'settings', 'chat',
-    'payment-schedules', 'receipts', 'cashbook', 'payees', 'partner-work-volume',
+    'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume',
 ];
 
 // 簡易ローディングコンポーネント
@@ -95,6 +95,9 @@ const ReceiptsPage = dynamic(() => import('@/app/(finance)/receipts/page'), {
     loading: () => <LoadingSpinner />,
 });
 const CashbookPage = dynamic(() => import('@/app/(finance)/cashbook/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const CreditCardPage = dynamic(() => import('@/app/(finance)/credit-card/page'), {
     loading: () => <LoadingSpinner />,
 });
 const PayeesPage = dynamic(() => import('@/app/(master)/payees/page'), {
@@ -214,6 +217,7 @@ export default function MainContent() {
         'payment-schedules': '支払予定',
         'receipts': '領収書',
         'cashbook': '現金出納帳',
+        'credit-card': 'クレジットカード',
         'payees': '支払先',
         'partner-work-volume': '協力業者出来高表',
     };
@@ -374,6 +378,13 @@ export default function MainContent() {
                 }
                 return <CashbookPage />;
 
+            case 'credit-card':
+                // 現金出納帳と同じ個別ユーザー許可制
+                if (session?.user?.canAccessCashbook !== true) {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <CreditCardPage />;
+
             case 'payees':
                 if (userRole !== 'admin') {
                     return <PlaceholderPage title="アクセス権限がありません" />;
@@ -412,7 +423,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'payees', 'partner-work-volume', 'materials'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
+                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'materials'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}

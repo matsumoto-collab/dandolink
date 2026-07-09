@@ -15,7 +15,7 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'payees' | 'partner-work-volume' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
     /** true なら User.canAccessCashbook を持つユーザーにのみ表示（ロールでは表現できない個別許可制） */
@@ -48,6 +48,7 @@ const navigationSections: NavSection[] = [
             { name: '協力業者出来高', page: 'partner-work-volume', requiredRoles: ['admin', 'manager', 'accountant'] },
             { name: '領収書', page: 'receipts', requiredRoles: ['admin', 'manager', 'accountant'] },
             { name: '現金出納帳', page: 'cashbook', requiresCashbookAccess: true },
+            { name: 'クレジットカード', page: 'credit-card', requiresCashbookAccess: true },
             { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin', 'accountant'] },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },
         ],
@@ -276,7 +277,7 @@ export default function Sidebar() {
                             // accountant(税理士): 書類・経理の閲覧対象のみ（見積書・利益ダッシュボードは見せない）
                             if (role === 'accountant') {
                                 if (filteredSection.title === '書類・経理') {
-                                    const accountantPages = ['invoices', 'billing-board', 'partner-work-volume', 'receipts', 'payment-schedules', 'cashbook'];
+                                    const accountantPages = ['invoices', 'billing-board', 'partner-work-volume', 'receipts', 'payment-schedules', 'cashbook', 'credit-card'];
                                     const items = filteredSection.items.filter(item => accountantPages.includes(item.page));
                                     if (items.length === 0) return null;
                                     return { ...filteredSection, items };

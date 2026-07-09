@@ -24,6 +24,7 @@ export type PageType =
     | 'payment-schedules'// 支払予定
     | 'receipts'         // 領収書（AIで取り込み・費目仕分け・画像保管）
     | 'cashbook'         // 現金出納帳（個別許可ユーザーのみ・入金手打ち＋出金は領収書取込も可）
+    | 'credit-card'      // クレジットカード（明細仕分け・レシート照合。canAccessCashbook 個別許可）
     | 'payees'           // 振込先マスター
     | 'partner-work-volume' // 協力業者出来高
     | 'settings';        // 設定
