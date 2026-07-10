@@ -1,77 +1,43 @@
-import { BarChart3 } from 'lucide-react';
-
 export default function ProfitDashboardLoading() {
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
+            <div className="max-w-[1800px] mx-auto">
                 {/* ヘッダー */}
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                            <BarChart3 className="w-7 h-7" />
-                            利益ダッシュボード
-                        </h1>
-                        <p className="text-sm text-slate-500 mt-1">全案件の利益状況を一覧で確認</p>
-                    </div>
+                <div className="mb-4 sm:mb-6">
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800">利益ダッシュボード</h1>
+                    <p className="hidden sm:block text-sm text-slate-500 mt-1">読み込み中…</p>
                 </div>
 
-                {/* サマリーカードのスケルトン */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="rounded-lg border p-4 bg-white border-slate-200 animate-pulse">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="w-5 h-5 bg-slate-200 rounded" />
-                                <div className="w-16 h-4 bg-slate-200 rounded" />
+                {/* 月次パネルのスケルトン */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 animate-pulse">
+                    {/* 期間コントロール行 */}
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="w-40 h-7 bg-slate-200 rounded-lg" />
+                        <div className="w-32 h-7 bg-slate-100 rounded-lg" />
+                    </div>
+                    {/* ヘッドライン＋グラフ */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-4">
+                        <div className="lg:col-span-1 space-y-2">
+                            <div className="w-24 h-3 bg-slate-100 rounded" />
+                            <div className="w-40 h-9 bg-slate-200 rounded" />
+                            <div className="w-32 h-4 bg-slate-100 rounded" />
+                        </div>
+                        <div className="lg:col-span-2 h-[200px] bg-slate-100 rounded-lg" />
+                    </div>
+                    {/* KPI 4枚 */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                                <div className="w-16 h-3 bg-slate-200 rounded mb-2" />
+                                <div className="w-24 h-5 bg-slate-200 rounded" />
                             </div>
-                            <div className="w-24 h-8 bg-slate-200 rounded" />
-                        </div>
-                    ))}
-                </div>
-
-                {/* フィルターのスケルトン */}
-                <div className="bg-white rounded-lg shadow p-4 mb-6 animate-pulse">
-                    <div className="flex items-center gap-4">
-                        <div className="w-24 h-4 bg-slate-200 rounded" />
-                        <div className="flex gap-2">
-                            {[...Array(3)].map((_, i) => (
-                                <div key={i} className="w-16 h-8 bg-slate-200 rounded-lg" />
-                            ))}
-                        </div>
+                        ))}
                     </div>
-                </div>
-
-                {/* テーブルのスケルトン */}
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-4 py-3 text-left"><div className="w-16 h-4 bg-slate-200 rounded" /></th>
-                                    <th className="px-4 py-3 text-left"><div className="w-12 h-4 bg-slate-200 rounded" /></th>
-                                    <th className="px-4 py-3 text-right"><div className="w-12 h-4 bg-slate-200 rounded ml-auto" /></th>
-                                    <th className="px-4 py-3 text-right"><div className="w-12 h-4 bg-slate-200 rounded ml-auto" /></th>
-                                    <th className="px-4 py-3 text-right"><div className="w-12 h-4 bg-slate-200 rounded ml-auto" /></th>
-                                    <th className="px-4 py-3 text-right"><div className="w-12 h-4 bg-slate-200 rounded ml-auto" /></th>
-                                    <th className="px-4 py-3 text-center"><div className="w-12 h-4 bg-slate-200 rounded mx-auto" /></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200">
-                                {[...Array(8)].map((_, i) => (
-                                    <tr key={i} className="animate-pulse">
-                                        <td className="px-4 py-3">
-                                            <div className="w-32 h-5 bg-slate-200 rounded mb-1" />
-                                            <div className="w-16 h-3 bg-slate-100 rounded" />
-                                        </td>
-                                        <td className="px-4 py-3"><div className="w-20 h-4 bg-slate-200 rounded" /></td>
-                                        <td className="px-4 py-3 text-right"><div className="w-20 h-4 bg-slate-200 rounded ml-auto" /></td>
-                                        <td className="px-4 py-3 text-right"><div className="w-20 h-4 bg-slate-200 rounded ml-auto" /></td>
-                                        <td className="px-4 py-3 text-right"><div className="w-20 h-4 bg-slate-200 rounded ml-auto" /></td>
-                                        <td className="px-4 py-3 text-right"><div className="w-12 h-4 bg-slate-200 rounded ml-auto" /></td>
-                                        <td className="px-4 py-3 text-center"><div className="w-8 h-4 bg-slate-200 rounded mx-auto" /></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    {/* 内訳テーブル */}
+                    <div className="border-t border-slate-200 pt-5 space-y-2">
+                        {[...Array(6)].map((_, i) => (
+                            <div key={i} className="h-8 bg-slate-100 rounded" />
+                        ))}
                     </div>
                 </div>
             </div>

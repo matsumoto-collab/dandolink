@@ -1,57 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { requireManagerOrAbove, serverErrorResponse } from '@/lib/api/utils';
-import { fetchProfitDashboardData, fetchDashboardFilterOptions, fetchMonthlySales, type DashboardFilters } from '@/lib/profitDashboard';
+import { fetchMonthlySales } from '@/lib/profitDashboard';
 
-function parseList(v: string | null): string[] | undefined {
-    if (!v) return undefined;
-    const arr = v.split(',').map(s => s.trim()).filter(Boolean);
-    return arr.length > 0 ? arr : undefined;
-}
-
-export async function GET(request: NextRequest) {
+/**
+ * GET → { monthlySales }（直近12ヶ月の月次売上 trend・税込）。
+ * 旧: 案件一覧・summary・顧客/工事種別/職長別集計・?options=1（フィルタ選択肢）は
+ * ダッシュボード再編（月次中心化・kei決定 2026-07-10）で廃止した。
+ * 期間別の売上・原価・粗利の内訳は /api/profit-dashboard/monthly-detail が担う。
+ */
+export async function GET() {
     try {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { searchParams } = new URL(request.url);
-
-        if (searchParams.get('options') === '1') {
-            const options = await fetchDashboardFilterOptions();
-            return NextResponse.json(options, { headers: { 'Cache-Control': 'no-store' } });
-        }
-
-        const filters: DashboardFilters = {
-            status: searchParams.get('status') || 'all',
-            dateFrom: searchParams.get('dateFrom') || undefined,
-            dateTo: searchParams.get('dateTo') || undefined,
-            customerNames: parseList(searchParams.get('customers')),
-            foremanIds: parseList(searchParams.get('foremen')),
-            constructionTypeIds: parseList(searchParams.get('types')),
-        };
-
-        // monthlySales はフィルタ非依存（全社・当月 KPI）だが、毎回併走させても
-        // createdAt インデックス済みで安価。値はフィルタ変更によらず一定。
-        const [data, monthlySales] = await Promise.all([
-            fetchProfitDashboardData(filters),
-            fetchMonthlySales(),
-        ]);
-
-        const projects = data.projects.map(p => ({
-            ...p,
-            updatedAt: p.updatedAt.toISOString(),
-        }));
-
-        return NextResponse.json(
-            {
-                projects,
-                summary: data.summary,
-                byCustomer: data.byCustomer,
-                byConstructionType: data.byConstructionType,
-                byForeman: data.byForeman,
-                monthlySales,
-            },
-            { headers: { 'Cache-Control': 'no-store' } },
-        );
+        const monthlySales = await fetchMonthlySales();
+        return NextResponse.json({ monthlySales }, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('利益ダッシュボード取得', error);
     }

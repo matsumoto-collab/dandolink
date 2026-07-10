@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { fetchProfitDashboardData, fetchMonthlySales, fetchMonthlyAssigneeBreakdown } from '@/lib/profitDashboard';
+import { fetchMonthlySales, fetchMonthlyAssigneeBreakdown } from '@/lib/profitDashboard';
 import { prisma } from '@/lib/prisma';
 import { computeProjectCosts } from '@/lib/projectCost';
 
@@ -65,25 +65,6 @@ jest.mock('@/lib/prisma', () => ({
 }));
 
 describe('lib/profitDashboard', () => {
-    // Mock Data
-    // 協力業者費はアサイン無しの場合0になる（手配確定済み & パートナーロール判定が必要）
-    const mockProject = {
-        id: 'proj-1',
-        title: 'Project A',
-        customerName: 'Customer A',
-        status: 'active',
-        constructionType: null,
-        contractAmount: 0,
-        materialCost: 10000,
-        otherExpenses: 2000,
-        subcontractorCosts: [],
-        updatedAt: new Date(),
-        _count: { assignments: 5 },
-    };
-
-    const mockEstimates = [{ projectMasterId: 'proj-1', subtotal: 100000, costTotal: null, createdAt: new Date() }];
-    const mockInvoices = [{ projectMasterId: 'proj-1', subtotal: 120000 }];
-
     beforeEach(() => {
         jest.clearAllMocks();
         (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
@@ -91,35 +72,6 @@ describe('lib/profitDashboard', () => {
         (prisma.constructionType.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.projectAssignment.groupBy as jest.Mock).mockResolvedValue([]);
         (computeProjectCosts as jest.Mock).mockImplementation(mockCosts({}));
-    });
-
-    describe('fetchProfitDashboardData', () => {
-        it('売上（請求書フォールバック）と computeProjectCosts の確定原価から粗利を出す', async () => {
-            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([mockProject]);
-            (prisma.estimate.findMany as jest.Mock).mockResolvedValue(mockEstimates);
-            (prisma.invoice.findMany as jest.Mock).mockResolvedValue(mockInvoices);
-            (computeProjectCosts as jest.Mock).mockImplementation(mockCosts({ 'proj-1': 12000 }));
-
-            const result = await fetchProfitDashboardData('all');
-
-            expect(result.projects[0].revenue).toBe(120000);   // 請求書優先
-            expect(result.projects[0].totalCost).toBe(12000);   // 共通エンジンの確定原価
-            expect(result.projects[0].grossProfit).toBe(108000);
-            expect(computeProjectCosts).toHaveBeenCalledWith(['proj-1']);
-            expect(prisma.projectMaster.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
-        });
-
-        it('ステータスで案件を絞り込む', async () => {
-            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.estimate.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
-
-            await fetchProfitDashboardData('completed');
-
-            expect(prisma.projectMaster.findMany).toHaveBeenCalledWith(expect.objectContaining({
-                where: { status: 'completed' },
-            }));
-        });
     });
 
     describe('fetchMonthlySales', () => {

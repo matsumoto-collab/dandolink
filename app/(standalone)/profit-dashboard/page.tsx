@@ -1,60 +1,21 @@
 import { Suspense } from 'react';
-import { fetchProfitDashboardData, fetchDashboardFilterOptions, fetchMonthlySales, type DashboardFilters } from '@/lib/profitDashboard';
-import ProfitDashboardClient, { type SerializedProjectProfit } from './components/ProfitDashboardClient';
+import { fetchMonthlySales } from '@/lib/profitDashboard';
+import ProfitDashboardClient from './components/ProfitDashboardClient';
 import ProfitDashboardLoading from './loading';
 
-interface Props {
-    searchParams: Promise<{
-        status?: string;
-        dateFrom?: string;
-        dateTo?: string;
-        customers?: string;
-        foremen?: string;
-        types?: string;
-    }>;
+// DB を読む動的ページ（ビルド時プリレンダー禁止）。旧 searchParams フィルタは
+// ダッシュボード再編（月次中心化）で廃止したため、明示指定が必要になった。
+export const dynamic = 'force-dynamic';
+
+async function ProfitDashboardContent() {
+    const monthlySales = await fetchMonthlySales();
+    return <ProfitDashboardClient monthlySales={monthlySales} />;
 }
 
-async function ProfitDashboardContent({ filters }: { filters: DashboardFilters }) {
-    const [data, options, monthlySales] = await Promise.all([
-        fetchProfitDashboardData(filters),
-        fetchDashboardFilterOptions(),
-        fetchMonthlySales(),
-    ]);
-
-    const serializedProjects: SerializedProjectProfit[] = data.projects.map(p => ({
-        ...p,
-        updatedAt: p.updatedAt.toISOString(),
-    }));
-
-    return (
-        <ProfitDashboardClient
-            projects={serializedProjects}
-            summary={data.summary}
-            byCustomer={data.byCustomer}
-            byConstructionType={data.byConstructionType}
-            byForeman={data.byForeman}
-            filterOptions={options}
-            initialFilters={filters}
-            monthlySales={monthlySales}
-        />
-    );
-}
-
-export default async function ProfitDashboardPage({ searchParams }: Props) {
-    const sp = await searchParams;
-    const split = (v?: string) => (v ? v.split(',').map(s => s.trim()).filter(Boolean) : undefined);
-    const filters: DashboardFilters = {
-        status: sp.status || 'active',
-        dateFrom: sp.dateFrom,
-        dateTo: sp.dateTo,
-        customerNames: split(sp.customers),
-        foremanIds: split(sp.foremen),
-        constructionTypeIds: split(sp.types),
-    };
-
+export default async function ProfitDashboardPage() {
     return (
         <Suspense fallback={<ProfitDashboardLoading />}>
-            <ProfitDashboardContent filters={filters} />
+            <ProfitDashboardContent />
         </Suspense>
     );
 }

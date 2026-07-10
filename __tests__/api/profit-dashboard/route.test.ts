@@ -3,8 +3,8 @@
  */
 import { GET } from '@/app/api/profit-dashboard/route';
 import { requireManagerOrAbove } from '@/lib/api/utils';
-import { fetchProfitDashboardData, fetchDashboardFilterOptions, fetchMonthlySales } from '@/lib/profitDashboard';
-import { NextRequest, NextResponse } from 'next/server';
+import { fetchMonthlySales } from '@/lib/profitDashboard';
+import { NextResponse } from 'next/server';
 
 jest.mock('@/lib/api/utils', () => ({
     requireManagerOrAbove: jest.fn(),
@@ -12,15 +12,12 @@ jest.mock('@/lib/api/utils', () => ({
 }));
 
 // ルートは薄いラッパ。集計ロジックは lib 側で単体検証済みなのでモックする。
+// 旧: 案件一覧/summary/集計/?options=1 はダッシュボード再編（月次中心化）で廃止。
 jest.mock('@/lib/profitDashboard', () => ({
-    fetchProfitDashboardData: jest.fn(),
-    fetchDashboardFilterOptions: jest.fn(),
     fetchMonthlySales: jest.fn(),
 }));
 
 describe('/api/profit-dashboard GET', () => {
-    const req = (qs = '') => new NextRequest(`http://localhost/api/profit-dashboard?${qs}`);
-
     beforeEach(() => {
         jest.clearAllMocks();
         (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: { user: { id: 'u', role: 'manager' } }, error: null });
@@ -30,42 +27,25 @@ describe('/api/profit-dashboard GET', () => {
         const err = NextResponse.json({ error: '権限がありません' }, { status: 403 });
         (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: null, error: err });
 
-        const res = await GET(req('status=all'));
+        const res = await GET();
         expect(res.status).toBe(403);
-        expect(fetchProfitDashboardData).not.toHaveBeenCalled();
+        expect(fetchMonthlySales).not.toHaveBeenCalled();
     });
 
-    it('options=1 でフィルタ選択肢を返す', async () => {
-        (fetchDashboardFilterOptions as jest.Mock).mockResolvedValue({ customers: ['A'], foremen: [], constructionTypes: [] });
-
-        const res = await GET(req('options=1'));
-        const json = await res.json();
-
-        expect(res.status).toBe(200);
-        expect(json.customers).toEqual(['A']);
-        expect(fetchDashboardFilterOptions).toHaveBeenCalled();
-    });
-
-    it('案件データ・サマリ・今月の売上を返す', async () => {
-        (fetchProfitDashboardData as jest.Mock).mockResolvedValue({
-            projects: [{ id: 'p1', updatedAt: new Date() }],
-            summary: { totalProjects: 1, totalRevenue: 100, totalCost: 60, totalGrossProfit: 40, averageProfitMargin: 40 },
-            byCustomer: [], byConstructionType: [], byForeman: [],
-        });
+    it('月次売上（monthlySales）のみを no-store で返す', async () => {
         (fetchMonthlySales as jest.Mock).mockResolvedValue({
-            current: { year: 2026, month: 6, sales: 0, invoiceCount: 0 },
-            previous: { year: 2026, month: 5, sales: 0, invoiceCount: 0 },
-            momDelta: 0, momPercent: null, trend: [],
+            current: { year: 2026, month: 6, sales: 100000, invoiceCount: 2 },
+            previous: { year: 2026, month: 5, sales: 50000, invoiceCount: 1 },
+            momDelta: 50000, momPercent: 100, trend: [],
         });
 
-        const res = await GET(req('status=active'));
+        const res = await GET();
         const json = await res.json();
 
         expect(res.status).toBe(200);
-        expect(json.projects).toHaveLength(1);
-        expect(json.summary.totalProjects).toBe(1);
-        expect(json.monthlySales).toBeDefined();
-        expect(fetchProfitDashboardData).toHaveBeenCalled();
+        expect(json.monthlySales.current.sales).toBe(100000);
+        expect(Object.keys(json)).toEqual(['monthlySales']);
+        expect(res.headers.get('Cache-Control')).toBe('no-store');
         expect(fetchMonthlySales).toHaveBeenCalled();
     });
 });
