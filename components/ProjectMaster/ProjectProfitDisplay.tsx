@@ -589,6 +589,9 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                                 )}
                             </div>
                         </div>
+                        <p className="text-[11px] text-slate-400 -mt-2">
+                            確定の請求＝送付済み以降の請求書（税抜）。まとめ請求（1枚で複数案件）は明細のこの案件ぶんのみ計上します。
+                        </p>
 
                         {/* 原価消化率バー（緑→黄→赤） */}
                         {costConsumptionRate != null && (() => {

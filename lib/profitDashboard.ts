@@ -98,6 +98,32 @@ export async function fetchMonthlySales(
 // 案件担当者が未設定の案件・案件無し請求を集約する擬似担当者ID。
 export const UNASSIGNED_ASSIGNEE_ID = '__unassigned__';
 
+/**
+ * 請求書1枚の金額を「どの案件に何割ずつ」帰属させるかのシェア（0..1）を返す。
+ * 規則: 明細タグ(items[].projectMasterId)の金額比で按分 → タグが無ければ代表案件(projectMasterId)に全額 →
+ * どちらも無ければ空Map（案件なし請求）。
+ * 月次内訳（fetchMonthlyAssigneeBreakdown）と案件詳細の利益タブ（project-masters/[id]/profit）で共有し、
+ * まとめ請求（1枚で複数案件）の全額二重計上・取りこぼしを防ぐ唯一の按分規則とする。
+ * 注意: 中間表(InvoiceProjectMaster)のみの紐付けはシェアを持たない（金額の根拠が無いため計上しない）。
+ */
+export function invoiceProjectShares(inv: { items: string | null; projectMasterId: string | null }): Map<string, number> {
+    const items = parseJsonField<Array<{ projectMasterId?: string | null; amount?: number | string | null }>>(inv.items, []);
+    const projAmount = new Map<string, number>();
+    for (const it of items) {
+        if (!it.projectMasterId) continue;
+        const n = Number(it.amount);
+        projAmount.set(it.projectMasterId, (projAmount.get(it.projectMasterId) || 0) + (Number.isFinite(n) ? n : 0));
+    }
+    const totalTagged = [...projAmount.values()].reduce((s, v) => s + v, 0);
+    const shares = new Map<string, number>();
+    if (projAmount.size > 0 && totalTagged > 0) {
+        for (const [pid, amt] of projAmount) shares.set(pid, amt / totalTagged);
+    } else if (inv.projectMasterId) {
+        shares.set(inv.projectMasterId, 1);
+    }
+    return shares;
+}
+
 // 集計の軸（担当者別 / 顧客別）と期間（当月 / 年間＝暦年1-12月 / 任意の月範囲）。
 export type BreakdownAxis = 'assignee' | 'customer';
 export type BreakdownPeriod = 'month' | 'year' | 'range';
@@ -196,28 +222,19 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     const userNameMap = new Map<string, string>();
     for (const u of allUsers) userNameMap.set(u.id, u.displayName);
 
-    // 請求書1枚の売上(税抜 subtotal)を案件へ按分する（明細タグ按分 → projectMasterId 直付け → 案件なし）。
+    // 請求書1枚の売上(税抜 subtotal)を案件へ按分する（共有規則 invoiceProjectShares）。
     // 期間内売上と請求月集合の両方でこの同一ロジックを使い、対象案件のズレを防ぐ。
     const attributeInvoice = (inv: { subtotal: unknown; items: string | null; projectMasterId: string | null }) => {
         const byProject = new Map<string, number>();
         let projectless = 0;
         const subtotal = Number(inv.subtotal); // 税抜
         if (!subtotal) return { byProject, projectless };
-        const items = parseJsonField<Array<{ projectMasterId?: string | null; amount?: number | string | null }>>(inv.items, []);
-        const projAmount = new Map<string, number>();
-        for (const it of items) {
-            if (!it.projectMasterId) continue;
-            const n = Number(it.amount);
-            projAmount.set(it.projectMasterId, (projAmount.get(it.projectMasterId) || 0) + (Number.isFinite(n) ? n : 0));
-        }
-        const totalTagged = [...projAmount.values()].reduce((s, v) => s + v, 0);
-        if (projAmount.size > 0 && totalTagged > 0) {
-            for (const [pid, amt] of projAmount) byProject.set(pid, subtotal * (amt / totalTagged));
-        } else if (inv.projectMasterId) {
-            byProject.set(inv.projectMasterId, subtotal);
-        } else {
+        const shares = invoiceProjectShares(inv);
+        if (shares.size === 0) {
             projectless = subtotal;
+            return { byProject, projectless };
         }
+        for (const [pid, share] of shares) byProject.set(pid, subtotal * share);
         return { byProject, projectless };
     };
 

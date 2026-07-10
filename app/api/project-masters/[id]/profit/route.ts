@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, notFoundResponse, serverErrorResponse, errorResponse } from '@/lib/api/utils';
 import { computeProjectCosts } from '@/lib/projectCost';
+import { SALES_INVOICE_STATUSES, invoiceProjectShares } from '@/lib/profitDashboard';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
 /**
  * 案件詳細の「利益タブ」用 API。
- * 原価は共通エンジン `computeProjectCosts`（利益ダッシュボード一覧・月次内訳と同一ロジック）で算出する。
+ * 原価は共通エンジン `computeProjectCosts`（利益ダッシュボード月次内訳と同一ロジック）で算出する。
  * 売上は 請求(税抜) → 見積(税抜) → 足場工事金額 のフォールバック＋ revenueOverride。
+ * 請求はまとめ請求（1枚で複数案件）があるため、代表案件＋明細タグで拾い、この案件の
+ * シェアぶんだけを按分計上する（`invoiceProjectShares`・月次内訳と同一規則）。
+ * 計上対象は月次売上と同じ送付済み以降（下書き・担当確認済み・取消は含めない）。
  */
 export async function GET(_request: NextRequest, context: RouteContext) {
     try {
@@ -33,7 +37,19 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 select: { id: true, estimateNumber: true, title: true, total: true, subtotal: true, costTotal: true, createdAt: true, updatedAt: true },
                 orderBy: { createdAt: 'asc' },
             }),
-            prisma.invoice.findMany({ where: { projectMasterId: id } }),
+            // まとめ請求は代表(projectMasterId)が別案件のことがあるため明細タグ(items JSON)でも予選する。
+            // items は JSON 文字列なので contains(UUID部分一致)で絞り、正確な帰属は invoiceProjectShares が判定。
+            // 中間表(InvoiceProjectMaster)のみの紐付けは金額シェアを持たないため集計対象外（按分規則参照）。
+            prisma.invoice.findMany({
+                where: {
+                    status: { in: [...SALES_INVOICE_STATUSES] },
+                    OR: [
+                        { projectMasterId: id },
+                        { items: { contains: id } },
+                    ],
+                },
+                select: { subtotal: true, total: true, items: true, projectMasterId: true },
+            }),
             computeProjectCosts([id], { withDetail: true }),
         ]);
 
@@ -50,8 +66,17 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             id: e.id, estimateNumber: e.estimateNumber, title: e.title,
             total: Number(e.total), subtotal: Number(e.subtotal), costTotal: e.costTotal, createdAt: e.createdAt,
         }));
-        const invoiceAmount = invoices.reduce((sum, i) => sum + Number(i.total), 0);
-        const invoiceSubtotal = invoices.reduce((sum, i) => sum + Number(i.subtotal), 0);
+        // まとめ請求はこの案件のシェアぶんだけ計上（全額合算だと同じ請求書内の他案件の分まで乗ってしまう）
+        let invoiceAmount = 0;
+        let invoiceSubtotal = 0;
+        for (const inv of invoices) {
+            const share = invoiceProjectShares(inv).get(id) ?? 0;
+            if (share <= 0) continue;
+            invoiceAmount += Number(inv.total) * share;
+            invoiceSubtotal += Number(inv.subtotal) * share;
+        }
+        invoiceAmount = Math.round(invoiceAmount);
+        invoiceSubtotal = Math.round(invoiceSubtotal);
         const contractAmount = Number(projectMaster.contractAmount || 0);
 
         let revenue = 0;

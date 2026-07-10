@@ -50,7 +50,7 @@ describe('/api/project-masters/[id]/profit', () => {
     it('売上(請求 税抜フォールバック)と computeProjectCosts の原価から粗利を出す', async () => {
         (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: null });
         (prisma.estimate.findMany as jest.Mock).mockResolvedValue([{ total: 100000, subtotal: 90909, costTotal: null }]);
-        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([{ total: 120000, subtotal: 109091 }]);
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([{ total: 120000, subtotal: 109091, items: '[]', projectMasterId: mockId }]);
         (computeProjectCosts as jest.Mock).mockResolvedValue(costResult(breakdown({ materialCost: 10000, otherExpenses: 2000, totalCost: 12000 })));
 
         const res = await GET(createReq(), context);
@@ -63,13 +63,39 @@ describe('/api/project-masters/[id]/profit', () => {
         expect(json.costBreakdown.totalCost).toBe(12000);
         expect(json.grossProfit).toBe(109091 - 12000);
         expect(computeProjectCosts).toHaveBeenCalledWith(['proj-1'], { withDetail: true });
+        // 請求は送付済み以降＋代表/明細タグの2経路で取得する
+        expect(prisma.invoice.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: {
+                status: { in: ['sent', 'paid', 'overdue'] },
+                OR: [{ projectMasterId: mockId }, { items: { contains: mockId } }],
+            },
+        }));
+    });
+
+    it('まとめ請求は明細タグのこの案件ぶんだけ計上する（代表が別案件でも拾う）', async () => {
+        // 橋本様邸パターン: 単独請求58,500＋3案件まとめ請求165,000(うちこの案件58,500・代表は別案件)
+        (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: null });
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+            { total: 64350, subtotal: 58500, items: `[{"projectMasterId":"${mockId}","amount":58500}]`, projectMasterId: mockId },
+            {
+                total: 181500, subtotal: 165000, projectMasterId: 'proj-other',
+                items: `[{"projectMasterId":"${mockId}","amount":58500},{"projectMasterId":"proj-other","amount":80000},{"projectMasterId":"proj-3","amount":26500}]`,
+            },
+        ]);
+
+        const json = await (await GET(createReq(), context)).json();
+
+        expect(json.invoiceSubtotal).toBe(117000);  // 58500 + 165000×(58500/165000)
+        expect(json.invoiceAmount).toBe(128700);    // 64350 + 181500×(58500/165000)
+        expect(json.confirmedRevenue).toBe(117000); // 旧実装の223,500(全額合算)にならない
+        expect(json.revenue).toBe(117000);
     });
 
     it('見込み(見積基準)・確定(請求基準)・見積残・消化率を返す', async () => {
         // 見積 税抜10万 / 請求 税抜9.5万 / 原価5.9万
         (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: null });
         (prisma.estimate.findMany as jest.Mock).mockResolvedValue([{ total: 110000, subtotal: 100000, costTotal: null }]);
-        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([{ total: 104500, subtotal: 95000 }]);
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([{ total: 104500, subtotal: 95000, items: '[]', projectMasterId: mockId }]);
         (computeProjectCosts as jest.Mock).mockResolvedValue(costResult(breakdown({ totalCost: 59000 })));
 
         const json = await (await GET(createReq(), context)).json();
@@ -107,7 +133,7 @@ describe('/api/project-masters/[id]/profit', () => {
 
     it('revenueOverride があれば売上に優先採用する', async () => {
         (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: 500000 });
-        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([{ total: 120000, subtotal: 109091 }]);
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([{ total: 120000, subtotal: 109091, items: '[]', projectMasterId: mockId }]);
 
         const res = await GET(createReq(), context);
         const json = await res.json();
