@@ -58,7 +58,6 @@ const config = {
             '<rootDir>/__tests__/components/Schedule/AssignmentTable.test.tsx',
             '<rootDir>/__tests__/components/Settings/ConstructionTypeSettings.test.tsx',
             '<rootDir>/__tests__/components/Settings/SettingsPage.test.tsx',
-            '<rootDir>/__tests__/contexts/ProfitDashboardContext.test.tsx',
             '<rootDir>/__tests__/hooks/useMasterData.test.ts',
             '<rootDir>/__tests__/hooks/useProjects.test.ts',
             '<rootDir>/__tests__/stores/masterStore.test.ts',
