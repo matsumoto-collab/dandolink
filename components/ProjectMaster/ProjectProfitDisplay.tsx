@@ -49,11 +49,14 @@ interface SubcontractorRow {
     effectiveCost: number;
 }
 
-// 各原価項目の「手入力分」明細（摘要＋金額）。labor/vehicle/material/loading/other/subcontractor の6 bucket。
+// 各原価項目の「手入力分」明細（摘要＋金額＋発生日）。labor/vehicle/material/loading/other/subcontractor の6 bucket。
 type ManualBucket = 'labor' | 'vehicle' | 'material' | 'loading' | 'other' | 'subcontractor';
 interface ManualCostItem {
     label: string;
     amount: number;
+    // 発生日 'YYYY-MM-DD'（任意）。利益ダッシュボードの月次内訳（繰越方式）で
+    // 「この日以降の最初の請求月」に計上される。空欄は初回請求月。
+    date?: string;
 }
 
 interface EstimateBreakdownItem {
@@ -220,6 +223,12 @@ function ManualCostItemsEditor({ editMode, items, onChange }: {
     const removeItem = (i: number) => onChange(items.filter((_, idx) => idx !== i));
     const addItem = () => onChange([...items, { label: '', amount: 0 }]);
 
+    // 発生日 'YYYY-MM-DD' → '2026/6/5' 表示（年をまたぐ請求もあるため年込み）
+    const formatItemDate = (iso: string) => {
+        const [y, m, d] = iso.split('-');
+        return `${y}/${parseInt(m, 10)}/${parseInt(d, 10)}`;
+    };
+
     if (!editMode) {
         // 閲覧時は金額か摘要のある行のみ表示（無ければ何も出さない＝呼び出し側が「明細なし」を判断）
         const shown = items.filter(it => it.label || it.amount);
@@ -227,7 +236,10 @@ function ManualCostItemsEditor({ editMode, items, onChange }: {
             <>
                 {shown.map((it, i) => (
                     <div key={i} className="flex items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
-                        <span className="flex-1 min-w-0 truncate">{it.label || '手入力分'}</span>
+                        <span className="flex-1 min-w-0 truncate">
+                            {it.date && <span className="text-slate-400 tabular-nums mr-1.5">{formatItemDate(it.date)}</span>}
+                            {it.label || '手入力分'}
+                        </span>
                         <span className="text-sm font-medium tabular-nums text-slate-700 flex-shrink-0">{formatCurrency(it.amount)}</span>
                     </div>
                 ))}
@@ -238,13 +250,21 @@ function ManualCostItemsEditor({ editMode, items, onChange }: {
     return (
         <div className="space-y-1">
             {items.map((it, i) => (
-                <div key={i} className="flex items-center gap-1.5 py-0.5">
+                // 幅が足りないスマホでは日付が上段・摘要＋金額が下段に折り返す（flex-wrap）
+                <div key={i} className="flex flex-wrap items-center gap-1.5 py-0.5">
+                    <input
+                        type="date"
+                        value={it.date ?? ''}
+                        onChange={e => setItem(i, { date: e.target.value || undefined })}
+                        title="発生日（任意）。入力するとこの日以降の最初の請求月の原価に計上されます。空欄は初回請求月"
+                        className="w-[8.4rem] px-1.5 py-0.5 text-sm border border-slate-300 rounded-md tabular-nums flex-shrink-0 text-slate-600"
+                    />
                     <input
                         type="text"
                         value={it.label}
                         placeholder="摘要（例: 5月〇〇請求）"
                         onChange={e => setItem(i, { label: e.target.value })}
-                        className="flex-1 min-w-0 px-2 py-0.5 text-sm border border-slate-300 rounded-md"
+                        className="flex-1 min-w-[7rem] px-2 py-0.5 text-sm border border-slate-300 rounded-md"
                     />
                     <input
                         type="number"
@@ -329,7 +349,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
         const orig = profitData?.breakdown?.manualItems;
         const norm = (m: Partial<ManualDraft> | undefined) =>
             JSON.stringify((['labor', 'vehicle', 'material', 'loading', 'other', 'subcontractor'] as ManualBucket[])
-                .map(b => (m?.[b] ?? []).filter(it => it.label || it.amount).map(it => [it.label, it.amount])));
+                .map(b => (m?.[b] ?? []).filter(it => it.label || it.amount).map(it => [it.label, it.amount, it.date ?? ''])));
         return norm(drafts.manual) !== norm(orig);
     }, [drafts.manual, profitData]);
 
@@ -651,7 +671,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                     <h4 className="text-sm font-semibold text-slate-700 mb-3">原価内訳</h4>
                     {editMode && (
                         <p className="text-xs text-slate-500 -mt-2 mb-3">
-                            各項目とも<span className="font-medium text-slate-600">手入力分</span>に摘要（例: 5月〇〇請求）＋金額の行を追加できます。人件費・車両費・外注費は配置(日付)ごとの自動計上も<span className="font-medium text-slate-600">行ごと</span>に上書きできます。外注費の<span className="font-medium text-sky-700">出来高</span>バッジの行は協力業者出来高で確定した金額のため、変更は出来高の画面で行います。
+                            各項目とも<span className="font-medium text-slate-600">手入力分</span>に発生日（任意）＋摘要（例: 5月〇〇請求）＋金額の行を追加できます。発生日を入れると利益ダッシュボードの月次内訳で<span className="font-medium text-slate-600">その日以降の最初の請求月</span>の原価に計上されます（空欄は初回請求月・金額のない行は保存されません）。人件費・車両費・外注費は配置(日付)ごとの自動計上も<span className="font-medium text-slate-600">行ごと</span>に上書きできます。外注費の<span className="font-medium text-sky-700">出来高</span>バッジの行は協力業者出来高で確定した金額のため、変更は出来高の画面で行います。
                         </p>
                     )}
                     <div className="divide-y divide-slate-100">
