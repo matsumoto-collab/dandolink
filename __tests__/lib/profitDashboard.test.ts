@@ -8,11 +8,18 @@ import { computeProjectCosts } from '@/lib/projectCost';
 // 原価エンジンは projectCost.test.ts で単体検証済み。ここでは結果をモックして売上/グルーピングに集中する。
 jest.mock('@/lib/projectCost', () => ({ computeProjectCosts: jest.fn() }));
 
-// projectId → totalCost のモック原価マップを返すヘルパ
-const mockCosts = (costs: Record<string, number> = {}) =>
-    (ids: string[]) => new Map(ids.map(id => [id, {
-        breakdown: { laborCost: 0, loadingCost: 0, vehicleCost: 0, materialCost: 0, subcontractorCost: 0, otherExpenses: 0, totalCost: costs[id] ?? 0 },
-    }]));
+// projectId → 原価のモックを返すヘルパ。
+// costs[id] が number なら全期間原価（cutoffs 指定時も全カットオフ同値＝単月請求の案件相当）、
+// 関数なら (cutoff: Date | null) => その時点の累積原価（繰越方式の検証用。null=上限なし）。
+const mockCosts = (costs: Record<string, number | ((cutoff: Date | null) => number)> = {}) =>
+    (ids: string[], opts?: { cutoffs?: (Date | null)[] }) => new Map(ids.map(id => {
+        const c = costs[id] ?? 0;
+        const at = (cut: Date | null) => (typeof c === 'function' ? c(cut) : c);
+        return [id, {
+            breakdown: { laborCost: 0, loadingCost: 0, vehicleCost: 0, materialCost: 0, subcontractorCost: 0, otherExpenses: 0, totalCost: at(null) },
+            totalsAtCutoffs: opts?.cutoffs?.map(at),
+        }];
+    }));
 
 // Mock Prisma
 jest.mock('@/lib/prisma', () => ({
@@ -213,7 +220,7 @@ describe('lib/profitDashboard', () => {
 
         it('案件の売上を主担当へ全額計上する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { subtotal: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1' },
+                { subtotal: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1', createdAt: new Date('2026-06-10T00:00:00Z') },
             ]);
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
@@ -230,7 +237,7 @@ describe('lib/profitDashboard', () => {
 
         it('複数案件まとめ請求は明細額で按分し、各案件の主担当へ計上する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { subtotal: 100000, items: '[{"projectMasterId":"p1","amount":30000},{"projectMasterId":"p2","amount":70000}]', projectMasterId: 'p1' },
+                { subtotal: 100000, items: '[{"projectMasterId":"p1","amount":30000},{"projectMasterId":"p2","amount":70000}]', projectMasterId: 'p1', createdAt: new Date('2026-06-10T00:00:00Z') },
             ]);
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([
                 { id: 'p1', createdBy: '["u1"]' },
@@ -251,7 +258,7 @@ describe('lib/profitDashboard', () => {
 
         it('案件の確定原価（computeProjectCosts）を主担当に集約する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { subtotal: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1' },
+                { subtotal: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1', createdAt: new Date('2026-06-10T00:00:00Z') },
             ]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A' }]);
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
@@ -262,12 +269,13 @@ describe('lib/profitDashboard', () => {
 
             expect(r.rows).toHaveLength(1);
             expect(r.rows[0]).toMatchObject({ key: 'u1', sales: 100000, cost: 25000, grossProfit: 75000 });
-            expect(computeProjectCosts).toHaveBeenCalledWith(['p1']);
+            // 単月請求＝その月が最新請求月 → 上限なし(null)の1カットオフ・減算なし＝総原価そのまま
+            expect(computeProjectCosts).toHaveBeenCalledWith(['p1'], { cutoffs: [null] });
         });
 
         it('担当者・案件のない請求は「未設定」バケットへ集約する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { subtotal: 50000, items: '[]', projectMasterId: null },
+                { subtotal: 50000, items: '[]', projectMasterId: null, createdAt: new Date('2026-06-10T00:00:00Z') },
             ]);
 
             const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
@@ -278,7 +286,7 @@ describe('lib/profitDashboard', () => {
 
         it('顧客別に集計できる（axis=customer・案件名は正式名称＋顧客名）', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { subtotal: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1' },
+                { subtotal: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1', createdAt: new Date('2026-06-10T00:00:00Z') },
             ]);
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([
                 { id: 'p1', createdBy: '["u1"]', name: '佐藤', title: '佐藤様邸 仮設工事', customerName: '佐藤建設' },
@@ -296,7 +304,7 @@ describe('lib/profitDashboard', () => {
 
         it('年間(period=year)は当年に請求のあった案件を集計する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { subtotal: 200000, items: '[{"projectMasterId":"p1","amount":180000}]', projectMasterId: 'p1' },
+                { subtotal: 200000, items: '[{"projectMasterId":"p1","amount":180000}]', projectMasterId: 'p1', createdAt: new Date('2026-03-10T00:00:00Z') },
             ]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A' }]);
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1', customerName: '顧客X' }]);
@@ -308,6 +316,68 @@ describe('lib/profitDashboard', () => {
             const u1 = r.rows.find(x => x.key === 'u1')!;
             expect(u1.sales).toBe(200000);
             expect(u1.cost).toBe(40000);
+        });
+
+        describe('繰越方式（分割請求の原価は累積差分で二重計上しない）', () => {
+            // JST 月末の排他上限（= 翌月1日 JST 00:00）
+            const endOfMay = new Date(Date.UTC(2026, 5, 1, -9, 0, 0, 0));   // 2026-05-31T15:00:00Z
+            const endOfDec2025 = new Date(Date.UTC(2025, 12, 1, -9, 0, 0, 0)); // 2025-12-31T15:00:00Z
+
+            // 松本様邸パターン: 5月請求201,000＋6月請求105,000、総原価151,100（うち5月末までの発生121,100）
+            const splitInvoices = [
+                { subtotal: 201000, items: '[]', projectMasterId: 'p1', createdAt: new Date('2026-05-15T00:00:00Z') },
+                { subtotal: 105000, items: '[]', projectMasterId: 'p1', createdAt: new Date('2026-06-15T00:00:00Z') },
+            ];
+            const splitCosts = mockCosts({
+                p1: (cut: Date | null) => (cut === null ? 151100 : (cut.getTime() === endOfMay.getTime() ? 121100 : 0)),
+            });
+            const setupSplit = () => {
+                (prisma.invoice.findMany as jest.Mock).mockResolvedValue(splitInvoices);
+                (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '松本様邸', title: '松本様邸' }]);
+                (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A' }]);
+                (computeProjectCosts as jest.Mock).mockImplementation(splitCosts);
+            };
+
+            it('過去の請求月は「その月末までの累積 − 直前請求月末までの累積」…初月は減算なし', async () => {
+                setupSplit();
+                const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 5 });
+                // 5月は最新請求月(6月)ではない → upper=5月末。直前請求月なし → 減算なし → 121,100
+                expect(r.rows[0]).toMatchObject({ sales: 201000, cost: 121100, grossProfit: 79900 });
+                expect(computeProjectCosts).toHaveBeenCalledWith(['p1'], { cutoffs: [endOfMay] });
+            });
+
+            it('最新請求月は上限なし（請求後に発生した原価も取りこぼさない）− 直前請求月末までの累積', async () => {
+                setupSplit();
+                const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
+                // 6月=最新請求月 → upper=null(∞)=151,100。lower=5月末=121,100 → 30,000
+                expect(r.rows[0]).toMatchObject({ sales: 105000, cost: 30000, grossProfit: 75000 });
+                expect(computeProjectCosts).toHaveBeenCalledWith(['p1'], { cutoffs: [null, endOfMay] });
+            });
+
+            it('全請求月の原価合計＝案件の総原価（望遠鏡和・松本様邸の粗利154,900が再現される）', async () => {
+                setupSplit();
+                const may = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 5 });
+                setupSplit();
+                const june = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
+                expect(may.totals.cost + june.totals.cost).toBe(151100);
+                expect(may.totals.grossProfit + june.totals.grossProfit).toBe(154900);
+            });
+
+            it('年間ビューは「年内最終請求月まで − 年より前の最終請求月まで」の差分（年跨ぎ分割）', async () => {
+                (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                    { subtotal: 100000, items: '[]', projectMasterId: 'p1', createdAt: new Date('2025-12-10T00:00:00Z') },
+                    { subtotal: 50000, items: '[]', projectMasterId: 'p1', createdAt: new Date('2026-03-10T00:00:00Z') },
+                ]);
+                (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
+                (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A' }]);
+                (computeProjectCosts as jest.Mock).mockImplementation(mockCosts({
+                    p1: (cut: Date | null) => (cut === null ? 80000 : (cut.getTime() === endOfDec2025.getTime() ? 30000 : 0)),
+                }));
+
+                const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6, period: 'year' });
+                // 2026年の売上は3月分のみ。原価 = C(∞・3月が最新請求月) − C(2025年12月末) = 80,000 − 30,000
+                expect(r.rows[0]).toMatchObject({ sales: 50000, cost: 50000, grossProfit: 0 });
+            });
         });
     });
 });

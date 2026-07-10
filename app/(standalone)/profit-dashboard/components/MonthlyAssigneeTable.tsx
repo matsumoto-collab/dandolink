@@ -56,8 +56,9 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
     // 説明文（PC=常時表示 / モバイル=折りたたみ）で共用
     const explainer = (
         <>
-            {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。<strong className="text-slate-500">その期間に請求した案件のみ</strong>表示（売上=請求額（税抜）、原価=案件の確定原価＝人件費＋車両費＋材料費＋外注費＋その他、主担当に全額計上）。上の月次売上は税込のため、この表の売上合計とは消費税分ずれます。
-            <strong className="text-slate-500">原価の修正は案件詳細の利益タブ</strong>（配置ごとの上書き・材料費等）で行います。
+            {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。<strong className="text-slate-500">その期間に請求した案件のみ</strong>表示（売上=請求額（税抜）、主担当に全額計上）。
+            原価は<strong className="text-slate-500">繰越方式</strong>＝その請求月末までに発生した原価（人件費＋車両費＋材料費＋外注費＋その他）のうち、まだ過去の請求月に計上していない分。月をまたいで分割請求しても原価は二重計上されず、全請求月の合計＝案件の確定原価になります。上の月次売上は税込のため、この表の売上合計とは消費税分ずれます。
+            <strong className="text-slate-500">原価の修正は案件詳細の利益タブ</strong>（配置ごとの上書き・材料費等の手入力明細）で行います。
         </>
     );
 

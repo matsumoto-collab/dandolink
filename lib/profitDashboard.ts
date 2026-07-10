@@ -642,10 +642,14 @@ const NO_CUSTOMER_KEY = '__nocustomer__';
  *
  * - 対象: 期間内に発行(createdAt)した請求書がある案件のみ（未請求の案件は一覧に出さない）。
  * - 売上: 期間内の請求書(送付済み以降, 税抜 subtotal)。複数案件まとめ請求は明細額で案件按分。
- * - 原価＝請求した案件の**確定原価**＝`computeProjectCosts`（人件費＋車両費＋材料費＋外注費＋その他、配置ごとの上書き込み）。
- *   原価の手修正は案件詳細（利益タブの配置別上書き＋案件マスタの材料費等）に一本化。ここは表示のみ。
+ * - 原価＝**繰越方式**（kei決定 2026-07-10・未成工事支出金の考え方）:
+ *   「その請求月の原価 ＝ その月末までに発生した原価のうち、まだ過去の請求月に計上していない分」。
+ *   実装は累積差分＝ cost(請求月mi) = C(mi月末) − C(直前請求月末)。最新請求月のみ上限なし（C(∞)）で
+ *   請求後に発生した原価も取りこぼさない。C は `computeProjectCosts` の cutoffs オプションで一括取得。
+ *   これにより1案件を複数月に分割請求しても原価は二重計上されず、全請求月の原価合計＝案件の確定原価。
+ *   日付を持たない原価（旧スカラー・日付未入力の手入力明細・発行日なし仕入請求書）は初回請求月に計上。
+ *   原価の手修正は案件詳細（利益タブの配置別上書き＋手入力明細[発生日つき]）に一本化。ここは表示のみ。
  * - axis='assignee' は主担当（`extractAssigneeIds(createdBy)[0]`）、'customer' は案件の顧客名でグルーピング。明細は顧客名→案件名順。
- * - 注意: 原価は案件の全期間合計のため、1案件を複数月に分けて請求すると各請求月に原価が重複計上されうる（完成時一括請求を想定）。
  */
 export async function fetchMonthlyAssigneeBreakdown(params: {
     year: number;
@@ -666,24 +670,25 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
         ? new Date(Date.UTC(year + 1, 0, 1, -9, 0, 0, 0))
         : new Date(Date.UTC(year, m0 + 1, 1, -9, 0, 0, 0));
 
-    // 1段目: 期間内の請求書＋担当者名（売上の按分・グルーピング用）
-    const [invoices, allUsers] = await Promise.all([
+    // 1段目: 送付済み以降の**全期間**の請求書＋担当者名。
+    // 期間内売上と「案件→請求月集合」（繰越方式のカットオフ算出用）を同じ按分ロジックで作る。
+    const [allInvoices, allUsers] = await Promise.all([
         prisma.invoice.findMany({
-            where: { createdAt: { gte: rangeStart, lt: rangeEnd }, status: { in: [...SALES_INVOICE_STATUSES] } },
-            select: { subtotal: true, items: true, projectMasterId: true },
+            where: { status: { in: [...SALES_INVOICE_STATUSES] } },
+            select: { createdAt: true, subtotal: true, items: true, projectMasterId: true },
         }),
         prisma.user.findMany({ select: { id: true, displayName: true } }),
     ]);
     const userNameMap = new Map<string, string>();
     for (const u of allUsers) userNameMap.set(u.id, u.displayName);
 
-    // ---- 売上を案件ごとに（期間内の全請求書）。案件なし請求は projectless へ ----
-    const salesByProject = new Map<string, number>();
-    let projectlessSales = 0;
-    const addProjectSales = (pid: string, amt: number) => salesByProject.set(pid, (salesByProject.get(pid) || 0) + amt);
-    for (const inv of invoices) {
+    // 請求書1枚の売上(税抜 subtotal)を案件へ按分する（明細タグ按分 → projectMasterId 直付け → 案件なし）。
+    // 期間内売上と請求月集合の両方でこの同一ロジックを使い、対象案件のズレを防ぐ。
+    const attributeInvoice = (inv: { subtotal: unknown; items: string | null; projectMasterId: string | null }) => {
+        const byProject = new Map<string, number>();
+        let projectless = 0;
         const subtotal = Number(inv.subtotal); // 税抜
-        if (!subtotal) continue;
+        if (!subtotal) return { byProject, projectless };
         const items = parseJsonField<Array<{ projectMasterId?: string | null; amount?: number | string | null }>>(inv.items, []);
         const projAmount = new Map<string, number>();
         for (const it of items) {
@@ -693,20 +698,79 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
         }
         const totalTagged = [...projAmount.values()].reduce((s, v) => s + v, 0);
         if (projAmount.size > 0 && totalTagged > 0) {
-            for (const [pid, amt] of projAmount) addProjectSales(pid, subtotal * (amt / totalTagged));
+            for (const [pid, amt] of projAmount) byProject.set(pid, subtotal * (amt / totalTagged));
         } else if (inv.projectMasterId) {
-            addProjectSales(inv.projectMasterId, subtotal);
+            byProject.set(inv.projectMasterId, subtotal);
         } else {
-            projectlessSales += subtotal;
+            projectless = subtotal;
+        }
+        return { byProject, projectless };
+    };
+
+    // ---- 期間内売上（案件ごと）と、全期間の「案件→JST請求月→按分売上」を同時に作る ----
+    const jstMonthKeyOf = (d: Date) => {
+        const j = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+        return `${j.getUTCFullYear()}-${String(j.getUTCMonth() + 1).padStart(2, '0')}`;
+    };
+    const salesByProject = new Map<string, number>();                   // 期間内（表示用）
+    let projectlessSales = 0;                                           // 期間内・案件なし
+    const monthSalesByProject = new Map<string, Map<string, number>>(); // 全期間: pid → (月キー → 按分売上)
+    for (const inv of allInvoices) {
+        const { byProject, projectless } = attributeInvoice(inv);
+        const inRange = inv.createdAt >= rangeStart && inv.createdAt < rangeEnd;
+        if (inRange) projectlessSales += projectless;
+        if (byProject.size === 0) continue;
+        const mKey = jstMonthKeyOf(inv.createdAt);
+        for (const [pid, amt] of byProject) {
+            let mm = monthSalesByProject.get(pid);
+            if (!mm) { mm = new Map(); monthSalesByProject.set(pid, mm); }
+            mm.set(mKey, (mm.get(mKey) || 0) + amt);
+            if (inRange) salesByProject.set(pid, (salesByProject.get(pid) || 0) + amt);
         }
     }
 
     // 当該期間に「請求のある」案件だけを対象にする（未請求の案件は一覧に出さない）
     const billedPids = [...salesByProject.keys()].filter(pid => (salesByProject.get(pid) || 0) > 0);
 
-    // 2段目: 共通原価エンジンで確定原価＋案件メタ
+    // ---- 繰越方式のカットオフ算出 ----
+    // 各案件の請求月列（按分後売上>0 の JST 月キー・昇順）から、
+    //   upper = 期間内最終請求月の月末（その月が案件の最新請求月なら null=上限なし → 請求後の原価も拾う）
+    //   lower = 期間より前の最終請求月の月末（なければ減算なし＝日付なし原価も初回請求月に落ちる）
+    // とし、原価 = C(upper) − C(lower)（累積差分＝望遠鏡和で全請求月の合計が案件の確定原価に一致）。
+    // distinct なカットオフをまとめ、computeProjectCosts は1回だけ呼ぶ。
+    const endOfMonthKey = (key: string): Date => {
+        const [ky, km] = key.split('-').map(Number); // km は 1-based → Date.UTC の 0-based 月にそのまま渡すと翌月
+        return new Date(Date.UTC(ky, km, 1, -9, 0, 0, 0)); // JST 翌月1日 00:00（排他上限）
+    };
+    const periodStartKey = period === 'year' ? `${year}-01` : `${year}-${String(month).padStart(2, '0')}`;
+    const periodEndKey = period === 'year' ? `${year}-12` : periodStartKey;
+
+    const cutoffs: (Date | null)[] = [];
+    const cutoffIndex = new Map<string, number>(); // 'inf' または ISO文字列 → cutoffs の添字
+    const indexOfCutoff = (c: Date | null): number => {
+        const k = c === null ? 'inf' : c.toISOString();
+        let i = cutoffIndex.get(k);
+        if (i === undefined) { i = cutoffs.length; cutoffs.push(c); cutoffIndex.set(k, i); }
+        return i;
+    };
+    const costCutsByPid = new Map<string, { upperIdx: number; lowerIdx: number | null }>();
+    for (const pid of billedPids) {
+        const months = [...(monthSalesByProject.get(pid) ?? new Map<string, number>())]
+            .filter(([, amt]) => amt > 0).map(([k]) => k).sort();
+        const latest = months[months.length - 1];
+        const lastInPeriod = months.filter(k => k >= periodStartKey && k <= periodEndKey).pop();
+        const prevBefore = months.filter(k => k < periodStartKey).pop();
+        // billedPids の定義上 lastInPeriod は必ず存在する（同じ按分で期間内売上>0）。万一欠けても上限なしに落として安全側。
+        const upper: Date | null = !lastInPeriod || lastInPeriod === latest ? null : endOfMonthKey(lastInPeriod);
+        costCutsByPid.set(pid, {
+            upperIdx: indexOfCutoff(upper),
+            lowerIdx: prevBefore ? indexOfCutoff(endOfMonthKey(prevBefore)) : null,
+        });
+    }
+
+    // 2段目: 共通原価エンジン（カットオフ一括・クエリ数は従来と同じ）＋案件メタ
     const [costMap, projects] = await Promise.all([
-        computeProjectCosts(billedPids),
+        computeProjectCosts(billedPids, { cutoffs }),
         billedPids.length > 0
             ? prisma.projectMaster.findMany({
                 where: { id: { in: billedPids } },
@@ -730,7 +794,12 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     const aggs: Agg[] = [];
     for (const pid of billedPids) {
         const sales = Math.round(salesByProject.get(pid) || 0);
-        const cost = Math.round(costMap.get(pid)?.breakdown.totalCost ?? 0);
+        // 繰越方式: C(期間内最終請求月末 or ∞) − C(直前請求月末)。単月請求の案件は総原価そのまま（従来と一致）。
+        const cuts = costCutsByPid.get(pid);
+        const totals = costMap.get(pid)?.totalsAtCutoffs;
+        const upperVal = cuts ? (totals?.[cuts.upperIdx] ?? 0) : 0;
+        const lowerVal = cuts && cuts.lowerIdx !== null ? (totals?.[cuts.lowerIdx] ?? 0) : 0;
+        const cost = Math.round(upperVal - lowerVal);
         aggs.push({
             projectId: pid,
             projectName: projectNameMap.get(pid) || '(案件名なし)',
