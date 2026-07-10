@@ -316,6 +316,78 @@ describe('lib/projectCost / computeProjectCosts', () => {
         expect(map.get('none')!.breakdown.totalCost).toBe(0);
     });
 
+    describe('cutoffs: カットオフ時点ごとの累積総原価（月次内訳の繰越方式用）', () => {
+        // JST 2026-06-01 00:00（=5月末の排他上限）。null は上限なし。
+        const endOfMay = new Date(Date.UTC(2026, 5, 1, -9, 0, 0, 0));
+
+        it('配置由来の原価は配置日でカットオフに振り分け、日付なしの旧スカラーは全カットオフに含む', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+                id: 'p1', materialCost: 1000, otherExpenses: 0, loadingCost: 0, subcontractorCosts: [],
+                assignments: [
+                    {
+                        id: 'a1', date: new Date('2026-05-10T00:00:00.000Z'), assignedEmployeeId: 'f1', isDispatchConfirmed: false, constructionType: null,
+                        workers: '[]', memberCount: 0, vehicles: '[]',
+                        laborCostOverride: 5000, vehicleCostOverride: null, subcontractorCostOverride: null,
+                        dailyReportWorkItems: [],
+                    },
+                    {
+                        id: 'a2', date: new Date('2026-06-10T00:00:00.000Z'), assignedEmployeeId: 'f1', isDispatchConfirmed: false, constructionType: null,
+                        workers: '[]', memberCount: 0, vehicles: '[]',
+                        laborCostOverride: 7000, vehicleCostOverride: null, subcontractorCostOverride: null,
+                        dailyReportWorkItems: [],
+                    },
+                ],
+            }]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'f1', displayName: 'F', role: 'manager' }]);
+
+            const r = (await computeProjectCosts(['p1'], { cutoffs: [endOfMay, null] })).get('p1')!;
+            // 5月末まで: a1(5000)＋旧スカラー材料費(日付なし=常に含む1000)。上限なし: a2(7000)も加算
+            expect(r.totalsAtCutoffs).toEqual([6000, 13000]);
+            expect(r.breakdown.totalCost).toBe(13000); // breakdown は従来どおり全期間
+        });
+
+        it('仕入請求書配分は issueDate で振り分け、発行日なしは全カットオフに含む', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+                id: 'p1', materialCost: 0, otherExpenses: 0, loadingCost: 0, subcontractorCosts: [], assignments: [],
+                purchaseInvoiceAllocations: [
+                    { amount: 5000, expenseCategory: { name: '材料費', costBucket: 'material' }, purchaseInvoice: { id: 'pi1', payeeName: 'A', issueDate: new Date('2026-06-05T00:00:00.000Z') } },
+                    { amount: 3000, expenseCategory: { name: '雑費', costBucket: 'other' }, purchaseInvoice: { id: 'pi2', payeeName: 'B', issueDate: null } },
+                ],
+            }]);
+
+            const r = (await computeProjectCosts(['p1'], { cutoffs: [endOfMay, null] })).get('p1')!;
+            expect(r.totalsAtCutoffs).toEqual([3000, 8000]); // 発行日なし3000は5月末カットオフにも含む
+        });
+
+        it('手入力明細は date で振り分け（境界: 5/31は5月・6/1は6月）、日付なし明細は全カットオフに含む', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+                id: 'p1', materialCost: null, otherExpenses: null, loadingCost: null, subcontractorExpense: null,
+                manualCostItems: {
+                    material: [
+                        { label: '5月末シート', amount: 2000, date: '2026-05-31' },
+                        { label: '6月頭ボルト', amount: 3000, date: '2026-06-01' },
+                        { label: '日付なし', amount: 100 },
+                    ],
+                },
+                subcontractorCosts: [], assignments: [],
+            }]);
+
+            const r = (await computeProjectCosts(['p1'], { cutoffs: [endOfMay, null], withDetail: true })).get('p1')!;
+            expect(r.totalsAtCutoffs).toEqual([2100, 5100]);
+            // detail の明細に date が残る（UIの編集初期値）
+            expect(r.detail?.manualItems.material.find(it => it.label === '5月末シート')?.date).toBe('2026-05-31');
+            expect(r.detail?.manualItems.material.find(it => it.label === '日付なし')?.date).toBeUndefined();
+        });
+
+        it('該当しない projectId は totalsAtCutoffs も 0 で埋める。cutoffs 未指定なら undefined', async () => {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
+            const withCuts = await computeProjectCosts(['none'], { cutoffs: [endOfMay, null] });
+            expect(withCuts.get('none')!.totalsAtCutoffs).toEqual([0, 0]);
+            const without = await computeProjectCosts(['none']);
+            expect(without.get('none')!.totalsAtCutoffs).toBeUndefined();
+        });
+    });
+
     describe('協力業者出来高で確定した金額を外注費へ反映する', () => {
         const D2 = new Date('2026-06-11T00:00:00.000Z');
         // 予定単価: 作業費80000＋運搬費5000。partner職長の確定済み配置 a1(6/10)・a2(6/11)＝種別ごと初回のみ計上

@@ -7,10 +7,11 @@ interface RouteContext { params: Promise<{ id: string }>; }
 
 const FIELDS = ['materialCost', 'otherExpenses', 'loadingCost', 'subcontractorExpense', 'revenueOverride'] as const;
 
-// 手入力明細を持つ6項目(人件費/車両費/材料費/積込費/その他/外注費)。各bucketは {摘要label, 金額amount>=0} の配列。空行は除去して保存。
+// 手入力明細を持つ6項目(人件費/車両費/材料費/積込費/その他/外注費)。各bucketは {摘要label, 金額amount>=0, 発生日date?} の配列。空行は除去して保存。
+// date('YYYY-MM-DD'・任意)は月次内訳の繰越方式で「この日以降の最初の請求月」に計上するための発生日。不正値は date だけ落とす。
 const MANUAL_BUCKETS = ['labor', 'vehicle', 'material', 'loading', 'other', 'subcontractor'] as const;
-function normalizeManualCostItems(raw: unknown): Record<string, { label: string; amount: number }[]> {
-    const out: Record<string, { label: string; amount: number }[]> = {};
+function normalizeManualCostItems(raw: unknown): Record<string, { label: string; amount: number; date?: string }[]> {
+    const out: Record<string, { label: string; amount: number; date?: string }[]> = {};
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
     const obj = raw as Record<string, unknown>;
     for (const b of MANUAL_BUCKETS) {
@@ -18,10 +19,12 @@ function normalizeManualCostItems(raw: unknown): Record<string, { label: string;
         if (!Array.isArray(arr)) continue;
         out[b] = arr
             .map((it) => {
-                const o = (it ?? {}) as { label?: unknown; amount?: unknown };
+                const o = (it ?? {}) as { label?: unknown; amount?: unknown; date?: unknown };
                 const amount = Math.max(0, Math.round(Number(o.amount) || 0));
                 const label = typeof o.label === 'string' ? o.label.trim().slice(0, 100) : '';
-                return { label, amount };
+                const date = typeof o.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.date) && !Number.isNaN(Date.parse(o.date))
+                    ? o.date : undefined;
+                return date ? { label, amount, date } : { label, amount };
             })
             .filter(it => it.label !== '' || it.amount > 0);
     }

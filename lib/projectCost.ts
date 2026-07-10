@@ -62,6 +62,9 @@ export type ManualCostBucket = 'labor' | 'vehicle' | 'material' | 'loading' | 'o
 export interface ManualCostItem {
     label: string; // 摘要（例: 「5月〇〇請求」）
     amount: number;
+    // 発生日 'YYYY-MM-DD'（任意）。月次内訳の繰越方式で「この日以降の最初の請求月」に計上する。
+    // 未入力は日付なし＝初回請求月に計上。
+    date?: string;
 }
 export interface ProjectCostDetail {
     labor: LaborCostRow[];
@@ -79,6 +82,9 @@ export interface ProjectCostDetail {
 export interface ProjectCostResult {
     breakdown: CostBreakdown;
     detail?: ProjectCostDetail; // opts.withDetail のときのみ
+    // opts.cutoffs と同順の「そのカットオフ（排他上限・null=上限なし）時点までに発生した累積総原価」。
+    // 月次内訳の繰越方式（隣接カットオフの差分＝その請求月の原価）用。opts.cutoffs 指定時のみ。
+    totalsAtCutoffs?: number[];
 }
 
 function emptyBreakdown(): CostBreakdown {
@@ -121,13 +127,20 @@ function volumeAmountOf(r: VolumeRowLite | undefined): number | null {
 
 /**
  * 指定案件群の原価を一括計算する。返り値は projectId → ProjectCostResult（指定 ID は必ずキーに存在）。
+ *
+ * opts.cutoffs: 排他上限の時点リスト（null=上限なし）。指定すると totalsAtCutoffs に
+ * 各時点までの累積総原価を返す（フェッチ・集計は1パスのまま。日付を持たない原価＝
+ * 旧スカラー列・日付未入力の手入力明細・発行日なし仕入請求書は全カットオフに含める）。
  */
 export async function computeProjectCosts(
     projectIds: string[],
-    opts: { withDetail?: boolean } = {},
+    opts: { withDetail?: boolean; cutoffs?: (Date | null)[] } = {},
 ): Promise<Map<string, ProjectCostResult>> {
     const result = new Map<string, ProjectCostResult>();
     if (projectIds.length === 0) return result;
+
+    // 手入力明細の date('YYYY-MM-DD') と文字列比較するための JST 日付文字列版カットオフ
+    const cutoffStrs = opts.cutoffs?.map(c => (c ? jstDateStr(c) : null));
 
     const projectMasters = await prisma.projectMaster.findMany({
         where: { id: { in: projectIds } },
@@ -258,6 +271,16 @@ export async function computeProjectCosts(
 
     for (const pm of projectMasters) {
         let laborCost = 0, vehicleCost = 0, subcontractorCost = 0;
+        // カットオフごとの累積総原価バケツ。日付なし(null)の原価は全カットオフに加算＝差分では初回請求月に落ちる。
+        const totalsAtCutoffs = opts.cutoffs ? opts.cutoffs.map(() => 0) : undefined;
+        const addAt = (d: Date | null, v: number) => {
+            if (!totalsAtCutoffs || v === 0) return;
+            opts.cutoffs!.forEach((c, i) => { if (c === null || d === null || d < c) totalsAtCutoffs[i] += v; });
+        };
+        const addAtStr = (ds: string | null, v: number) => {
+            if (!totalsAtCutoffs || v === 0) return;
+            cutoffStrs!.forEach((cs, i) => { if (cs === null || ds === null || ds < cs) totalsAtCutoffs[i] += v; });
+        };
         const subcontractorTypeUsed = new Set<string>(); // 案件ごとに種別初回のみ自動計上
         // 予定単価は作業費/運搬費を分けて保持する（出来高行が片側だけ保存されたケースの整合に必要）
         const subcontractorTypeRates = new Map<string, { work: number; transport: number }>(
@@ -314,6 +337,7 @@ export async function computeProjectCosts(
             const effLabor = a.laborCostOverride != null ? a.laborCostOverride : autoLabor;
             if (!isPartnerForeman) {
                 laborCost += effLabor;
+                addAt(a.date, effLabor);
                 if (opts.withDetail) {
                     laborRows.push({
                         assignmentId: a.id, date: dateStr, constructionTypeName: ctName,
@@ -335,6 +359,7 @@ export async function computeProjectCosts(
                 : 0;
             const effVeh = a.vehicleCostOverride != null ? a.vehicleCostOverride : autoVeh;
             vehicleCost += effVeh;
+            addAt(a.date, effVeh);
             if (opts.withDetail && (vehNames.length > 0 || a.vehicleCostOverride != null)) {
                 vehicleRows.push({
                     assignmentId: a.id, date: dateStr,
@@ -375,6 +400,7 @@ export async function computeProjectCosts(
             const baseTransport = hasSubOv ? 0 : autoTransport;
             const effSub = (volWork ?? baseWork) + (volTransport ?? baseTransport);
             subcontractorCost += effSub;
+            addAt(a.date, effSub);
             if (opts.withDetail && (isPartnerSub || hasSubOv || fromVolume)) {
                 subRows.push({
                     assignmentId: a.id, date: dateStr, constructionTypeName: ctName, foremanName,
@@ -393,6 +419,7 @@ export async function computeProjectCosts(
             if (bucket === 'material') invMaterial += amount;
             else if (bucket === 'loading') invLoading += amount;
             else invOther += amount;
+            addAt(al.purchaseInvoice.issueDate ?? null, amount);
             if (opts.withDetail) {
                 invoiceRows.push({
                     invoiceId: al.purchaseInvoice.id,
@@ -416,13 +443,26 @@ export async function computeProjectCosts(
             if (!Array.isArray(raw)) return [];
             return raw
                 .map((it): ManualCostItem => {
-                    const o = (it ?? {}) as { label?: unknown; amount?: unknown };
-                    return { label: typeof o.label === 'string' ? o.label : '', amount: Number(o.amount) || 0 };
+                    const o = (it ?? {}) as { label?: unknown; amount?: unknown; date?: unknown };
+                    const date = typeof o.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.date) ? o.date : undefined;
+                    return {
+                        label: typeof o.label === 'string' ? o.label : '',
+                        amount: Number(o.amount) || 0,
+                        ...(date ? { date } : {}),
+                    };
                 })
                 .filter(it => it.label !== '' || it.amount !== 0);
         };
-        const manualSum = (bucket: ManualCostBucket, legacy: number): number =>
-            Array.isArray(manualObj[bucket]) ? readBucket(bucket).reduce((s, it) => s + it.amount, 0) : legacy;
+        // 合計と同時にカットオフバケツへも振り分ける（明細は date、旧スカラー列は日付なし扱い）
+        const manualSum = (bucket: ManualCostBucket, legacy: number): number => {
+            if (!Array.isArray(manualObj[bucket])) {
+                addAtStr(null, legacy);
+                return legacy;
+            }
+            let sum = 0;
+            for (const it of readBucket(bucket)) { sum += it.amount; addAtStr(it.date ?? null, it.amount); }
+            return sum;
+        };
         // UI表示用の初期明細（旧スカラー列のみの案件は値を1件の明細[label空]として見せる）
         const detailItemsOf = (bucket: ManualCostBucket, legacy: number): ManualCostItem[] =>
             Array.isArray(manualObj[bucket]) ? readBucket(bucket) : (legacy > 0 ? [{ label: '', amount: legacy }] : []);
@@ -446,6 +486,7 @@ export async function computeProjectCosts(
 
         result.set(pm.id, {
             breakdown: { laborCost, loadingCost, vehicleCost, materialCost, subcontractorCost, otherExpenses, totalCost },
+            totalsAtCutoffs,
             detail: opts.withDetail
                 ? {
                     labor: laborRows.sort((x, y) => x.date.localeCompare(y.date)),
@@ -468,7 +509,9 @@ export async function computeProjectCosts(
     }
 
     // 取得できなかった案件IDも空原価でキーを埋める（呼び出し側 get の undefined 回避）
-    for (const pid of projectIds) if (!result.has(pid)) result.set(pid, { breakdown: emptyBreakdown() });
+    for (const pid of projectIds) if (!result.has(pid)) {
+        result.set(pid, { breakdown: emptyBreakdown(), totalsAtCutoffs: opts.cutoffs?.map(() => 0) });
+    }
 
     return result;
 }
