@@ -73,10 +73,21 @@ export default function CardReceiptInbox({ categories }: Props) {
         return Array.from(set).sort((a, b) => a.localeCompare(b, 'ja'));
     }, [receipts]);
 
+    // 表示順はレシートの日付順（古い順・日付未読取は末尾）。
+    // API も同じ順で返すが、セル編集後の行差し替えでも正しい位置に並ぶようクライアントでも常にソートする（出納帳と同じ考え方）。
+    const sortedReceipts = useMemo(() => {
+        return [...receipts].sort((a, b) => {
+            const ad = a.issueDate ? new Date(a.issueDate).getTime() : Infinity;
+            const bd = b.issueDate ? new Date(b.issueDate).getTime() : Infinity;
+            if (ad !== bd) return ad - bd;
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        });
+    }, [receipts]);
+
     const filtered = useMemo(() => {
-        if (!hasActiveFilters) return receipts;
+        if (!hasActiveFilters) return sortedReceipts;
         const q = normSearch(searchText);
-        return receipts.filter((r) => {
+        return sortedReceipts.filter((r) => {
             if (q) {
                 const hay = normSearch(`${r.storeName ?? ''} ${r.applicantName ?? ''} ${r.expenseCategory?.name ?? ''} ${r.cardLabel ?? ''} ${r.notes ?? ''}`);
                 if (!hay.includes(q)) return false;
@@ -87,7 +98,7 @@ export default function CardReceiptInbox({ categories }: Props) {
             if (filterLinked === 'linked' && !r.statementLine) return false;
             return true;
         });
-    }, [receipts, hasActiveFilters, searchText, filterApplicant, filterCategoryId, filterLinked]);
+    }, [sortedReceipts, hasActiveFilters, searchText, filterApplicant, filterCategoryId, filterLinked]);
 
     // 合計は通貨別（円＋外貨ごと）。混ぜて合算はしない
     const totals = useMemo(() => {

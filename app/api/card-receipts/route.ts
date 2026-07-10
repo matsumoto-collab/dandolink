@@ -28,9 +28,10 @@ export async function GET(req: NextRequest) {
         const where: Prisma.CardReceiptWhereInput =
             linked === 'unlinked' ? { statementLine: null } : linked === 'linked' ? { NOT: { statementLine: null } } : {};
 
+        // レシートの日付順（古い順=出納帳と同じ会計順）。日付を読み取れていない行は末尾
         const receipts = await prisma.cardReceipt.findMany({
             where,
-            orderBy: [{ createdAt: 'desc' }],
+            orderBy: [{ issueDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
             include: CARD_RECEIPT_INCLUDE,
         });
 
