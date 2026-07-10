@@ -232,7 +232,7 @@ describe('lib/profitDashboard', () => {
             // 案件明細（展開時に見える行）
             expect(r.rows[0].items).toHaveLength(1);
             expect(r.rows[0].items[0]).toMatchObject({ projectId: 'p1', projectName: '案件1', sales: 100000, cost: 0 });
-            expect(r.totals).toEqual({ sales: 100000, cost: 0, grossProfit: 100000 });
+            expect(r.totals).toEqual({ sales: 100000, salesTaxIncluded: 0, cost: 0, grossProfit: 100000 });
         });
 
         it('複数案件まとめ請求は明細額で按分し、各案件の主担当へ計上する', async () => {
@@ -361,6 +361,38 @@ describe('lib/profitDashboard', () => {
                 const june = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
                 expect(may.totals.cost + june.totals.cost).toBe(151100);
                 expect(may.totals.grossProfit + june.totals.grossProfit).toBe(154900);
+            });
+
+            it('period=range は任意の月範囲で集計し、範囲全体の売上・原価を合算する', async () => {
+                // 5月・6月の分割請求を 5〜6月の範囲でまとめて見る → 売上306,000・原価=C(∞)全額
+                (prisma.invoice.findMany as jest.Mock).mockResolvedValue(splitInvoices);
+                (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '松本様邸', title: '松本様邸' }]);
+                (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A' }]);
+                (computeProjectCosts as jest.Mock).mockImplementation(splitCosts);
+
+                const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 5, period: 'range', endYear: 2026, endMonth: 6 });
+
+                expect(r.period).toBe('range');
+                expect(r.endYear).toBe(2026);
+                expect(r.endMonth).toBe(6);
+                // 範囲内最終請求月(6月)=最新請求月 → C(∞)。範囲前の請求なし → 減算なし
+                expect(r.rows[0]).toMatchObject({ sales: 306000, cost: 151100, grossProfit: 154900 });
+            });
+
+            it('totals.salesTaxIncluded は期間内請求書の total(税込) 合計（案件なし請求も含む）', async () => {
+                (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                    { subtotal: 100000, total: 110000, items: '[]', projectMasterId: 'p1', createdAt: new Date('2026-06-10T00:00:00Z') },
+                    { subtotal: 50000, total: 55000, items: '[]', projectMasterId: null, createdAt: new Date('2026-06-20T00:00:00Z') },
+                    // 期間外（5月）は税込合計に含めない
+                    { subtotal: 30000, total: 33000, items: '[]', projectMasterId: 'p1', createdAt: new Date('2026-05-10T00:00:00Z') },
+                ]);
+                (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
+                (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A' }]);
+
+                const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
+
+                expect(r.totals.salesTaxIncluded).toBe(165000); // 110000+55000（税抜 totals.sales=150000 とは別物）
+                expect(r.totals.sales).toBe(150000);
             });
 
             it('年間ビューは「年内最終請求月まで − 年より前の最終請求月まで」の差分（年跨ぎ分割）', async () => {

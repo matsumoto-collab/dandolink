@@ -48,7 +48,7 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
     });
 
     const rows = data?.rows ?? [];
-    const totals = data?.totals ?? { sales: 0, cost: 0, grossProfit: 0 };
+    const totals = data?.totals ?? { sales: 0, salesTaxIncluded: 0, cost: 0, grossProfit: 0 };
     const axisLabel = axis === 'assignee' ? '担当者別' : '顧客別';
     const periodLabel = period === 'year' ? `${year}年（年間）` : `${year}年${month}月`;
     const groupColLabel = axis === 'assignee' ? '案件担当者' : '顧客';

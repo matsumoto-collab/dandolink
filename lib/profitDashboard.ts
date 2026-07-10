@@ -602,9 +602,9 @@ export async function fetchMonthlySales(
 // 案件担当者が未設定の案件・案件無し請求を集約する擬似担当者ID。
 export const UNASSIGNED_ASSIGNEE_ID = '__unassigned__';
 
-// 集計の軸（担当者別 / 顧客別）と期間（当月 / 年間＝暦年1-12月）。
+// 集計の軸（担当者別 / 顧客別）と期間（当月 / 年間＝暦年1-12月 / 任意の月範囲）。
 export type BreakdownAxis = 'assignee' | 'customer';
-export type BreakdownPeriod = 'month' | 'year';
+export type BreakdownPeriod = 'month' | 'year' | 'range';
 
 // グループ（担当者 or 顧客）を展開したときの案件1件ぶんの明細行。
 export interface MonthlyAssigneeProjectRow {
@@ -629,16 +629,22 @@ export interface MonthlyAssigneeRow {
 export interface MonthlyAssigneeBreakdown {
     year: number;
     month: number;             // 1-12 (JST)。period='year' のときは対象年のみ意味を持つ
+    endYear?: number;          // period='range' の終了年月（開始は year/month）
+    endMonth?: number;
     axis: BreakdownAxis;
     period: BreakdownPeriod;
     rows: MonthlyAssigneeRow[];
-    totals: { sales: number; cost: number; grossProfit: number };
+    // sales/cost/grossProfit は税抜（粗利計算の正確さ優先）。salesTaxIncluded は
+    // 期間内の請求書 total(税込) 合計＝月商KPI用（単月なら fetchMonthlySales と同値）。
+    totals: { sales: number; salesTaxIncluded: number; cost: number; grossProfit: number };
 }
 
 const NO_CUSTOMER_KEY = '__nocustomer__';
 
 /**
- * 指定期間（当月 or 暦年）に **請求のあった案件** の「担当者別 / 顧客別」売上・原価・粗利を集計する。
+ * 指定期間（当月 / 暦年 / 任意の月範囲）に **請求のあった案件** の「担当者別 / 顧客別」売上・原価・粗利を集計する。
+ *
+ * - period='range' は開始 (year,month) 〜 終了 (endYear,endMonth) の月範囲。終了未指定や逆転は開始月に丸める。
  *
  * - 対象: 期間内に発行(createdAt)した請求書がある案件のみ（未請求の案件は一覧に出さない）。
  * - 売上: 期間内の請求書(送付済み以降, 税抜 subtotal)。複数案件まとめ請求は明細額で案件按分。
@@ -656,11 +662,21 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     month: number; // 1-12 (JST)
     axis?: BreakdownAxis;
     period?: BreakdownPeriod;
+    endYear?: number;  // period='range' の終了年月
+    endMonth?: number;
 }): Promise<MonthlyAssigneeBreakdown> {
     const { year, month } = params;
     const axis: BreakdownAxis = params.axis ?? 'assignee';
     const period: BreakdownPeriod = params.period ?? 'month';
     const m0 = month - 1; // 0-based
+
+    // range の終了年月。未指定・開始より前は開始月に丸める（安全側＝単月と同じ）。
+    let endYear = period === 'range' ? (params.endYear ?? year) : year;
+    let endMonth = period === 'range' ? (params.endMonth ?? month) : month;
+    if (period === 'range' && endYear * 12 + endMonth < year * 12 + month) {
+        endYear = year; endMonth = month;
+    }
+    const endM0 = endMonth - 1;
 
     // 期間の JST 範囲（JST 00:00 = 前日 UTC 15:00。hour に -9）
     const rangeStart = period === 'year'
@@ -668,14 +684,16 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
         : new Date(Date.UTC(year, m0, 1, -9, 0, 0, 0));
     const rangeEnd = period === 'year'
         ? new Date(Date.UTC(year + 1, 0, 1, -9, 0, 0, 0))
-        : new Date(Date.UTC(year, m0 + 1, 1, -9, 0, 0, 0));
+        : period === 'range'
+            ? new Date(Date.UTC(endYear, endM0 + 1, 1, -9, 0, 0, 0))
+            : new Date(Date.UTC(year, m0 + 1, 1, -9, 0, 0, 0));
 
     // 1段目: 送付済み以降の**全期間**の請求書＋担当者名。
     // 期間内売上と「案件→請求月集合」（繰越方式のカットオフ算出用）を同じ按分ロジックで作る。
     const [allInvoices, allUsers] = await Promise.all([
         prisma.invoice.findMany({
             where: { status: { in: [...SALES_INVOICE_STATUSES] } },
-            select: { createdAt: true, subtotal: true, items: true, projectMasterId: true },
+            select: { createdAt: true, subtotal: true, total: true, items: true, projectMasterId: true },
         }),
         prisma.user.findMany({ select: { id: true, displayName: true } }),
     ]);
@@ -714,11 +732,15 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     };
     const salesByProject = new Map<string, number>();                   // 期間内（表示用）
     let projectlessSales = 0;                                           // 期間内・案件なし
+    let salesTaxIncluded = 0;                                           // 期間内の税込売上合計（月商KPI用・fetchMonthlySales と同じ計上規則）
     const monthSalesByProject = new Map<string, Map<string, number>>(); // 全期間: pid → (月キー → 按分売上)
     for (const inv of allInvoices) {
         const { byProject, projectless } = attributeInvoice(inv);
         const inRange = inv.createdAt >= rangeStart && inv.createdAt < rangeEnd;
-        if (inRange) projectlessSales += projectless;
+        if (inRange) {
+            projectlessSales += projectless;
+            salesTaxIncluded += Number(inv.total) || 0;
+        }
         if (byProject.size === 0) continue;
         const mKey = jstMonthKeyOf(inv.createdAt);
         for (const [pid, amt] of byProject) {
@@ -743,7 +765,11 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
         return new Date(Date.UTC(ky, km, 1, -9, 0, 0, 0)); // JST 翌月1日 00:00（排他上限）
     };
     const periodStartKey = period === 'year' ? `${year}-01` : `${year}-${String(month).padStart(2, '0')}`;
-    const periodEndKey = period === 'year' ? `${year}-12` : periodStartKey;
+    const periodEndKey = period === 'year'
+        ? `${year}-12`
+        : period === 'range'
+            ? `${endYear}-${String(endMonth).padStart(2, '0')}`
+            : periodStartKey;
 
     const cutoffs: (Date | null)[] = [];
     const cutoffIndex = new Map<string, number>(); // 'inf' または ISO文字列 → cutoffs の添字
@@ -845,8 +871,11 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
 
     const totals = rows.reduce(
         (t, r) => { t.sales += r.sales; t.cost += r.cost; t.grossProfit += r.grossProfit; return t; },
-        { sales: 0, cost: 0, grossProfit: 0 },
+        { sales: 0, salesTaxIncluded: Math.round(salesTaxIncluded), cost: 0, grossProfit: 0 },
     );
 
-    return { year, month, axis, period, rows, totals };
+    return {
+        year, month, axis, period, rows, totals,
+        ...(period === 'range' ? { endYear, endMonth } : {}),
+    };
 }
