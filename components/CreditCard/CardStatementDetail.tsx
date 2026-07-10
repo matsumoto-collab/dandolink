@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 import type { CardStatement, CardStatementLine, CardReceipt } from '@/types/creditCard';
 import type { ExpenseCategoryRef } from '@/types/receipt';
 import { findCandidates } from '@/lib/cardMatching';
-import { fmtDate, yen, toInputDate } from './uploadPrep';
+import { fmtDate, yen, money, toInputDate } from './uploadPrep';
 
 interface Props {
     statementId: string;
@@ -609,7 +609,7 @@ function CandidateList({ receipts, onLink, onOpenImage }: {
                         )}
                         <div className="text-xs leading-tight">
                             <div className="font-medium text-slate-800 max-w-[160px] truncate">{r.storeName || '（店名未読取）'}</div>
-                            <div className="text-slate-500">{fmtDate(r.issueDate)} ・ {yen(r.totalAmount)}</div>
+                            <div className="text-slate-500">{fmtDate(r.issueDate)} ・ {money(r.totalAmount, r.currency)}</div>
                         </div>
                         <button onClick={() => onLink(r)} className="ml-1 px-2.5 py-1.5 text-xs bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium">
                             紐付け

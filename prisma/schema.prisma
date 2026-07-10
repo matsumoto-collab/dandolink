@@ -2490,6 +2490,8 @@ model CardReceipt {
   storeName         String?
   /// 発行日（UTC 0時固定。Receipt.issueDate と同じ扱い）
   issueDate         DateTime?
+  /// 金額の通貨コード（null=円）。例 'USD'。totalAmount/taxAmount はこの通貨の値のまま持つ（例 $29.39 → 29.39）
+  currency          String?
   totalAmount       Decimal?  @db.Decimal(12, 2)
   taxAmount         Decimal?  @db.Decimal(12, 2)
   /// AI費目候補。明細行への紐付け時に行側へ引き継ぐ

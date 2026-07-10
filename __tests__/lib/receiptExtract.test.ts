@@ -89,4 +89,28 @@ describe('extractReceipts', () => {
         (getAnthropic as jest.Mock).mockReturnValue({ messages: { create: jest.fn().mockResolvedValue({ content: [{ type: 'text', text: 'x' }] }) } });
         await expect(extractReceipts('b64', 'image/webp', [])).rejects.toThrow('領収書の読み取りに失敗しました');
     });
+
+    it('detectCurrency: adds the currency field to the schema and normalizes the code', async () => {
+        const create = clientReturning([{ storeName: 'SUPABASE', totalAmount: 29.39, currency: 'usd' }]);
+        const [r] = await extractReceipts('b64', 'application/pdf', [], { detectCurrency: true });
+        expect(create.mock.calls[0][0].tools[0].input_schema.properties.receipts.items.properties.currency).toBeDefined();
+        expect(r.currency).toBe('USD');
+        expect(r.totalAmount).toBe(29.39);
+    });
+
+    it('detectCurrency: treats empty and JPY codes as yen (null)', async () => {
+        clientReturning([
+            { storeName: 'A', totalAmount: 100, currency: '' },
+            { storeName: 'B', totalAmount: 200, currency: 'JPY' },
+        ]);
+        const rows = await extractReceipts('b64', 'image/webp', [], { detectCurrency: true });
+        expect(rows.map((r) => r.currency)).toEqual([null, null]);
+    });
+
+    it('without detectCurrency the schema has no currency field and currency is null', async () => {
+        const create = clientReturning([{ storeName: 'A', totalAmount: 100, currency: 'USD' }]);
+        const [r] = await extractReceipts('b64', 'image/webp', []);
+        expect(create.mock.calls[0][0].tools[0].input_schema.properties.receipts.items.properties.currency).toBeUndefined();
+        expect(r.currency).toBeNull();
+    });
 });

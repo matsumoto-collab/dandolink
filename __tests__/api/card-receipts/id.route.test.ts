@@ -39,6 +39,19 @@ describe('/api/card-receipts/[id]', () => {
             expect(data.totalAmount).toBe(12980);
         });
 
+        it('accepts a USD currency with decimal amounts (2dp)', async () => {
+            const res = await PATCH(patchReq({ currency: 'usd', totalAmount: '29.39' }), ctx('cr1'));
+            expect(res.status).toBe(200);
+            const data = (prisma.cardReceipt.update as jest.Mock).mock.calls[0][0].data;
+            expect(data.currency).toBe('USD');
+            expect(data.totalAmount).toBe(29.39);
+        });
+
+        it('nulls the currency when set back to yen', async () => {
+            await PATCH(patchReq({ currency: '' }), ctx('cr1'));
+            expect((prisma.cardReceipt.update as jest.Mock).mock.calls[0][0].data.currency).toBeNull();
+        });
+
         it('trims applicantName and nulls it when emptied', async () => {
             await PATCH(patchReq({ applicantName: ' 山田太郎 ' }), ctx('cr1'));
             expect((prisma.cardReceipt.update as jest.Mock).mock.calls[0][0].data.applicantName).toBe('山田太郎');

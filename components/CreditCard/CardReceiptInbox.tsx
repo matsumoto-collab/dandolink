@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 import type { CardReceipt } from '@/types/creditCard';
 import type { ExpenseCategoryRef } from '@/types/receipt';
 import CardReceiptEditModal from './CardReceiptEditModal';
-import { prepareFile, fmtDate, yen, type UploadRow, type UploadStatus } from './uploadPrep';
+import { prepareFile, fmtDate, yen, money, type UploadRow, type UploadStatus } from './uploadPrep';
 
 const normSearch = (s: string) => s.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
 
@@ -89,7 +89,17 @@ export default function CardReceiptInbox({ categories }: Props) {
         });
     }, [receipts, hasActiveFilters, searchText, filterApplicant, filterCategoryId, filterLinked]);
 
-    const totalAmountSum = useMemo(() => filtered.reduce((s, r) => s + Number(r.totalAmount || 0), 0), [filtered]);
+    // 合計は通貨別（円＋外貨ごと）。混ぜて合算はしない
+    const totals = useMemo(() => {
+        let jpy = 0;
+        const fx = new Map<string, number>();
+        for (const r of filtered) {
+            const v = Number(r.totalAmount || 0);
+            if (!r.currency) jpy += v;
+            else fx.set(r.currency, (fx.get(r.currency) ?? 0) + v);
+        }
+        return { jpy, fx: Array.from(fx.entries()) };
+    }, [filtered]);
 
     // セル編集のオートセーブ。成功したら該当行だけ差し替える（現金出納帳の applyPatch と同パターン）。
     const applyPatch = async (id: string, patch: Record<string, unknown>) => {
@@ -115,7 +125,7 @@ export default function CardReceiptInbox({ categories }: Props) {
     };
 
     const deleteRow = async (receipt: CardReceipt) => {
-        const label = `${fmtDate(receipt.issueDate)} ${receipt.storeName ?? ''} ${yen(receipt.totalAmount)}`.trim();
+        const label = `${fmtDate(receipt.issueDate)} ${receipt.storeName ?? ''} ${money(receipt.totalAmount, receipt.currency)}`.trim();
         const warn = receipt.statementLine ? '\n※照合済みのレシートです。削除すると明細行は未照合に戻ります。' : '';
         if (!confirm(`このレシートを削除しますか？\n${label}${warn}`)) return;
         setSavingId(receipt.id);
@@ -374,7 +384,14 @@ export default function CardReceiptInbox({ categories }: Props) {
                                         <td colSpan={4} className="px-3 py-3 text-right text-sm font-semibold text-slate-600">
                                             {hasActiveFilters ? `絞り込み合計（${filtered.length}件）` : `合計（${filtered.length}件）`}
                                         </td>
-                                        <td className="px-3 py-3 text-right text-sm font-bold text-slate-900 whitespace-nowrap">{yen(totalAmountSum)}</td>
+                                        <td className="px-3 py-3 text-right whitespace-nowrap">
+                                            <div className="text-sm font-bold text-slate-900">{yen(totals.jpy)}</div>
+                                            {totals.fx.map(([cur, sum]) => (
+                                                <div key={cur} className="text-[11px] text-blue-600" title={`${cur} のレシート合計（円とは別集計）`}>
+                                                    {money(sum, cur)}
+                                                </div>
+                                            ))}
+                                        </td>
                                         <td colSpan={5} />
                                     </tr>
                                 </tfoot>
@@ -484,8 +501,14 @@ function InboxRow({ receipt, categories, saving, onPatch, onDelete, onOpenModal,
                     className="w-full min-w-[90px] rounded-lg border border-transparent hover:border-slate-200 px-2 py-1.5 text-sm text-slate-800 bg-transparent placeholder:text-slate-300 focus:bg-white focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
             </td>
-            {/* 金額 */}
-            <AmountCell amount={receipt.totalAmount} saving={saving} onCommit={(n) => onPatch({ totalAmount: n })} />
+            {/* 金額（¥⇄$バッジで通貨切替。外貨は小数入力可） */}
+            <AmountCell
+                amount={receipt.totalAmount}
+                currency={receipt.currency}
+                saving={saving}
+                onCommit={(n) => onPatch({ totalAmount: n })}
+                onToggleCurrency={() => onPatch({ currency: receipt.currency ? null : 'USD' })}
+            />
             {/* カード名 */}
             <td className="px-2 py-1.5">
                 <input
@@ -559,10 +582,13 @@ function InboxRow({ receipt, categories, saving, onPatch, onDelete, onOpenModal,
 }
 
 // 金額セル。クリックで編集し、blur / Enter で確定（Escape で破棄）。レシートは正の金額のみ。
-function AmountCell({ amount, saving, onCommit }: {
+// ¥/$バッジのタップで円⇄ドルを切替。外貨は小数2桁まで入力できる。
+function AmountCell({ amount, currency, saving, onCommit, onToggleCurrency }: {
     amount: number | string | null;
+    currency: string | null;
     saving: boolean;
     onCommit: (n: number) => void;
+    onToggleCurrency: () => void;
 }) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState('');
@@ -575,39 +601,54 @@ function AmountCell({ amount, saving, onCommit }: {
     };
     const commit = () => {
         setEditing(false);
-        const cleaned = draft.replace(/[^\d]/g, '');
-        if (cleaned === '') return; // 空のまま抜けたら変更なし
+        const cleaned = currency ? draft.replace(/[^\d.]/g, '') : draft.replace(/[^\d]/g, '');
+        if (cleaned === '' || cleaned === '.') return; // 空のまま抜けたら変更なし
         const n = Number(cleaned);
         if (!Number.isFinite(n) || n < 0) return;
-        if (value != null && n === value) return;
-        onCommit(n);
+        const rounded = currency ? Math.round(n * 100) / 100 : Math.round(n);
+        if (value != null && rounded === value) return;
+        onCommit(rounded);
     };
 
     return (
         <td className="px-2 py-1.5 text-right">
-            {editing ? (
-                <input
-                    autoFocus
-                    type="text"
-                    inputMode="numeric"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onBlur={commit}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                        if (e.key === 'Escape') { setDraft(''); setEditing(false); }
-                    }}
-                    className="w-full rounded-lg border border-teal-400 bg-white px-2 py-1.5 text-sm text-right text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-            ) : (
+            <div className="flex items-center gap-1">
                 <button
-                    onClick={start}
+                    onClick={onToggleCurrency}
                     disabled={saving}
-                    className={`w-full min-h-[34px] rounded-lg px-2 py-1.5 text-sm text-right hover:bg-slate-100 ${value != null ? 'font-semibold text-slate-900' : 'text-slate-300'}`}
+                    title={currency ? `${currency} 建て。タップで円に切替` : '円建て。タップでドル（USD）に切替'}
+                    className={`shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-full border transition-colors ${
+                        currency
+                            ? 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'
+                            : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+                    }`}
                 >
-                    {value != null ? `¥${value.toLocaleString()}` : ''}
+                    {currency ? (currency === 'USD' ? '$' : currency) : '¥'}
                 </button>
-            )}
+                {editing ? (
+                    <input
+                        autoFocus
+                        type="text"
+                        inputMode={currency ? 'decimal' : 'numeric'}
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onBlur={commit}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            if (e.key === 'Escape') { setDraft(''); setEditing(false); }
+                        }}
+                        className="w-full min-w-0 rounded-lg border border-teal-400 bg-white px-2 py-1.5 text-sm text-right text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                ) : (
+                    <button
+                        onClick={start}
+                        disabled={saving}
+                        className={`w-full min-w-0 min-h-[34px] rounded-lg px-2 py-1.5 text-sm text-right hover:bg-slate-100 ${value != null ? 'font-semibold text-slate-900' : 'text-slate-300'}`}
+                    >
+                        {value != null ? money(value, currency) : ''}
+                    </button>
+                )}
+            </div>
         </td>
     );
 }

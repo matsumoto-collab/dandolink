@@ -34,6 +34,8 @@ export interface CardReceipt {
     extractedData: ReceiptExtractedData | null;
     storeName: string | null;
     issueDate: string | null;
+    /// 金額の通貨コード（null=円）。例 'USD'。totalAmount/taxAmount はこの通貨の値のまま
+    currency: string | null;
     totalAmount: number | string | null;
     taxAmount: number | string | null;
     expenseCategoryId: string | null;

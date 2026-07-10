@@ -53,4 +53,44 @@ describe('findCandidates', () => {
         expect(findCandidates(line, [r], 3).exact).toHaveLength(0);
         expect(findCandidates(line, [r], 5).exact).toHaveLength(1);
     });
+
+    describe('foreign currency (USD) receipts', () => {
+        // AMEX 実例: $29.39 @164.818 → ¥4,844
+        const usdLine = { amount: 4844, useDate: '2026-05-20T00:00:00.000Z', foreignAmount: '29.39', currency: 'USD' };
+
+        it('matches a USD receipt against the line foreignAmount + currency', () => {
+            const r = { id: 'usd', totalAmount: '29.39', issueDate: '2026-05-21T00:00:00.000Z', currency: 'USD' };
+            expect(findCandidates(usdLine, [r]).exact.map((x) => x.id)).toEqual(['usd']);
+        });
+
+        it('does not match a USD receipt to a domestic line without foreignAmount', () => {
+            const r = { totalAmount: 12980, issueDate: '2026-05-17T00:00:00.000Z', currency: 'USD' };
+            expect(findCandidates(line, [r])).toEqual({ exact: [], amountOnly: [] });
+        });
+
+        it('does not match across different foreign currencies', () => {
+            const r = { totalAmount: 29.39, issueDate: '2026-05-20T00:00:00.000Z', currency: 'EUR' };
+            expect(findCandidates(usdLine, [r]).exact).toHaveLength(0);
+        });
+
+        it('does not match a JPY receipt whose number equals the foreign amount', () => {
+            const r = { totalAmount: 29.39, issueDate: '2026-05-20T00:00:00.000Z', currency: null };
+            expect(findCandidates(usdLine, [r]).exact).toHaveLength(0);
+        });
+
+        it('still matches JPY receipts on the line JPY amount even when the line is a foreign transaction', () => {
+            const r = { id: 'jpy', totalAmount: 4844, issueDate: '2026-05-20T00:00:00.000Z', currency: null };
+            expect(findCandidates(usdLine, [r]).exact.map((x) => x.id)).toEqual(['jpy']);
+        });
+
+        it('treats JPY currency codes as yen', () => {
+            const r = { id: 'jpy2', totalAmount: 4844, issueDate: '2026-05-20T00:00:00.000Z', currency: 'jpy' };
+            expect(findCandidates(usdLine, [r]).exact.map((x) => x.id)).toEqual(['jpy2']);
+        });
+
+        it('puts dateless USD receipts into the weak amountOnly group', () => {
+            const r = { id: 'nd', totalAmount: 29.39, issueDate: null, currency: 'USD' };
+            expect(findCandidates(usdLine, [r]).amountOnly.map((x) => x.id)).toEqual(['nd']);
+        });
+    });
 });

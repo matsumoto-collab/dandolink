@@ -45,5 +45,15 @@ export const yen = (n: number | string | null) => {
     return v < 0 ? `-¥${Math.abs(v).toLocaleString()}` : `¥${v.toLocaleString()}`;
 };
 
+// 通貨つき金額表示。currency が null/空なら円（整数）、外貨は小数2桁＋記号（USD は $、その他はコード）
+export const money = (n: number | string | null, currency?: string | null) => {
+    if (n == null || n === '') return '—';
+    if (!currency) return yen(n);
+    const v = Number(n);
+    const abs = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const sym = currency === 'USD' ? '$' : `${currency} `;
+    return `${v < 0 ? '-' : ''}${sym}${abs}`;
+};
+
 // 'YYYY-MM-DD'（date input 用。UTC 0時保存の ISO 文字列から）
 export const toInputDate = (s: string | null) => (s ? s.slice(0, 10) : '');

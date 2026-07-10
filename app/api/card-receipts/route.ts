@@ -120,10 +120,12 @@ export async function POST(req: NextRequest) {
         // 1枚の画像に複数のレシートが写っていれば複数件に分割する。
         let extractedList: ExtractedReceipt[] = [];
         try {
+            // カード受け箱はドル建てレシート（サブスク請求書等）があるため通貨判定つきで抽出する
             extractedList = await extractReceipts(
                 extractBase64,
                 extractMime,
                 cats.map((c) => c.name),
+                { detectCurrency: true },
             );
         } catch (e) {
             logger.error('カードレシートの自動読み取りに失敗:', e);
@@ -152,6 +154,7 @@ export async function POST(req: NextRequest) {
                     cardLabel,
                     storeName: ex?.storeName ?? null,
                     issueDate: parseReceiptDate(ex?.issueDate),
+                    currency: ex?.currency ?? null,
                     totalAmount: ex?.totalAmount ?? null,
                     taxAmount: ex?.taxAmount ?? null,
                     expenseCategoryId: resolveCategory(ex?.suggestedCategory),

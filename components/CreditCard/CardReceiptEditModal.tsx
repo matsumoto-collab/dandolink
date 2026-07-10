@@ -21,6 +21,7 @@ const toAmountStr = (n: number | string | null) => (n == null || n === '' ? '' :
 export default function CardReceiptEditModal({ receipt, categories, onClose, onSaved }: Props) {
     const [storeName, setStoreName] = useState(receipt.storeName ?? '');
     const [issueDate, setIssueDate] = useState(toInputDate(receipt.issueDate));
+    const [currency, setCurrency] = useState(receipt.currency ?? '');
     const [totalAmount, setTotalAmount] = useState(toAmountStr(receipt.totalAmount));
     const [taxAmount, setTaxAmount] = useState(toAmountStr(receipt.taxAmount));
     const [expenseCategoryId, setExpenseCategoryId] = useState(receipt.expenseCategoryId ?? '');
@@ -44,6 +45,7 @@ export default function CardReceiptEditModal({ receipt, categories, onClose, onS
                 body: JSON.stringify({
                     storeName: storeName || null,
                     issueDate: issueDate || null,
+                    currency: currency || null,
                     totalAmount: totalAmount || null,
                     taxAmount: taxAmount || null,
                     expenseCategoryId: expenseCategoryId || null,
@@ -151,14 +153,33 @@ export default function CardReceiptEditModal({ receipt, categories, onClose, onS
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-600 mb-1">税込金額</label>
-                                <input inputMode="numeric" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value.replace(/[^0-9]/g, ''))} className={inputCls} placeholder="0" />
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">通貨</label>
+                                <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={inputCls}>
+                                    <option value="">円（¥）</option>
+                                    <option value="USD">ドル（$）</option>
+                                </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-600 mb-1">うち消費税</label>
-                                <input inputMode="numeric" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value.replace(/[^0-9]/g, ''))} className={inputCls} placeholder="0" />
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">税込金額</label>
+                                <input
+                                    inputMode={currency ? 'decimal' : 'numeric'}
+                                    value={totalAmount}
+                                    onChange={(e) => setTotalAmount(e.target.value.replace(currency ? /[^0-9.]/g : /[^0-9]/g, ''))}
+                                    className={inputCls}
+                                    placeholder={currency ? '0.00' : '0'}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">うち税額</label>
+                                <input
+                                    inputMode={currency ? 'decimal' : 'numeric'}
+                                    value={taxAmount}
+                                    onChange={(e) => setTaxAmount(e.target.value.replace(currency ? /[^0-9.]/g : /[^0-9]/g, ''))}
+                                    className={inputCls}
+                                    placeholder={currency ? '0.00' : '0'}
+                                />
                             </div>
                         </div>
 

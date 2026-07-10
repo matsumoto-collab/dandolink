@@ -5,15 +5,17 @@ import { canAccessCashbook } from '@/utils/permissions';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
 import { logger } from '@/lib/logger';
 import { parseReceiptDate } from '@/lib/receipt';
+import { normalizeCurrency } from '@/lib/receiptExtract';
 import { CARD_RECEIPT_INCLUDE } from '@/lib/cardStatement';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
-// レシートは正の金額のみ（返金レシートは扱わない。返金は明細行側のマイナス行で表現される）
+// レシートは正の金額のみ（返金レシートは扱わない。返金は明細行側のマイナス行で表現される）。
+// ドル等の外貨額があるため小数2桁まで許容する（円の入力はUI側で整数のみ）。
 const amt = (v: unknown): number | null => {
     if (v == null || v === '') return null;
     const n = Number(String(v).replace(/[,，\s]/g, ''));
-    return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
 };
 
 // 抽出値の手修正
@@ -32,6 +34,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const data: Record<string, unknown> = {};
         if ('storeName' in body) data.storeName = body.storeName?.toString().trim() || null;
         if ('issueDate' in body) data.issueDate = parseReceiptDate(body.issueDate);
+        if ('currency' in body) data.currency = normalizeCurrency(body.currency);
         if ('totalAmount' in body) data.totalAmount = amt(body.totalAmount);
         if ('taxAmount' in body) data.taxAmount = amt(body.taxAmount);
         if ('expenseCategoryId' in body) data.expenseCategoryId = body.expenseCategoryId || null;
