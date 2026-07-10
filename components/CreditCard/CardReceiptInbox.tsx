@@ -540,13 +540,13 @@ function InboxRow({ receipt, categories, saving, onPatch, onDelete, onOpenModal,
             <td className="px-2 py-1.5 text-center">
                 {stmt ? (
                     <span
-                        className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-teal-50 text-teal-700 border border-teal-200 whitespace-nowrap"
+                        className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-teal-600 text-white border border-teal-600 whitespace-nowrap"
                         title={`${stmt.cardLabel} ${fmtDate(stmt.closingDate)}締めの明細行に紐付いています`}
                     >
-                        照合済み
+                        ✓ 照合済み
                     </span>
                 ) : (
-                    <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">
+                    <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-300 whitespace-nowrap">
                         未照合
                     </span>
                 )}

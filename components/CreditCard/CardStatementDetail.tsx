@@ -486,7 +486,7 @@ function LineRow({ line, categories, unlinked, saving, isOpen, showAllPicker, on
                             ) : (
                                 <ImageIcon className="w-4 h-4 text-slate-300 shrink-0" />
                             )}
-                            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-teal-50 text-teal-700 border border-teal-200">照合済み</span>
+                            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-teal-600 text-white border border-teal-600">✓ 照合済み</span>
                             <button onClick={onUnlink} disabled={saving} title="紐付けを解除する" className="px-1 text-slate-300 hover:text-slate-600">✕</button>
                         </div>
                     ) : line.status === 'no_receipt' ? (
