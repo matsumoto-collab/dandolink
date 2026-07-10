@@ -73,14 +73,14 @@ export default function CardReceiptInbox({ categories }: Props) {
         return Array.from(set).sort((a, b) => a.localeCompare(b, 'ja'));
     }, [receipts]);
 
-    // 表示順はレシートの日付順（古い順・日付未読取は末尾）。
+    // 表示順はレシートの日付順（新しい順・日付未読取は末尾）。
     // API も同じ順で返すが、セル編集後の行差し替えでも正しい位置に並ぶようクライアントでも常にソートする（出納帳と同じ考え方）。
     const sortedReceipts = useMemo(() => {
         return [...receipts].sort((a, b) => {
-            const ad = a.issueDate ? new Date(a.issueDate).getTime() : Infinity;
-            const bd = b.issueDate ? new Date(b.issueDate).getTime() : Infinity;
-            if (ad !== bd) return ad - bd;
-            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            const ad = a.issueDate ? new Date(a.issueDate).getTime() : -Infinity;
+            const bd = b.issueDate ? new Date(b.issueDate).getTime() : -Infinity;
+            if (ad !== bd) return bd - ad;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
     }, [receipts]);
 

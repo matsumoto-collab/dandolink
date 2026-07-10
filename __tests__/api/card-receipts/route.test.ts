@@ -33,12 +33,12 @@ describe('/api/card-receipts GET', () => {
         (prisma.cardReceipt.findMany as jest.Mock).mockResolvedValue([row]);
     });
 
-    it('returns all receipts without a linked filter, ordered by receipt date (oldest first, undated last)', async () => {
+    it('returns all receipts without a linked filter, ordered by receipt date (newest first, undated last)', async () => {
         const res = await GET(new NextRequest('http://localhost/api/card-receipts'));
         expect(res.status).toBe(200);
         const arg = (prisma.cardReceipt.findMany as jest.Mock).mock.calls[0][0];
         expect(arg.where).toEqual({});
-        expect(arg.orderBy).toEqual([{ issueDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }]);
+        expect(arg.orderBy).toEqual([{ issueDate: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }]);
     });
 
     it('filters unlinked receipts via statementLine: null', async () => {
