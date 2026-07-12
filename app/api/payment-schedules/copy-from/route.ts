@@ -13,7 +13,7 @@ const copyBodySchema = z.object({
     fromMonth: z.number().int().min(1).max(12),
     toYear: z.number().int().min(2000).max(2100),
     toMonth: z.number().int().min(1).max(12),
-    paymentTypes: z.array(z.enum(['transfer', 'payment_slip'])).optional(),
+    paymentTypes: z.array(z.enum(['transfer', 'payment_slip', 'direct_debit'])).optional(),
     // 'tenth'=10日, 'eom'=末日, 'other'=その他の日
     dateTypes: z.array(z.enum(['tenth', 'eom', 'other'])).optional(),
     // ドライラン（実際にコピーせずに件数だけ返す）
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
         const dateTypeSet = dateTypes ? new Set(dateTypes) : null;
 
         const filtered = sourceItems.filter((item) => {
-            if (typeSet && !typeSet.has(item.paymentType as 'transfer' | 'payment_slip')) {
+            if (typeSet && !typeSet.has(item.paymentType as 'transfer' | 'payment_slip' | 'direct_debit')) {
                 return false;
             }
             if (dateTypeSet) {
@@ -127,6 +127,7 @@ export async function POST(req: NextRequest) {
                 other: filtered.filter((i) => classifyDate(new Date(i.paymentDate)) === 'other').length,
                 transfer: filtered.filter((i) => i.paymentType === 'transfer').length,
                 paymentSlip: filtered.filter((i) => i.paymentType === 'payment_slip').length,
+                directDebit: filtered.filter((i) => i.paymentType === 'direct_debit').length,
                 existingTargetCount,
             };
             return NextResponse.json({ dryRun: true, summary });

@@ -273,6 +273,7 @@ export default function PaymentSchedulesPage() {
         const dateLabel = selectedGroup ? groupLabelOf(selectedGroup) : formatDateFull(selectedDateKey);
         const hasTransfer = list.some((x) => x.paymentType === 'transfer');
         const hasSlip = list.some((x) => x.paymentType === 'payment_slip');
+        const hasDebit = list.some((x) => x.paymentType === 'direct_debit');
         const allPaid = list.length > 0 && paidCount === list.length;
 
         return (
@@ -298,6 +299,9 @@ export default function PaymentSchedulesPage() {
                         )}
                         {hasSlip && (
                             <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">払込</span>
+                        )}
+                        {hasDebit && (
+                            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-medium text-teal-700">引落</span>
                         )}
                         {allPaid && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
@@ -447,6 +451,10 @@ export default function PaymentSchedulesPage() {
                                                     {item.paymentType === 'payment_slip' ? (
                                                         <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">
                                                             払込用紙
+                                                        </span>
+                                                    ) : item.paymentType === 'direct_debit' ? (
+                                                        <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-medium text-teal-700">
+                                                            引落
                                                         </span>
                                                     ) : (
                                                         <span>
@@ -661,6 +669,7 @@ export default function PaymentSchedulesPage() {
                             const types = Array.from(new Set(list.map((x) => x.paymentType)));
                             const hasTransfer = types.includes('transfer');
                             const hasSlip = types.includes('payment_slip');
+                            const hasDebit = types.includes('direct_debit');
 
                             return (
                                 <button
@@ -678,6 +687,9 @@ export default function PaymentSchedulesPage() {
                                             )}
                                             {hasSlip && (
                                                 <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">払込</span>
+                                            )}
+                                            {hasDebit && (
+                                                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-medium text-teal-700">引落</span>
                                             )}
                                         </div>
                                         {allPaid && (
@@ -769,6 +781,7 @@ export default function PaymentSchedulesPage() {
                                     const types = Array.from(new Set(list.map((x) => x.paymentType)));
                                     const hasTransfer = types.includes('transfer');
                                     const hasSlip = types.includes('payment_slip');
+                                    const hasDebit = types.includes('direct_debit');
 
                                     return (
                                         <tr
@@ -790,6 +803,11 @@ export default function PaymentSchedulesPage() {
                                                     {hasSlip && (
                                                         <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">
                                                             払込
+                                                        </span>
+                                                    )}
+                                                    {hasDebit && (
+                                                        <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-medium text-teal-700">
+                                                            引落
                                                         </span>
                                                     )}
                                                 </div>

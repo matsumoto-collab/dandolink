@@ -208,6 +208,8 @@ export default function PaymentScheduleModal({
     };
 
     const isPaymentSlip = form.paymentType === 'payment_slip';
+    // 振込先口座の入力（マスター選択・銀行情報）は銀行振込のみ。払込用紙・引落では不要
+    const isTransfer = form.paymentType === 'transfer';
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -249,6 +251,15 @@ export default function PaymentScheduleModal({
                                     onChange={() => setForm({ ...form, paymentType: 'payment_slip' as PaymentType })}
                                 />
                                 <span className="text-sm">払込用紙（公共料金など）</span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="radio"
+                                    name="paymentType"
+                                    checked={form.paymentType === 'direct_debit'}
+                                    onChange={() => setForm({ ...form, paymentType: 'direct_debit' as PaymentType })}
+                                />
+                                <span className="text-sm">引落（口座引き落とし）</span>
                             </label>
                         </div>
                     </div>
@@ -351,6 +362,7 @@ export default function PaymentScheduleModal({
                                     const types = [
                                         g.types.has('transfer') ? '振込' : null,
                                         g.types.has('payment_slip') ? '払込' : null,
+                                        g.types.has('direct_debit') ? '引落' : null,
                                     ]
                                         .filter(Boolean)
                                         .join('・');
@@ -374,7 +386,7 @@ export default function PaymentScheduleModal({
                         </label>
 
                         {/* マスターから選択（振込のみ） */}
-                        {!isPaymentSlip && (
+                        {isTransfer && (
                             <div className="mb-3 rounded border border-slate-200 bg-slate-50 p-3">
                                 <div className="mb-2 flex items-center justify-between">
                                     <span className="text-xs font-medium text-slate-600">マスターから選択</span>
@@ -442,7 +454,7 @@ export default function PaymentScheduleModal({
                         </div>
 
                         {/* 銀行情報（振込のみ） */}
-                        {!isPaymentSlip && (
+                        {isTransfer && (
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                                 <div className="md:col-span-1">
                                     <label className="mb-1 block text-xs font-medium text-slate-600">銀行名</label>

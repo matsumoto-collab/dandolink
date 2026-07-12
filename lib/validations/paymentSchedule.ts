@@ -14,7 +14,7 @@ const optionalDateString = z
 
 export const createPaymentScheduleSchema = z.object({
     paymentDate: dateString,
-    paymentType: z.enum(['transfer', 'payment_slip']),
+    paymentType: z.enum(['transfer', 'payment_slip', 'direct_debit']),
     payeeId: z.string().uuid('振込先IDが不正です').optional().nullable(),
     payeeName: z
         .string()

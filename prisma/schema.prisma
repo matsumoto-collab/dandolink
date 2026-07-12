@@ -2045,7 +2045,7 @@ model Payee {
 model PaymentSchedule {
   id            String    @id @default(uuid())
   paymentDate   DateTime // 支払日（4月10日、4月末など）
-  paymentType   String    @default("transfer") // "transfer"=銀行振込, "payment_slip"=払込用紙
+  paymentType   String    @default("transfer") // "transfer"=銀行振込, "payment_slip"=払込用紙, "direct_debit"=引落
   payeeId       String? // 振込先マスターへの参照（マスターから選択した場合）
   payeeName     String // 入金先名（スナップショット保持。マスター変更後も予定は変わらない）
   amount        Decimal   @db.Decimal(12, 2) // 金額

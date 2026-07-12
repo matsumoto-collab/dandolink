@@ -25,6 +25,7 @@ interface DryRunSummary {
     other: number;
     transfer: number;
     paymentSlip: number;
+    directDebit: number;
     existingTargetCount: number;
 }
 
@@ -70,6 +71,7 @@ export default function CopyFromPreviousModal({
     const [sourceIdx, setSourceIdx] = useState(0);
     const [includeTransfer, setIncludeTransfer] = useState(true);
     const [includePaymentSlip, setIncludePaymentSlip] = useState(true);
+    const [includeDirectDebit, setIncludeDirectDebit] = useState(true);
     const [includeTenth, setIncludeTenth] = useState(true);
     const [includeEom, setIncludeEom] = useState(true);
     const [includeOther, setIncludeOther] = useState(false);
@@ -83,6 +85,7 @@ export default function CopyFromPreviousModal({
         const paymentTypes: string[] = [];
         if (includeTransfer) paymentTypes.push('transfer');
         if (includePaymentSlip) paymentTypes.push('payment_slip');
+        if (includeDirectDebit) paymentTypes.push('direct_debit');
 
         const dateTypes: string[] = [];
         if (includeTenth) dateTypes.push('tenth');
@@ -130,7 +133,7 @@ export default function CopyFromPreviousModal({
             cancelled = true;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, sourceIdx, includeTransfer, includePaymentSlip, includeTenth, includeEom, includeOther]);
+    }, [isOpen, sourceIdx, includeTransfer, includePaymentSlip, includeDirectDebit, includeTenth, includeEom, includeOther]);
 
     if (!isOpen) return null;
 
@@ -224,6 +227,14 @@ export default function CopyFromPreviousModal({
                                     onChange={(e) => setIncludePaymentSlip(e.target.checked)}
                                 />
                                 <span className="text-sm">払込用紙</span>
+                            </label>
+                            <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 cursor-pointer hover:bg-slate-50">
+                                <input
+                                    type="checkbox"
+                                    checked={includeDirectDebit}
+                                    onChange={(e) => setIncludeDirectDebit(e.target.checked)}
+                                />
+                                <span className="text-sm">引落</span>
                             </label>
                         </div>
                     </div>

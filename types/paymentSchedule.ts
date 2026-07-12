@@ -1,7 +1,7 @@
 // 支払予定の型定義
 import type { Payee, AccountType } from './payee';
 
-export type PaymentType = 'transfer' | 'payment_slip'; // 振込 | 払込用紙
+export type PaymentType = 'transfer' | 'payment_slip' | 'direct_debit'; // 振込 | 払込用紙 | 引落
 
 export interface PaymentSchedule {
     id: string;

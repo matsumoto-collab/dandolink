@@ -14,7 +14,7 @@ import {
  * クエリ:
  *   - year: YYYY (例: 2026)
  *   - month: MM (例: 4) ※year必須
- *   - paymentType: 'transfer' | 'payment_slip'
+ *   - paymentType: 'transfer' | 'payment_slip' | 'direct_debit'
  *   - isPaid: '1' (済のみ) / '0' (未払のみ)
  *   - from: YYYY-MM-DD
  *   - to: YYYY-MM-DD
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
             where.paymentDate = range;
         }
 
-        if (paymentType === 'transfer' || paymentType === 'payment_slip') {
+        if (paymentType === 'transfer' || paymentType === 'payment_slip' || paymentType === 'direct_debit') {
             where.paymentType = paymentType;
         }
 

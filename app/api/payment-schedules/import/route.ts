@@ -18,7 +18,7 @@ const payeeImportSchema = z.object({
 
 const paymentScheduleImportSchema = z.object({
     paymentDate: z.string(),
-    paymentType: z.enum(['transfer', 'payment_slip']),
+    paymentType: z.enum(['transfer', 'payment_slip', 'direct_debit']),
     payeeName: z.string().min(1),
     amount: z.union([z.number(), z.string()]).transform((v) => Number(v)),
     feeFlag: z.boolean().default(false),
