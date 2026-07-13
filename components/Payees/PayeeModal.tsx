@@ -24,7 +24,16 @@ const empty: PayeeInput = {
     accountHolder: '',
     notes: '',
     isActive: true,
+    closingDay: null,
+    paymentMonthOffset: null,
+    paymentDay: null,
 };
+
+// 支払サイトの日セレクト（1〜30日＋末日）。31 は「末日」扱い（月の日数が31未満なら月末に丸める）
+const DAY_OPTIONS = [...Array.from({ length: 30 }, (_, i) => i + 1), 31];
+const dayLabel = (d: number) => (d === 31 ? '末日' : `${d}日`);
+const MONTH_OFFSET_OPTIONS = [0, 1, 2, 3];
+const monthOffsetLabel = (m: number) => (m === 0 ? '当月' : m === 1 ? '翌月' : m === 2 ? '翌々月' : `${m}ヶ月後`);
 
 export default function PayeeModal({ isOpen, onClose, onSubmit, initial }: PayeeModalProps) {
     const [form, setForm] = useState<PayeeInput>(empty);
@@ -45,6 +54,9 @@ export default function PayeeModal({ isOpen, onClose, onSubmit, initial }: Payee
                 accountHolder: initial.accountHolder ?? '',
                 notes: initial.notes ?? '',
                 isActive: initial.isActive,
+                closingDay: initial.closingDay ?? null,
+                paymentMonthOffset: initial.paymentMonthOffset ?? null,
+                paymentDay: initial.paymentDay ?? null,
             });
         } else {
             setForm(empty);
@@ -211,6 +223,55 @@ export default function PayeeModal({ isOpen, onClose, onSubmit, initial }: Payee
                                 className="w-full rounded border border-slate-300 px-3 py-2"
                                 placeholder="例：カ）オーケーグランデ"
                             />
+                        </div>
+
+                        {/* 支払サイト（請求書取込の支払日自動提案用） */}
+                        <div className="md:col-span-2 rounded border border-slate-200 bg-slate-50 p-3">
+                            <div className="mb-2 text-sm font-medium">支払サイト（任意）</div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label className="mb-1 block text-xs font-medium text-slate-600">締め日</label>
+                                    <select
+                                        value={form.closingDay ?? ''}
+                                        onChange={(e) => setForm({ ...form, closingDay: e.target.value === '' ? null : Number(e.target.value) })}
+                                        className="w-full rounded border border-slate-300 px-2 py-2 text-sm"
+                                    >
+                                        <option value="">未設定</option>
+                                        {DAY_OPTIONS.map((d) => (
+                                            <option key={d} value={d}>{dayLabel(d)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-xs font-medium text-slate-600">支払月</label>
+                                    <select
+                                        value={form.paymentMonthOffset ?? ''}
+                                        onChange={(e) => setForm({ ...form, paymentMonthOffset: e.target.value === '' ? null : Number(e.target.value) })}
+                                        className="w-full rounded border border-slate-300 px-2 py-2 text-sm"
+                                    >
+                                        <option value="">未設定</option>
+                                        {MONTH_OFFSET_OPTIONS.map((m) => (
+                                            <option key={m} value={m}>{monthOffsetLabel(m)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-xs font-medium text-slate-600">支払日</label>
+                                    <select
+                                        value={form.paymentDay ?? ''}
+                                        onChange={(e) => setForm({ ...form, paymentDay: e.target.value === '' ? null : Number(e.target.value) })}
+                                        className="w-full rounded border border-slate-300 px-2 py-2 text-sm"
+                                    >
+                                        <option value="">未設定</option>
+                                        {DAY_OPTIONS.map((d) => (
+                                            <option key={d} value={d}>{dayLabel(d)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                                3つとも設定すると、請求書取込で支払期日が読み取れない場合に支払日を自動提案します（例: 月末締め翌月末払い＝末日・翌月・末日）
+                            </p>
                         </div>
 
                         <div className="md:col-span-2">

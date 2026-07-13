@@ -71,6 +71,10 @@ export async function PATCH(
         if (data.accountHolder !== undefined) updateData.accountHolder = data.accountHolder || null;
         if (data.notes !== undefined) updateData.notes = data.notes || null;
         if (data.isActive !== undefined) updateData.isActive = data.isActive;
+        // 支払サイト（数値は 0 が有効値なので ?? で null 化する）
+        if (data.closingDay !== undefined) updateData.closingDay = data.closingDay ?? null;
+        if (data.paymentMonthOffset !== undefined) updateData.paymentMonthOffset = data.paymentMonthOffset ?? null;
+        if (data.paymentDay !== undefined) updateData.paymentDay = data.paymentDay ?? null;
         updateData.updatedBy = session!.user.id;
 
         const updated = await prisma.payee.update({

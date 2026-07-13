@@ -62,6 +62,10 @@ export async function POST(req: NextRequest) {
                 accountHolder: data.accountHolder || null,
                 notes: data.notes || null,
                 isActive: data.isActive ?? true,
+                // 数値は 0 が有効値（paymentMonthOffset 0=当月）なので ?? で null 化する
+                closingDay: data.closingDay ?? null,
+                paymentMonthOffset: data.paymentMonthOffset ?? null,
+                paymentDay: data.paymentDay ?? null,
                 updatedBy: session!.user.id,
             },
         });
