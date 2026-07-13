@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Loader2, RotateCcw } from 'lucide-react';
 import type { Scaffold3DPayload } from '@/lib/dxf3d';
 
@@ -29,10 +30,32 @@ export function Scaffold3DViewer({ url, fileName, onClose }: Props) {
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
     const [layers, setLayers] = useState<LayerUi[]>([]);
     const [triangleCount, setTriangleCount] = useState(0);
+    // createPortal はクライアント側のみ（PdfViewer と同パターン）
+    const [mounted, setMounted] = useState(false);
     // three.js のメッシュ・カメラ操作へReactのUIから触るためのフック
     const apiRef = useRef<{ setVisible: (index: number, visible: boolean) => void; resetView: () => void } | null>(null);
 
+    useEffect(() => setMounted(true), []);
+
+    // body スクロール無効化（全画面表示中に背面が動かないように）
     useEffect(() => {
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = original; };
+    }, []);
+
+    // Escape で閉じる
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', handleKey);
+        return () => document.removeEventListener('keydown', handleKey);
+    }, [onClose]);
+
+    useEffect(() => {
+        // ポータルのコンテナがDOMに現れてから three.js を初期化する
+        if (!mounted) return;
         let disposed = false;
         let cleanup: (() => void) | null = null;
 
@@ -163,7 +186,7 @@ export function Scaffold3DViewer({ url, fileName, onClose }: Props) {
             disposed = true;
             cleanup?.();
         };
-    }, [url]);
+    }, [url, mounted]);
 
     const toggleLayer = (index: number) => {
         setLayers((prev) => {
@@ -173,8 +196,18 @@ export function Scaffold3DViewer({ url, fileName, onClose }: Props) {
         });
     };
 
-    return (
-        <div className="fixed inset-0 z-[70] bg-slate-900 flex flex-col">
+    if (!mounted) return null;
+
+    // 呼び出し元（案件詳細のボトムシート等）のスタッキングコンテキストに閉じ込められないよう
+    // body 直下へポータル描画する（サイドバー z-50 より確実に前面・PdfViewer と同方式）
+    return createPortal(
+        <div
+            className="fixed inset-0 z-[200] bg-slate-900 flex flex-col pwa-modal-safe"
+            style={{
+                paddingTop: 'env(safe-area-inset-top, 0px)',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }}
+        >
             {/* ヘッダー */}
             <div className="shrink-0 flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 bg-slate-800 text-white">
                 <div className="min-w-0">
@@ -239,6 +272,7 @@ export function Scaffold3DViewer({ url, fileName, onClose }: Props) {
                     </div>
                 </div>
             )}
-        </div>
+        </div>,
+        document.body,
     );
 }
