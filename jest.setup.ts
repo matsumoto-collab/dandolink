@@ -250,6 +250,33 @@ jest.mock('@/lib/prisma', () => ({
         partnerWorkVolume: {
             findMany: jest.fn().mockResolvedValue([]),
         },
+        supplierInvoice: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            count: jest.fn().mockResolvedValue(0),
+        },
+        payee: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            count: jest.fn().mockResolvedValue(0),
+        },
+        paymentSchedule: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            count: jest.fn().mockResolvedValue(0),
+        },
         // Raw SQL (advisory lock 等) は no-op
         $executeRaw: jest.fn().mockResolvedValue(0),
         $executeRawUnsafe: jest.fn().mockResolvedValue(0),

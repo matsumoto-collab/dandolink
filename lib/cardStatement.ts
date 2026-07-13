@@ -37,7 +37,8 @@ interface SignableFile {
 
 // 署名付きURLが残り5分未満なら再生成してDBにキャッシュし、最新URLを載せて返す。
 // lib/receipt.ts withFreshSignedUrls と同ロジックの CardReceipt / CardStatement 版（保存先モデルだけ差し替え）。
-async function withFreshFileSignedUrls<T extends SignableFile>(
+// SupplierInvoice（lib/supplierInvoice.ts）も persist 差し替えで共用するため export している。
+export async function withFreshFileSignedUrls<T extends SignableFile>(
     entity: T,
     persist: (id: string, data: Record<string, unknown>) => Promise<unknown>
 ): Promise<T> {

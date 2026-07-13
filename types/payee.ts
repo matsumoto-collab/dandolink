@@ -15,6 +15,10 @@ export interface Payee {
     accountHolder?: string | null;
     notes?: string | null;
     isActive: boolean;
+    // 支払サイト（請求書取込の支払日自動提案に使用。全て任意）
+    closingDay?: number | null;         // 締め日（1-31。31=月末扱い）
+    paymentMonthOffset?: number | null; // 支払月（締め月から何ヶ月後か。0=当月, 1=翌月…）
+    paymentDay?: number | null;         // 支払日（1-31。31=月末扱い）
     createdAt: Date;
     updatedAt: Date;
     updatedBy?: string | null;

@@ -2029,12 +2029,18 @@ model Payee {
   accountHolder String? // 口座名義（カナ）
   notes         String? // 備考
   isActive      Boolean  @default(true) // 利用中かどうか
+  // 支払サイト（請求書取込で支払期日が読み取れない場合の支払日自動提案に使う。全て任意）
+  // 例: 月末締め翌月末払い = closingDay 31 / paymentMonthOffset 1 / paymentDay 31
+  closingDay         Int? // 締め日（1-31。31=月末扱い）
+  paymentMonthOffset Int? // 支払月（締め月から何ヶ月後か。0=当月, 1=翌月, 2=翌々月…）
+  paymentDay         Int? // 支払日（1-31。31=月末扱い）
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   updatedBy     String?
 
   paymentSchedules PaymentSchedule[]
   purchaseInvoices PurchaseInvoice[]
+  supplierInvoices SupplierInvoice[]
 
   @@index([name])
   @@index([isActive])
@@ -2068,12 +2074,65 @@ model PaymentSchedule {
 
   payee Payee? @relation(fields: [payeeId], references: [id], onDelete: SetNull)
 
+  supplierInvoices SupplierInvoice[]
+
   @@index([paymentDate])
   @@index([payeeId])
   @@index([paymentType])
   @@index([isPaid])
   @@index([paymentDate, paymentType])
   @@index([listKey])
+  @@schema("public")
+}
+
+// 支払請求書の受け箱（支払予定への請求書AI取込）
+// 他社から届いた請求書をアップロード→AI読み取り→表で修正→振込先マスター(Payee)と照合→支払予定(PaymentSchedule)へ追加する。
+// 旧・仕入請求書(PurchaseInvoice。取込機能撤去済み)とは独立した機能で、原価計算・案件配分には一切連携しない。
+// アクセスは支払予定と同じ（閲覧=admin/accountant、編集=admin）。
+model SupplierInvoice {
+  id                          String    @id @default(uuid())
+  // 元ファイル（Supabase Storage。prefix: supplier-invoices/）
+  fileName                    String
+  storagePath                 String
+  thumbnailPath               String?
+  mimeType                    String
+  fileSize                    Int
+  sourceType                  String? // 'pdf' | null(画像)
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+  extractedData               Json? // AI抽出の生データ（監査・再表示用）
+  // 抽出値（受け箱の表でそのまま修正できる）
+  payeeName                   String? // 請求元（支払先）名
+  payeeKana                   String? // 請求元フリガナ
+  bankName                    String? // 振込先銀行名
+  branchName                  String? // 振込先支店名
+  accountType                 String? // 口座種別: '普通' | '当座'
+  accountNumber               String? // 口座番号
+  accountHolder               String? // 口座名義
+  issueDate                   DateTime? // 発行日
+  dueDate                     DateTime? // 支払期日
+  totalAmount                 Decimal?  @db.Decimal(12, 2) // 税込請求額
+  taxAmount                   Decimal?  @db.Decimal(12, 2) // 消費税額
+  registrationNumber          String? // インボイス登録番号（T+13桁）
+  notes                       String? // 備考
+  // 振込先マスター照合（口座番号→名前の完全一致で自動。あいまいは人が選ぶ）
+  payeeId                     String?
+  // 支払予定への追加済み参照（null=未追加）。支払予定行を削除すると SetNull で「未追加」に戻る
+  paymentScheduleId           String?
+  uploadedBy                  String?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  updatedBy                   String?
+
+  payee           Payee?           @relation(fields: [payeeId], references: [id], onDelete: SetNull)
+  paymentSchedule PaymentSchedule? @relation(fields: [paymentScheduleId], references: [id], onDelete: SetNull)
+
+  @@index([dueDate])
+  @@index([payeeId])
+  @@index([paymentScheduleId])
+  @@index([createdAt])
   @@schema("public")
 }
 
