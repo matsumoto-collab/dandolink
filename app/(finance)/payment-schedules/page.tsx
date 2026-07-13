@@ -13,12 +13,14 @@ import {
     FileDown,
     Loader2,
     Copy,
+    Inbox,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/Button';
 import PaymentScheduleModal from '@/components/PaymentSchedules/PaymentScheduleModal';
 import CopyFromPreviousModal from '@/components/PaymentSchedules/CopyFromPreviousModal';
+import SupplierInvoiceInbox from '@/components/PaymentSchedules/SupplierInvoiceInbox';
 import { usePaymentSchedules } from '@/hooks/usePaymentSchedules';
 import type { PaymentSchedule, PaymentScheduleInput } from '@/types/paymentSchedule';
 import { logger } from '@/lib/logger';
@@ -96,6 +98,8 @@ export default function PaymentSchedulesPage() {
     const [editing, setEditing] = useState<PaymentSchedule | null>(null);
     const [pdfExporting, setPdfExporting] = useState(false);
     const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+    // 請求書受け箱（AI取込）の表示。メイン画面の「請求書取込」ボタンから開く
+    const [showInbox, setShowInbox] = useState(false);
 
     // チェック操作で再描画が走っても支払リストのスクロール位置を維持するための保険。
     // handleTogglePaid で直前のスクロール位置を控え、描画後（ペイント前）に復元する。
@@ -259,6 +263,29 @@ export default function PaymentSchedulesPage() {
             setPdfExporting(false);
         }
     };
+
+    // ============= 請求書受け箱（AI取込） =============
+    if (showInbox) {
+        return (
+            <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
+                <div className="mb-3 flex-shrink-0">
+                    <button
+                        onClick={() => setShowInbox(false)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
+                    >
+                        <ArrowLeft className="w-4 h-4" /> 支払予定に戻る
+                    </button>
+                </div>
+                <div className="mb-4 flex-shrink-0">
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800">請求書受け箱</h1>
+                    <p className="hidden sm:block text-sm text-slate-500 mt-1">
+                        取引先からの請求書をAIで読み取り、振込先マスターと照合して支払予定リストへ流し込みます
+                    </p>
+                </div>
+                <SupplierInvoiceInbox canEdit={canEdit} onScheduleAdded={refresh} />
+            </div>
+        );
+    }
 
     // ============= 詳細リスト表示 =============
     if (selectedGroupKey) {
@@ -595,6 +622,14 @@ export default function PaymentSchedulesPage() {
 
                 {canEdit && (
                 <div className="flex gap-2">
+                    <Button
+                        variant="secondary"
+                        onClick={() => setShowInbox(true)}
+                        leftIcon={<Inbox className="w-5 h-5" />}
+                        className="flex-1 sm:flex-none"
+                    >
+                        請求書取込
+                    </Button>
                     <Button
                         variant="secondary"
                         onClick={() => setIsCopyModalOpen(true)}
