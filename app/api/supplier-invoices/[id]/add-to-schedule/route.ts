@@ -35,13 +35,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
         // 追加先リスト: 新規作成なら listKey を発行、既存リストならそのキー（null=旧データのリスト）
         const listKey = body.createNewList ? randomUUID() : (body.targetListKey ?? null);
 
+        // 支払種別（AIの仕分け候補・表で変更済みの値）。振込以外では口座情報を使わない
+        const paymentType =
+            inv.paymentType === 'direct_debit' || inv.paymentType === 'payment_slip' ? inv.paymentType : 'transfer';
+        const isTransfer = paymentType === 'transfer';
+
         // 口座種別は Payee の制約に合わせる（'普通'|'当座' 以外は null）
         const accountType = inv.accountType === '普通' || inv.accountType === '当座' ? inv.accountType : null;
 
         const result = await prisma.$transaction(async (tx) => {
-            // 振込先マスター(Payee)を解決: ①既存紐付け ②口座番号 ③支払先名（完全一致）→ 無ければ新規登録
+            // 振込先マスター(Payee)を解決: ①既存紐付け ②口座番号 ③支払先名（完全一致）。
+            // 新規登録は振込のみ（引落・払込用紙では口座台帳を汚さない。名前一致すれば紐付けは行う）
             let payee = await findMatchingPayee(tx, inv);
-            if (!payee) {
+            if (!payee && isTransfer) {
                 payee = await tx.payee.create({
                     data: {
                         name: inv.payeeName!,
@@ -57,21 +63,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 });
             }
 
-            // 支払予定の口座情報は採用Payeeを優先し、無ければ請求書の抽出値で補完（スナップショット）
+            // 振込: 口座情報は採用Payeeを優先し、無ければ請求書の抽出値で補完（スナップショット）。
+            // 引落・払込用紙: 口座情報は書かない（支払予定側のUIも振込以外では口座欄を使わない）
             const schedule = await tx.paymentSchedule.create({
                 data: {
                     paymentDate,
-                    paymentType: 'transfer',
-                    payeeId: payee.id,
+                    paymentType,
+                    payeeId: payee?.id ?? null,
                     payeeName: inv.payeeName!,
                     amount: inv.totalAmount!,
-                    feeFlag: payee.feeBearer === 'us',
+                    feeFlag: isTransfer && payee ? payee.feeBearer === 'us' : false,
                     dueDate: inv.dueDate,
-                    bankName: payee.bankName ?? inv.bankName,
-                    branchName: payee.branchName ?? inv.branchName,
-                    accountType: payee.accountType ?? accountType,
-                    accountNumber: payee.accountNumber ?? inv.accountNumber,
-                    accountHolder: payee.accountHolder ?? inv.accountHolder,
+                    bankName: isTransfer ? payee?.bankName ?? inv.bankName : null,
+                    branchName: isTransfer ? payee?.branchName ?? inv.branchName : null,
+                    accountType: isTransfer ? payee?.accountType ?? accountType : null,
+                    accountNumber: isTransfer ? payee?.accountNumber ?? inv.accountNumber : null,
+                    accountHolder: isTransfer ? payee?.accountHolder ?? inv.accountHolder : null,
                     listKey,
                     notes: '請求書取込より作成',
                     updatedBy: session!.user.id,
@@ -81,7 +88,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
             const invoice = await tx.supplierInvoice.update({
                 where: { id },
-                data: { paymentScheduleId: schedule.id, payeeId: payee.id, updatedBy: session!.user.id },
+                data: { paymentScheduleId: schedule.id, payeeId: payee?.id ?? inv.payeeId, updatedBy: session!.user.id },
                 include: SUPPLIER_INVOICE_INCLUDE,
             });
 

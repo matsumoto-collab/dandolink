@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { extractSupplierInvoice, normalizeRegistrationNumber } from '@/lib/supplierInvoiceExtract';
+import { extractSupplierInvoice, normalizeRegistrationNumber, normalizePaymentMethod } from '@/lib/supplierInvoiceExtract';
 import { getAnthropic } from '@/lib/anthropic';
 
 jest.mock('@/lib/anthropic', () => ({
@@ -76,6 +76,30 @@ describe('extractSupplierInvoice', () => {
     it('throws when the model returns no tool_use', async () => {
         (getAnthropic as jest.Mock).mockReturnValue({ messages: { create: jest.fn().mockResolvedValue({ content: [{ type: 'text', text: 'x' }] }) } });
         await expect(extractSupplierInvoice('b64', 'image/webp')).rejects.toThrow('請求書の読み取りに失敗しました');
+    });
+
+    it('extracts the payment method (direct debit)', async () => {
+        clientReturning({ payeeName: 'A', totalAmount: 100, paymentMethod: '引落' });
+        const r = await extractSupplierInvoice('b64', 'image/webp');
+        expect(r.paymentMethod).toBe('direct_debit');
+    });
+
+    it('defaults the payment method to transfer when missing', async () => {
+        clientReturning({ payeeName: 'A', totalAmount: 100 });
+        const r = await extractSupplierInvoice('b64', 'image/webp');
+        expect(r.paymentMethod).toBe('transfer');
+    });
+});
+
+describe('normalizePaymentMethod', () => {
+    it('maps 引落/口座振替 to direct_debit, 払込 to payment_slip, and everything else to transfer', () => {
+        expect(normalizePaymentMethod('引落')).toBe('direct_debit');
+        expect(normalizePaymentMethod('口座振替')).toBe('direct_debit');
+        expect(normalizePaymentMethod('自動引落し')).toBe('direct_debit');
+        expect(normalizePaymentMethod('払込用紙')).toBe('payment_slip');
+        expect(normalizePaymentMethod('振込')).toBe('transfer');
+        expect(normalizePaymentMethod('')).toBe('transfer');
+        expect(normalizePaymentMethod(null)).toBe('transfer');
     });
 });
 

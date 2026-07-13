@@ -310,11 +310,12 @@ export default function SupplierInvoiceInbox({ canEdit, onScheduleAdded }: Props
             ) : (
                 <div className="flex-1 min-h-[280px] flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="flex-1 overflow-auto">
-                        <table className="min-w-[1250px] w-full divide-y divide-slate-200">
+                        <table className="min-w-[1340px] w-full divide-y divide-slate-200">
                             <thead className="bg-slate-100 sticky top-0 z-10">
                                 <tr>
                                     <th className="px-3 py-3 text-center text-xs font-bold text-slate-700 w-[56px]">証憑</th>
                                     <th className="px-3 py-3 text-left text-xs font-bold text-slate-700 w-[136px]">支払期日</th>
+                                    <th className="px-3 py-3 text-left text-xs font-bold text-slate-700 w-[92px]">種別</th>
                                     <th className="px-3 py-3 text-left text-xs font-bold text-slate-700">請求元</th>
                                     <th className="px-3 py-3 text-right text-xs font-bold text-slate-700 w-[120px]">金額（税込）</th>
                                     <th className="px-3 py-3 text-left text-xs font-bold text-slate-700 w-[230px]">振込先口座</th>
@@ -327,7 +328,7 @@ export default function SupplierInvoiceInbox({ canEdit, onScheduleAdded }: Props
                             <tbody className="bg-white divide-y divide-slate-100">
                                 {filtered.length === 0 && (
                                     <tr>
-                                        <td colSpan={9} className="px-4 py-12 text-center text-slate-500">
+                                        <td colSpan={10} className="px-4 py-12 text-center text-slate-500">
                                             <FileText className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                                             {hasActiveFilters
                                                 ? '絞り込み条件に一致する請求書がありません。条件を変えるか「クリア」してください。'
@@ -353,7 +354,7 @@ export default function SupplierInvoiceInbox({ canEdit, onScheduleAdded }: Props
                             {filtered.length > 0 && (
                                 <tfoot>
                                     <tr className="[&>td]:sticky [&>td]:bottom-0 [&>td]:bg-slate-50 [&>td]:shadow-[inset_0_2px_0_0_#e2e8f0]">
-                                        <td colSpan={3} className="px-3 py-3 text-right text-sm font-semibold text-slate-600">
+                                        <td colSpan={4} className="px-3 py-3 text-right text-sm font-semibold text-slate-600">
                                             {hasActiveFilters ? `絞り込み合計（${filtered.length}件）` : `合計（${filtered.length}件）`}
                                         </td>
                                         <td className="px-3 py-3 text-right whitespace-nowrap">
@@ -423,7 +424,9 @@ function InboxRow({ invoice, canEdit, saving, isDuplicate, onPatch, onDelete, on
     const dueYmd = toInputDate(invoice.dueDate);
     const isPdf = invoice.mimeType === 'application/pdf' || invoice.sourceType === 'pdf';
     const added = Boolean(invoice.paymentScheduleId);
-    const mismatch = hasAccountMismatch(invoice.payee, invoice);
+    const isTransfer = invoice.paymentType === 'transfer';
+    // 口座不一致の警告は振込のみ（引落・払込用紙では振込先口座を使わない）
+    const mismatch = isTransfer && hasAccountMismatch(invoice.payee, invoice);
     const editable = canEdit && !saving;
 
     return (
@@ -465,6 +468,26 @@ function InboxRow({ invoice, canEdit, saving, isDuplicate, onPatch, onDelete, on
                     className="w-full rounded-lg border border-transparent hover:border-slate-200 px-2 py-1.5 text-sm text-slate-700 bg-transparent focus:bg-white focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
             </td>
+            {/* 種別（AIの仕分け候補。支払予定と同じ配色: 振込=青/引落=teal/払込=紫） */}
+            <td className="px-2 py-1.5">
+                <select
+                    value={invoice.paymentType}
+                    disabled={!editable}
+                    onChange={(e) => onPatch({ paymentType: e.target.value })}
+                    title="支払種別（AIが請求書から判定した候補。間違っていたらここで変更）"
+                    className={`w-full rounded-lg border px-1.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                        invoice.paymentType === 'direct_debit'
+                            ? 'border-teal-200 bg-teal-50 text-teal-700'
+                            : invoice.paymentType === 'payment_slip'
+                              ? 'border-purple-200 bg-purple-50 text-purple-700'
+                              : 'border-blue-200 bg-blue-50 text-blue-700'
+                    }`}
+                >
+                    <option value="transfer">振込</option>
+                    <option value="direct_debit">引落</option>
+                    <option value="payment_slip">払込</option>
+                </select>
+            </td>
             {/* 請求元（＋二重取込警告） */}
             <td className="px-2 py-1.5">
                 <div className="flex items-center gap-1.5">
@@ -493,27 +516,35 @@ function InboxRow({ invoice, canEdit, saving, isDuplicate, onPatch, onDelete, on
             </td>
             {/* 金額 */}
             <AmountCell amount={invoice.totalAmount} disabled={!editable} onCommit={(n) => onPatch({ totalAmount: n })} />
-            {/* 振込先口座（表示のみ。編集は詳細モーダル） */}
+            {/* 振込先口座（表示のみ。編集は詳細モーダル。引落・払込では使わない） */}
             <td className="px-2 py-1.5">
-                <div className={`text-xs leading-snug ${mismatch ? 'text-red-700' : 'text-slate-600'}`}>
-                    {invoice.bankName || invoice.accountNumber ? (
-                        <>
-                            <div className="whitespace-nowrap">
-                                {invoice.bankName} {invoice.branchName}
-                            </div>
-                            <div className="whitespace-nowrap">
-                                {invoice.accountType && `${invoice.accountType} `}{invoice.accountNumber}
-                                {invoice.accountHolder && ` ${invoice.accountHolder}`}
-                            </div>
-                        </>
-                    ) : (
-                        <span className="text-slate-300">—</span>
-                    )}
-                </div>
+                {!isTransfer ? (
+                    <span className="text-xs text-slate-400" title="引落・払込用紙では振込先口座は使いません">
+                        {invoice.bankName || invoice.accountNumber ? '（口座は使いません）' : '—'}
+                    </span>
+                ) : (
+                    <div className={`text-xs leading-snug ${mismatch ? 'text-red-700' : 'text-slate-600'}`}>
+                        {invoice.bankName || invoice.accountNumber ? (
+                            <>
+                                <div className="whitespace-nowrap">
+                                    {invoice.bankName} {invoice.branchName}
+                                </div>
+                                <div className="whitespace-nowrap">
+                                    {invoice.accountType && `${invoice.accountType} `}{invoice.accountNumber}
+                                    {invoice.accountHolder && ` ${invoice.accountHolder}`}
+                                </div>
+                            </>
+                        ) : (
+                            <span className="text-slate-300">—</span>
+                        )}
+                    </div>
+                )}
             </td>
             {/* マスター照合（＋口座変更検知） */}
             <td className="px-2 py-1.5 text-center">
-                {invoice.payee ? (
+                {!isTransfer && !invoice.payee ? (
+                    <span className="text-xs text-slate-300" title="引落・払込用紙ではマスター照合は不要です（追加時の新規登録もしません）">—</span>
+                ) : invoice.payee ? (
                     mismatch ? (
                         <span
                             className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700 border border-red-300 whitespace-nowrap"

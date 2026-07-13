@@ -1,9 +1,12 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { getAnthropic, INVOICE_EXTRACT_MODEL } from '@/lib/anthropic';
 
+// 支払方法（PaymentSchedule.paymentType と同じ値）
+export type SupplierInvoicePaymentMethod = 'transfer' | 'direct_debit' | 'payment_slip';
+
 // 支払請求書（他社からの請求書）のAI抽出結果。
 // 旧・仕入請求書取込(94d02aa で撤去)の抽出を土台に、明細行・費目・案件ヒントを外し、
-// インボイス登録番号を追加した軽量版。原価計算には使わない（支払予定への取込専用）。
+// インボイス登録番号と支払方法判定を追加した軽量版。原価計算には使わない（支払予定への取込専用）。
 export interface ExtractedSupplierInvoice {
     payeeName: string | null;
     payeeKana: string | null;
@@ -17,6 +20,7 @@ export interface ExtractedSupplierInvoice {
     totalAmount: number | null; // 税込合計
     taxAmount: number | null;
     registrationNumber: string | null; // インボイス登録番号（T+13桁）
+    paymentMethod: SupplierInvoicePaymentMethod; // 振込 | 引落(口座振替) | 払込用紙
 }
 
 const INPUT_SCHEMA = {
@@ -34,8 +38,14 @@ const INPUT_SCHEMA = {
         totalAmount: { type: 'number', description: '税込の請求金額合計（円）。最終的な合計請求額' },
         taxAmount: { type: 'number', description: '消費税額（円）。不明なら 0' },
         registrationNumber: { type: 'string', description: '適格請求書発行事業者の登録番号（T＋数字13桁。例: T1234567890123）。記載が無ければ空文字' },
+        paymentMethod: {
+            type: 'string',
+            enum: ['振込', '引落', '払込用紙'],
+            description:
+                '支払方法。振込先口座への振込を求めていれば「振込」。「口座振替」「自動引き落とし」等でこちら（支払側）の口座から引き落とされるなら「引落」。払込取扱票（コンビニ・郵便局払い）なら「払込用紙」。不明なら「振込」',
+        },
     },
-    required: ['payeeName', 'totalAmount'],
+    required: ['payeeName', 'totalAmount', 'paymentMethod'],
 };
 
 const PROMPT = `あなたは建設・足場業の経理担当アシスタントです。添付された「取引先からの請求書（こちらが支払う側の請求書）」の画像またはPDFを読み取り、record_supplier_invoice ツールで構造化して記録してください。
@@ -43,7 +53,9 @@ const PROMPT = `あなたは建設・足場業の経理担当アシスタント�
 - 金額は数値のみ（カンマ・「円」・「¥」を除く）。
 - 税込の最終的な請求合計を totalAmount に入れてください（小計＋消費税の合計）。
 - 日付は YYYY-MM-DD 形式。和暦（令和等）は西暦に変換してください。
+- 支払方法(paymentMethod)を判定してください。「口座振替」「自動引き落とし」「引落予定」等の記載があり、こちら（支払側）の口座から引き落とされる場合は「引落」。払込取扱票（コンビニ・郵便局払い）が付いている場合は「払込用紙」。振込先口座への振込を求めている場合は「振込」。
 - 請求書の「振込先」「お振込先」欄に銀行口座があれば bankName/branchName/accountType/accountNumber/accountHolder と、支払先のフリガナを payeeKana に入れてください。口座種別は「普通」か「当座」。記載が無ければ空文字。
+- 【重要】「引落」の場合、記載されている口座（振替口座・引落口座）はこちら（支払側）の口座であり、振込先ではありません。bankName/branchName/accountType/accountNumber/accountHolder は空文字にしてください。
 - 適格請求書発行事業者の登録番号（「登録番号」「インボイス番号」等。T＋13桁の数字）があれば registrationNumber に入れてください。
 - 読み取れない項目は空文字または 0 にし、推測で埋めないでください。`;
 
@@ -66,6 +78,13 @@ const normalizeAccountType = (v: unknown): string | null => {
 export const normalizeRegistrationNumber = (v: unknown): string | null => {
     const t = typeof v === 'string' ? v.normalize('NFKC').replace(/[^0-9a-zA-Z]/g, '').toUpperCase() : '';
     return /^T\d{13}$/.test(t) ? t : null;
+};
+// 支払方法の正規化。enum外の表記（「口座振替」等）も吸収し、判定できなければ振込に倒す
+export const normalizePaymentMethod = (v: unknown): SupplierInvoicePaymentMethod => {
+    const t = typeof v === 'string' ? v : '';
+    if (t.includes('引落') || t.includes('振替')) return 'direct_debit';
+    if (t.includes('払込')) return 'payment_slip';
+    return 'transfer';
 };
 
 const IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
@@ -119,5 +138,6 @@ export async function extractSupplierInvoice(base64: string, mimeType: string): 
         totalAmount: num(raw.totalAmount),
         taxAmount: num(raw.taxAmount),
         registrationNumber: normalizeRegistrationNumber(raw.registrationNumber),
+        paymentMethod: normalizePaymentMethod(raw.paymentMethod),
     };
 }

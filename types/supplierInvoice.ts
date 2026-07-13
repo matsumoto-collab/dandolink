@@ -1,6 +1,7 @@
 // 支払請求書の受け箱（支払予定への請求書AI取込）の型。API レスポンスに対応。
 // Decimal 系は Prisma が JSON で文字列にすることがあるため number | string を許容する（表示・集計は Number() を通す）。
 import type { Payee } from '@/types/payee';
+import type { PaymentType } from '@/types/paymentSchedule';
 import type { ExtractedSupplierInvoice } from '@/lib/supplierInvoiceExtract';
 
 export interface SupplierInvoice {
@@ -23,6 +24,8 @@ export interface SupplierInvoice {
     totalAmount: number | string | null;
     taxAmount: number | string | null;
     registrationNumber: string | null;
+    // 支払種別（AIの仕分け候補。表で変更可）: 振込 | 引落(口座振替) | 払込用紙
+    paymentType: PaymentType;
     notes: string | null;
     payeeId: string | null;
     // 支払予定への追加済み参照（null=未追加。支払予定行を削除すると null に戻る）

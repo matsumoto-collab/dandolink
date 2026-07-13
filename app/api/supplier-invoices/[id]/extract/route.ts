@@ -50,6 +50,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
                 totalAmount: extracted.totalAmount,
                 taxAmount: extracted.taxAmount,
                 registrationNumber: extracted.registrationNumber,
+                paymentType: extracted.paymentMethod,
                 payeeId: payee?.id ?? null,
                 extractedData: extracted as unknown as Prisma.InputJsonValue,
                 updatedBy: session!.user.id,

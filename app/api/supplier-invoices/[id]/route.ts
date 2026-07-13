@@ -43,6 +43,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if ('totalAmount' in body) data.totalAmount = amt(body.totalAmount);
         if ('taxAmount' in body) data.taxAmount = amt(body.taxAmount);
         if ('registrationNumber' in body) data.registrationNumber = body.registrationNumber?.toString().trim() || null;
+        if ('paymentType' in body) {
+            const t = body.paymentType?.toString();
+            if (t !== 'transfer' && t !== 'direct_debit' && t !== 'payment_slip') {
+                return errorResponse('支払種別が不正です', 400);
+            }
+            data.paymentType = t;
+        }
         if ('notes' in body) data.notes = body.notes?.toString().trim() || null;
         // マスター照合の手動付け外し（UIの検索候補から選択 / 外す）
         if ('payeeId' in body) {

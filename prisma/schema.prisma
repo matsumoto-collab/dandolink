@@ -2116,6 +2116,9 @@ model SupplierInvoice {
   totalAmount                 Decimal?  @db.Decimal(12, 2) // 税込請求額
   taxAmount                   Decimal?  @db.Decimal(12, 2) // 消費税額
   registrationNumber          String? // インボイス登録番号（T+13桁）
+  // 支払種別: "transfer"=振込, "direct_debit"=引落(口座振替), "payment_slip"=払込用紙（PaymentSchedule.paymentType と同じ値）
+  // AIが請求書から判定した仕分け候補。受け箱の表で変更できる。引落では記載口座は「こちらの引落口座」なので振込先としては読まない
+  paymentType                 String    @default("transfer")
   notes                       String? // 備考
   // 振込先マスター照合（口座番号→名前の完全一致で自動。あいまいは人が選ぶ）
   payeeId                     String?

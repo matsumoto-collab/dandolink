@@ -51,7 +51,10 @@ export default function AddToScheduleModal({ invoice, onClose, onAdded }: Props)
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const mismatch = hasAccountMismatch(invoice.payee, invoice);
+    // 振込以外（引落・払込用紙）では振込先口座・マスター新規登録・手数料を使わない
+    const isTransfer = invoice.paymentType === 'transfer';
+    const typeLabel = invoice.paymentType === 'direct_debit' ? '引落' : invoice.paymentType === 'payment_slip' ? '払込用紙' : '振込';
+    const mismatch = isTransfer && hasAccountMismatch(invoice.payee, invoice);
 
     // 支払予定に書き込まれる口座情報のプレビュー（サーバーと同じ「マスター優先→請求書で補完」）
     const preview = useMemo(() => {
@@ -161,25 +164,46 @@ export default function AddToScheduleModal({ invoice, onClose, onAdded }: Props)
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <div className="flex items-baseline justify-between gap-3">
                             <div className="min-w-0">
-                                <div className="text-base font-semibold text-slate-900 truncate">{invoice.payeeName ?? '（請求元未設定）'}</div>
-                                <div className="mt-0.5 text-xs text-slate-600">
-                                    {preview.bankName} {preview.branchName}
-                                    {preview.accountType && ` / ${preview.accountType}`}
-                                    {preview.accountNumber && ` ${preview.accountNumber}`}
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <div className="text-base font-semibold text-slate-900 truncate">{invoice.payeeName ?? '（請求元未設定）'}</div>
+                                    <span
+                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                            invoice.paymentType === 'direct_debit'
+                                                ? 'bg-teal-100 text-teal-700'
+                                                : invoice.paymentType === 'payment_slip'
+                                                  ? 'bg-purple-100 text-purple-700'
+                                                  : 'bg-blue-100 text-blue-700'
+                                        }`}
+                                    >
+                                        {typeLabel}
+                                    </span>
                                 </div>
-                                {preview.accountHolder && (
-                                    <div className="text-xs text-slate-500">名義: {preview.accountHolder}</div>
+                                {isTransfer ? (
+                                    <>
+                                        <div className="mt-0.5 text-xs text-slate-600">
+                                            {preview.bankName} {preview.branchName}
+                                            {preview.accountType && ` / ${preview.accountType}`}
+                                            {preview.accountNumber && ` ${preview.accountNumber}`}
+                                        </div>
+                                        {preview.accountHolder && (
+                                            <div className="text-xs text-slate-500">名義: {preview.accountHolder}</div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="mt-0.5 text-xs text-slate-500">
+                                        {invoice.paymentType === 'direct_debit' ? '口座引き落とし（振込先口座は使いません）' : '払込用紙で支払い（振込先口座は使いません）'}
+                                    </div>
                                 )}
                             </div>
                             <div className="text-right shrink-0">
                                 <div className="text-xl font-bold text-slate-900">{yen(invoice.totalAmount)}</div>
-                                {preview.feeFlag && (
+                                {isTransfer && preview.feeFlag && (
                                     <div className="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">● 手数料当社負担</div>
                                 )}
                             </div>
                         </div>
 
-                        {/* マスター照合状態 */}
+                        {/* マスター照合状態（振込のみ意味を持つ。引落・払込は新規登録しない） */}
                         <div className="mt-3 border-t border-slate-200 pt-2.5 text-xs">
                             {invoice.payee ? (
                                 mismatch ? (
@@ -190,12 +214,16 @@ export default function AddToScheduleModal({ invoice, onClose, onAdded }: Props)
                                         </span>
                                     </div>
                                 ) : (
-                                    <span className="text-teal-700">✓ 振込先マスター「{invoice.payee.name}」と照合済み（マスターの口座情報で作成されます）</span>
+                                    <span className="text-teal-700">
+                                        ✓ 振込先マスター「{invoice.payee.name}」と照合済み{isTransfer && '（マスターの口座情報で作成されます）'}
+                                    </span>
                                 )
-                            ) : (
+                            ) : isTransfer ? (
                                 <span className="text-amber-700">
                                     振込先マスターに未登録です。追加と同時に上記の内容でマスターへ新規登録します（手数料は先方負担で登録。変更は振込先マスター画面から）。
                                 </span>
+                            ) : (
+                                <span className="text-slate-500">引落・払込用紙のため、振込先マスターへの登録は行いません。</span>
                             )}
                         </div>
                     </div>

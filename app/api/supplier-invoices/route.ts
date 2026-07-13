@@ -140,6 +140,7 @@ export async function POST(req: NextRequest) {
                 totalAmount: extracted?.totalAmount ?? null,
                 taxAmount: extracted?.taxAmount ?? null,
                 registrationNumber: extracted?.registrationNumber ?? null,
+                paymentType: extracted?.paymentMethod ?? 'transfer',
                 payeeId: payee?.id ?? null,
                 fileName: file.name,
                 storagePath,

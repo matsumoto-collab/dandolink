@@ -18,6 +18,7 @@ interface Props {
 }
 
 interface FormState {
+    paymentType: string; // 'transfer' | 'direct_debit' | 'payment_slip'
     payeeName: string;
     payeeKana: string;
     bankName: string;
@@ -40,6 +41,7 @@ interface FormState {
 export default function SupplierInvoiceEditModal({ invoice, canEdit, onClose, onSaved }: Props) {
     const { payees } = usePayees({ activeOnly: true });
     const [form, setForm] = useState<FormState>({
+        paymentType: invoice.paymentType ?? 'transfer',
         payeeName: invoice.payeeName ?? '',
         payeeKana: invoice.payeeKana ?? '',
         bankName: invoice.bankName ?? '',
@@ -62,12 +64,14 @@ export default function SupplierInvoiceEditModal({ invoice, canEdit, onClose, on
 
     const added = Boolean(invoice.paymentScheduleId);
     const isPdf = invoice.mimeType === 'application/pdf' || invoice.sourceType === 'pdf';
+    const isTransfer = form.paymentType === 'transfer';
 
     const selectedPayee: Payee | null = useMemo(
         () => (form.payeeId ? payees.find((p) => p.id === form.payeeId) ?? invoice.payee : null),
         [form.payeeId, payees, invoice.payee],
     );
-    const mismatch = hasAccountMismatch(selectedPayee, { accountNumber: form.accountNumber || null });
+    // 口座不一致の警告は振込のみ（引落・払込用紙では振込先口座を使わない）
+    const mismatch = isTransfer && hasAccountMismatch(selectedPayee, { accountNumber: form.accountNumber || null });
 
     const filteredPayees = useMemo(() => {
         const q = payeeSearch.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
@@ -88,6 +92,7 @@ export default function SupplierInvoiceEditModal({ invoice, canEdit, onClose, on
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    paymentType: form.paymentType,
                     payeeName: form.payeeName,
                     payeeKana: form.payeeKana,
                     bankName: form.bankName,
@@ -196,6 +201,43 @@ export default function SupplierInvoiceEditModal({ invoice, canEdit, onClose, on
                             </div>
                         )}
 
+                        {/* 支払方法（AIの仕分け候補。間違っていたらここで変更） */}
+                        <div>
+                            <label className="mb-1 block text-xs font-medium text-slate-600">支払方法</label>
+                            <div className="flex flex-wrap gap-4">
+                                <label className="flex items-center gap-2">
+                                    <input
+                                        type="radio"
+                                        name="siPaymentType"
+                                        checked={form.paymentType === 'transfer'}
+                                        disabled={!canEdit}
+                                        onChange={() => setForm({ ...form, paymentType: 'transfer' })}
+                                    />
+                                    <span className="text-sm">銀行振込</span>
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    <input
+                                        type="radio"
+                                        name="siPaymentType"
+                                        checked={form.paymentType === 'direct_debit'}
+                                        disabled={!canEdit}
+                                        onChange={() => setForm({ ...form, paymentType: 'direct_debit' })}
+                                    />
+                                    <span className="text-sm">引落（口座振替）</span>
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    <input
+                                        type="radio"
+                                        name="siPaymentType"
+                                        checked={form.paymentType === 'payment_slip'}
+                                        disabled={!canEdit}
+                                        onChange={() => setForm({ ...form, paymentType: 'payment_slip' })}
+                                    />
+                                    <span className="text-sm">払込用紙</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div>
                                 <label className="mb-1 block text-xs font-medium text-slate-600">請求元（振込先名）</label>
@@ -266,6 +308,11 @@ export default function SupplierInvoiceEditModal({ invoice, canEdit, onClose, on
                         {/* 振込先口座（請求書に書かれた値） */}
                         <div className="rounded border border-slate-200 bg-slate-50 p-3">
                             <div className="mb-2 text-xs font-medium text-slate-600">振込先口座（請求書の記載）</div>
+                            {!isTransfer && (
+                                <p className="mb-2 text-xs text-amber-700">
+                                    引落・払込用紙では振込先口座は使いません。請求書に載っている口座が「引落口座（こちらの口座）」なら、振込先ではないため空にしてください。
+                                </p>
+                            )}
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                                 <input
                                     type="text"
@@ -340,7 +387,9 @@ export default function SupplierInvoiceEditModal({ invoice, canEdit, onClose, on
                             ) : (
                                 <>
                                     <p className="mb-2 text-xs text-amber-700">
-                                        マスターに一致がありません。支払予定への追加時に上の内容で新規登録されます。既存のマスターに紐付ける場合は検索してください。
+                                        {isTransfer
+                                            ? 'マスターに一致がありません。支払予定への追加時に上の内容で新規登録されます。既存のマスターに紐付ける場合は検索してください。'
+                                            : '引落・払込用紙のため、支払予定への追加時にマスターへの新規登録は行いません（既存のマスターに紐付けたい場合のみ検索してください）。'}
                                     </p>
                                     {canEdit && (
                                         <>
