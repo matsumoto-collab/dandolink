@@ -211,11 +211,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
             if (!allowed) return errorResponse('権限がありません', 403);
         }
 
-        const VALID_CATEGORIES = ['survey', 'assembly', 'demolition', 'other', 'instruction', 'document'];
+        const VALID_CATEGORIES = ['survey', 'assembly', 'demolition', 'other', 'instruction', 'perspective', 'document'];
 
         const formData = await req.formData();
         const file = formData.get('file') as File | null;
         const originalPdf = formData.get('originalPdf') as File | null;
+        // DXF由来の3Dパース: file=表示用ペイロード(JSON・lib/dxf3d.tsでクライアント変換), originalDxf=元DXF
+        const originalDxf = formData.get('originalDxf') as File | null;
         const description = formData.get('description') as string | null;
         const categoryRaw = formData.get('category') as string | null;
         const category = categoryRaw && VALID_CATEGORIES.includes(categoryRaw) ? categoryRaw : 'other';
@@ -228,17 +230,26 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         if (!file) return errorResponse('ファイルが選択されていません', 400);
         const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
-        const ALLOWED_EXTENSIONS = ['jww'];
+        const ALLOWED_EXTENSIONS = ['jww', 'dxf'];
         const isAllowedByExt = ALLOWED_EXTENSIONS.includes(fileExt);
-        if (!ALLOWED_MIME_TYPES.includes(file.type) && !isAllowedByExt) {
-            return errorResponse('対応していないファイル形式です（画像・PDF・JWW）', 400);
+        // 3Dパース取込: originalDxf 付きの JSON ペイロード（fileName は元DXF名のまま）
+        const is3dPayload = !!originalDxf && file.type === 'application/json';
+        if (!ALLOWED_MIME_TYPES.includes(file.type) && !isAllowedByExt && !is3dPayload) {
+            return errorResponse('対応していないファイル形式です（画像・PDF・JWW・DXF）', 400);
         }
         if (file.size > MAX_FILE_SIZE) {
             return errorResponse('ファイルサイズが20MBを超えています', 400);
         }
+        if (originalDxf && originalDxf.size > MAX_FILE_SIZE) {
+            return errorResponse('DXFファイルサイズが20MBを超えています', 400);
+        }
 
         const fileId = randomUUID();
-        const fileType = file.type.startsWith('image/') ? 'image' : (fileExt === 'jww' ? 'jww' : 'pdf');
+        const fileType = is3dPayload
+            ? '3d'
+            : file.type.startsWith('image/')
+                ? 'image'
+                : (fileExt === 'jww' || fileExt === 'dxf' ? fileExt : 'pdf');
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
@@ -252,8 +263,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         let originalStoragePath: string | null = null;
 
-        // PDFから変換された画像かどうか
-        const sourceType = originalPdf ? 'pdf' : null;
+        // 元ファイルの種別（PDFから変換された画像 / DXFから変換された3Dペイロード）
+        const sourceType = originalPdf ? 'pdf' : is3dPayload ? 'dxf' : null;
 
         if (fileType === 'image') {
             // 回転済みバッファを1回だけ作成し、各サイズ変換はそこから派生
@@ -309,10 +320,32 @@ export async function POST(req: NextRequest, context: RouteContext) {
                     thumbnailPath = null;
                 }
             }
+        } else if (is3dPayload) {
+            // 3Dパース: 表示用ペイロード(JSON)を storagePath に、元DXFを originalStoragePath に保存
+            uploadBuffer = buffer;
+            uploadContentType = 'application/json';
+            storagePath = `${id}/${fileId}_3d.json`;
+            actualFileSize = buffer.length;
+            originalStoragePath = `${id}/${fileId}_original.dxf`;
+
+            const dxfBuffer = Buffer.from(await originalDxf!.arrayBuffer());
+            const [jsonResult, dxfResult] = await Promise.all([
+                supabaseAdmin.storage.from(STORAGE_BUCKET).upload(storagePath, uploadBuffer, { contentType: uploadContentType, upsert: false }),
+                supabaseAdmin.storage.from(STORAGE_BUCKET).upload(originalStoragePath, dxfBuffer, { contentType: 'application/octet-stream', upsert: false }),
+            ]);
+            if (jsonResult.error) {
+                logger.error('Storage upload error:', jsonResult.error);
+                await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([originalStoragePath]);
+                return errorResponse('ファイルのアップロードに失敗しました', 500);
+            }
+            if (dxfResult.error) {
+                logger.error('Original DXF upload error:', dxfResult.error);
+                originalStoragePath = null;
+            }
         } else {
             uploadBuffer = buffer;
             uploadContentType = file.type || 'application/octet-stream';
-            const ALLOWED_EXTENSIONS = ['pdf', 'jww'];
+            const ALLOWED_EXTENSIONS = ['pdf', 'jww', 'dxf'];
             const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
             if (!ALLOWED_EXTENSIONS.includes(ext)) {
                 return errorResponse('対応していないファイル拡張子です', 400);

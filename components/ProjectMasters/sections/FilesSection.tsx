@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { FileText, Trash2, Upload, Loader2, Download, ChevronDown } from 'lucide-react';
+import { FileText, Trash2, Upload, Loader2, Download, ChevronDown, Box } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
@@ -15,7 +15,13 @@ const PdfViewer = dynamic(
     { ssr: false }
 );
 
-type FileCategory = 'survey' | 'assembly' | 'demolition' | 'other' | 'instruction' | 'document';
+// 3Dビューア（three.js）は開いた時だけ読み込む
+const Scaffold3DViewer = dynamic(
+    () => import('@/components/ui/Scaffold3DViewer').then(m => m.Scaffold3DViewer),
+    { ssr: false }
+);
+
+type FileCategory = 'survey' | 'assembly' | 'demolition' | 'other' | 'instruction' | 'perspective' | 'document';
 
 const ALL_CATEGORIES: { key: FileCategory; label: string; adminOnly?: boolean }[] = [
     { key: 'survey',      label: '現調写真' },
@@ -23,6 +29,7 @@ const ALL_CATEGORIES: { key: FileCategory; label: string; adminOnly?: boolean }[
     { key: 'demolition',  label: '解体' },
     { key: 'other',       label: 'その他' },
     { key: 'instruction', label: '指示書/図面' },
+    { key: 'perspective', label: 'パース(3D)' },
     { key: 'document',    label: '書類', adminOnly: true },
 ];
 
@@ -106,6 +113,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
+    const [viewer3d, setViewer3d] = useState<{ url: string; fileName: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchFiles = useCallback(async () => {
@@ -142,13 +150,36 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         setUploading(true);
         setUploadProgress({ done: 0, total: rawFiles.length });
 
-        // 1. PDF→画像変換 + 画像圧縮
-        // uploadItems: { file, name, originalPdf? }
-        type UploadItem = { file: Blob; name: string; originalPdf?: Blob; originalPdfName?: string };
+        // 1. PDF→画像変換 + 画像圧縮 + DXF→3Dデータ変換
+        // uploadItems: { file, name, originalPdf?, originalDxf? }
+        type UploadItem = { file: Blob; name: string; originalPdf?: Blob; originalPdfName?: string; originalDxf?: Blob };
         const uploadItems: UploadItem[] = [];
 
         for (const rawFile of rawFiles) {
-            if (rawFile.type === 'application/pdf') {
+            if (/\.dxf$/i.test(rawFile.name)) {
+                // DXF: 3DFACE（3Dパース）を抽出してビューア用JSONに変換。元DXFも一緒に保存する
+                try {
+                    toast('DXFから3Dデータを抽出中...', { icon: '🧊' });
+                    const { decodeDxfArrayBuffer, buildScaffold3DPayload } = await import('@/lib/dxf3d');
+                    const text = decodeDxfArrayBuffer(await rawFile.arrayBuffer());
+                    const payload = buildScaffold3DPayload(text);
+                    if (payload) {
+                        uploadItems.push({
+                            // 表示名は元のDXF名のまま（ダウンロード時もこの名前でDXFが落ちる）
+                            file: new Blob([JSON.stringify(payload)], { type: 'application/json' }),
+                            name: rawFile.name,
+                            originalDxf: rawFile,
+                        });
+                    } else {
+                        // 2D図面のDXF（3DFACEなし）はそのままファイルとして保存
+                        toast('3Dデータが見つからないため、DXFをそのまま保存します', { icon: 'ℹ️' });
+                        uploadItems.push({ file: rawFile as Blob, name: rawFile.name });
+                    }
+                } catch (err) {
+                    console.error('DXF conversion failed:', err);
+                    toast.error(`DXFの変換に失敗しました: ${rawFile.name}`);
+                }
+            } else if (rawFile.type === 'application/pdf') {
                 // PDF → 各ページを画像に変換
                 try {
                     toast('PDFを画像に変換中...', { icon: '📄' });
@@ -198,6 +229,9 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                     formData.append('category', activeTab);
                     if (item.originalPdf) {
                         formData.append('originalPdf', item.originalPdf, item.originalPdfName || 'original.pdf');
+                    }
+                    if (item.originalDxf) {
+                        formData.append('originalDxf', item.originalDxf, item.name);
                     }
                     const res = await fetch(`/api/project-masters/${projectMasterId}/files`, {
                         method: 'POST',
@@ -410,7 +444,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*,application/pdf,.jww"
+                    accept="image/*,application/pdf,.jww,.dxf"
                     className="hidden"
                     onChange={(e) => handleUpload(e.target.files)}
                     disabled={uploading}
@@ -430,7 +464,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                         </span>
                     </div>
                 )}
-                <p className="text-xs text-slate-400 mt-1">画像（JPG・PNG等）・PDF・JWW対応 / 最大20MB</p>
+                <p className="text-xs text-slate-400 mt-1">画像（JPG・PNG等）・PDF・JWW・DXF（3Dパース）対応 / 最大20MB</p>
             </div>
 
             {/* ファイル一覧 */}
@@ -478,6 +512,15 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                         />
                                     </div>
                                 </button>
+                            ) : file.fileType === '3d' ? (
+                                <button
+                                    type="button"
+                                    onClick={() => file.signedUrl && setViewer3d({ url: file.signedUrl, fileName: file.fileName })}
+                                    className="shrink-0 w-12 h-12 flex items-center justify-center bg-teal-50 rounded border border-teal-200 hover:bg-teal-100 transition-colors"
+                                    title="3Dで見る"
+                                >
+                                    <Box className="w-6 h-6 text-teal-600" />
+                                </button>
                             ) : (
                                 <div
                                     role={file.fileType === 'pdf' ? 'button' : undefined}
@@ -491,7 +534,15 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                             {/* ファイル情報 */}
                             <div className="flex-1 min-w-0">
                                 {file.signedUrl ? (
-                                    file.fileType === 'pdf' ? (
+                                    file.fileType === '3d' ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setViewer3d({ url: file.signedUrl!, fileName: file.fileName })}
+                                            className="text-sm font-medium text-teal-700 hover:underline truncate block text-left w-full"
+                                        >
+                                            {file.fileName}（3Dで見る）
+                                        </button>
+                                    ) : file.fileType === 'pdf' ? (
                                         <button
                                             type="button"
                                             onClick={() => setPdfPreview({ url: file.signedUrl!, fileName: file.fileName })}
@@ -555,7 +606,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                         type="button"
                                         onClick={() => handleDownload(file)}
                                         className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-slate-50 rounded transition-colors"
-                                        title={file.originalStoragePath ? '元画像をダウンロード' : 'ダウンロード'}
+                                        title={file.originalStoragePath ? '元ファイルをダウンロード' : 'ダウンロード'}
                                     >
                                         <Download className="w-4 h-4" />
                                     </button>
@@ -596,6 +647,15 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                     url={pdfPreview.url}
                     fileName={pdfPreview.fileName}
                     onClose={() => setPdfPreview(null)}
+                />
+            )}
+
+            {/* 3Dパースビューア */}
+            {viewer3d && (
+                <Scaffold3DViewer
+                    url={viewer3d.url}
+                    fileName={viewer3d.fileName}
+                    onClose={() => setViewer3d(null)}
                 />
             )}
         </div>

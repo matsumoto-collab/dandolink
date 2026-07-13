@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { FileText, Folder, X, Download, Loader2 } from 'lucide-react';
+import { FileText, Folder, X, Download, Loader2, Box } from 'lucide-react';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
@@ -14,12 +14,19 @@ const PdfViewer = dynamic(
     { ssr: false }
 );
 
+// 3Dビューア（three.js）は開いた時だけ読み込む
+const Scaffold3DViewer = dynamic(
+    () => import('@/components/ui/Scaffold3DViewer').then(m => m.Scaffold3DViewer),
+    { ssr: false }
+);
+
 const ALL_CATEGORIES = [
     { key: 'survey', label: '現調写真' },
     { key: 'assembly', label: '組立' },
     { key: 'demolition', label: '解体' },
     { key: 'other', label: 'その他' },
     { key: 'instruction', label: '指示書/図面' },
+    { key: 'perspective', label: 'パース(3D)' },
     { key: 'document', label: '書類', adminOnly: true },
 ] as const;
 
@@ -63,6 +70,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [pdfView, setPdfView] = useState<{ url: string; name: string } | null>(null);
+    const [viewer3d, setViewer3d] = useState<{ url: string; name: string } | null>(null);
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
     /**
@@ -234,6 +242,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                             {selectedGroups.map((group) => {
                                 const groupImages = group.files.filter(f => f.fileType === 'image' && f.signedUrl);
                                 const groupPdfs = group.files.filter(f => f.fileType === 'pdf');
+                                const group3d = group.files.filter(f => f.fileType === '3d');
                                 return (
                                     <div key={group.key} className="space-y-2">
                                         {/* 見出し: 日時 + 保存者 */}
@@ -275,6 +284,45 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                                                         </button>
                                                     );
                                                 })}
+                                            </div>
+                                        )}
+
+                                        {/* 3Dパースリスト（タップで3Dビューア） */}
+                                        {group3d.length > 0 && (
+                                            <div className="space-y-2">
+                                                {group3d.map(file => (
+                                                    <div
+                                                        key={file.id}
+                                                        className="w-full flex items-center gap-3 p-3 bg-teal-50/60 rounded-xl border border-teal-200 min-h-[56px]"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => file.signedUrl && setViewer3d({ url: file.signedUrl, name: file.fileName })}
+                                                            className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+                                                        >
+                                                            <div className="w-10 h-10 flex items-center justify-center bg-white rounded-lg border border-teal-200 shrink-0">
+                                                                <Box className="w-5 h-5 text-teal-600" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium text-teal-800 truncate">{file.fileName}</p>
+                                                                <p className="text-xs text-teal-600/70 mt-0.5">タップして3Dで見る ・ {formatFileSize(file.fileSize)}</p>
+                                                            </div>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDownload(file)}
+                                                            disabled={downloadingId === file.id}
+                                                            className="shrink-0 p-2 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-50"
+                                                            title="元のDXFをダウンロード"
+                                                        >
+                                                            {downloadingId === file.id ? (
+                                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                            ) : (
+                                                                <Download className="w-5 h-5" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
 
@@ -330,6 +378,15 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                     url={pdfView.url}
                     fileName={pdfView.name}
                     onClose={() => setPdfView(null)}
+                />
+            )}
+
+            {/* 3Dパースビューア */}
+            {viewer3d && (
+                <Scaffold3DViewer
+                    url={viewer3d.url}
+                    fileName={viewer3d.name}
+                    onClose={() => setViewer3d(null)}
                 />
             )}
 
