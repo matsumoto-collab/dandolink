@@ -231,12 +231,15 @@ export default function DispatchConfirmModal({
         const parentCompanyName =
             worker.role === 'partner_member' ? (worker.company?.displayName ?? null) : null;
 
-        // 未選択かつ休暇 → 淡い赤で休暇中を明示（選択は可能。選択中は通常の選択色＋休暇バッジ）
+        // 未選択時はカード全体で状態を示す（バッジだけだと見落とすため）:
+        // 休暇=淡い赤 ＞ 他案件で手配済み=淡い琥珀 ＞ 空き=白。いずれも選択は可能。
         const chipClass = isSelected
             ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
             : isOnVacation
                 ? 'bg-rose-50 text-slate-400 border-2 border-rose-200 hover:border-rose-300'
-                : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50';
+                : teams
+                    ? 'bg-amber-50 text-slate-500 border-2 border-amber-300 hover:border-amber-400'
+                    : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50';
 
         return (
             <button
@@ -470,6 +473,12 @@ export default function DispatchConfirmModal({
                                         </span>
                                     </div>
                                 </div>
+                                {workerTeamMap.size > 0 && (
+                                    <p className="mb-2 text-[11px] text-slate-400">
+                                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-300 align-[-1px] mr-1" />
+                                        オレンジ＝同日の他案件で手配済み（バッジは手配先の班）
+                                    </p>
+                                )}
                                 {workers.length === 0 ? (
                                     <p className="text-center text-slate-500 py-6 border border-slate-200 rounded-xl">
                                         ユーザー管理または協力会社からメンバーを追加してください
@@ -547,15 +556,22 @@ export default function DispatchConfirmModal({
                                             const plannedTeams = vehiclePlannedTeamMap.get(vehicle.id);
                                             const isSelected = selectedVehicleIds.includes(vehicle.id);
 
+                                            // メンバーと同じく未選択時はカード全体で状態を示す:
+                                            // 他班確定済み=淡い琥珀 ＞ 他班予定のみ=淡い水色 ＞ 空き=白
+                                            const vehicleChipClass = isSelected
+                                                ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
+                                                : teams
+                                                    ? 'bg-amber-50 text-slate-500 border-2 border-amber-300 hover:border-amber-400'
+                                                    : plannedTeams
+                                                        ? 'bg-sky-50 text-slate-500 border-2 border-sky-300 hover:border-sky-400'
+                                                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50';
+
                                             return (
                                                 <button
                                                     key={vehicle.id}
                                                     type="button"
                                                     onClick={() => handleVehicleToggle(vehicle.id)}
-                                                    className={`relative flex items-center justify-center gap-1.5 px-3 min-h-[52px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${isSelected
-                                                        ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
-                                                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
-                                                        }`}
+                                                    className={`relative flex items-center justify-center gap-1.5 px-3 min-h-[52px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${vehicleChipClass}`}
                                                 >
                                                     {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
                                                     <span className="truncate">{vehicle.name}</span>
