@@ -1,5 +1,5 @@
 import { EstimateItem } from './estimate';
-import type { PaymentSummary } from '@/lib/invoicePayments';
+import type { InvoicePaymentRecord, PaymentSummary } from '@/lib/invoicePayments';
 
 // 請求項目マスター
 export interface BillingTitle {
@@ -43,6 +43,8 @@ export interface Invoice {
     projectMasters?: Array<{ id: string; title: string }>;
     // 入金サマリ（一覧APIが付与。パターンA＝未収の見える化。利益計算には非関与）
     paymentSummary?: PaymentSummary;
+    // 入金履歴（一覧APIが付与。入金日昇順。一覧のホバー表示用）
+    payments?: InvoicePaymentRecord[];
 }
 
 // 請求書作成時の入力データ

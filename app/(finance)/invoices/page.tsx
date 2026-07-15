@@ -18,6 +18,7 @@ import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { PaymentStatusBadge } from '@/components/Invoices/PaymentStatusBadge';
 import { paymentStatusLabel, todayYmd } from '@/lib/invoicePayments';
 import InvoicePaymentQuickPopover, { type PaymentPopoverAnchor } from '@/components/Invoices/InvoicePaymentQuickPopover';
+import InvoicePaymentHistoryHover from '@/components/Invoices/InvoicePaymentHistoryHover';
 import { logger } from '@/lib/logger';
 import { matchesSearch } from '@/utils/searchNormalize';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
@@ -647,18 +648,19 @@ export default function InvoiceListPage() {
                                         ¥{invoice.total.toLocaleString()}
                                     </div>
 
-                                    {/* 入金状況（タップでその場から入金を登録） */}
+                                    {/* 入金状況（タップでその場から入金を登録・ホバーで入金履歴） */}
                                     <div className="mb-3">
-                                        <button
-                                            type="button"
-                                            onClick={(e) => { e.stopPropagation(); handleOpenPaymentPopover(invoice, e.currentTarget); }}
-                                            className="inline-flex items-center gap-1.5 -mx-1.5 px-1.5 py-1 rounded-lg hover:bg-slate-100 active:bg-slate-100 transition-colors"
-                                            title="入金を登録・確認"
-                                            aria-label="入金を登録・確認"
-                                        >
-                                            <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
-                                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                        </button>
+                                        <InvoicePaymentHistoryHover payments={invoice.payments} summary={invoice.paymentSummary}>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); handleOpenPaymentPopover(invoice, e.currentTarget); }}
+                                                className="inline-flex items-center gap-1.5 -mx-1.5 px-1.5 py-1 rounded-lg hover:bg-slate-100 active:bg-slate-100 transition-colors"
+                                                aria-label="入金を登録・確認"
+                                            >
+                                                <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
+                                                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                            </button>
+                                        </InvoicePaymentHistoryHover>
                                     </div>
 
                                     {/* ステータス（一覧から直接変更可）と支払期限 */}
@@ -772,16 +774,17 @@ export default function InvoiceListPage() {
                                             ¥{invoice.total.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <button
-                                                type="button"
-                                                onClick={(e) => { e.stopPropagation(); handleOpenPaymentPopover(invoice, e.currentTarget); }}
-                                                className="group/pay inline-flex items-center gap-1.5 -mx-2 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors"
-                                                title="入金を登録・確認"
-                                                aria-label="入金を登録・確認"
-                                            >
-                                                <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
-                                                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover/pay:text-slate-600" />
-                                            </button>
+                                            <InvoicePaymentHistoryHover payments={invoice.payments} summary={invoice.paymentSummary}>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleOpenPaymentPopover(invoice, e.currentTarget); }}
+                                                    className="group/pay inline-flex items-center gap-1.5 -mx-2 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors"
+                                                    aria-label="入金を登録・確認"
+                                                >
+                                                    <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
+                                                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover/pay:text-slate-600" />
+                                                </button>
+                                            </InvoicePaymentHistoryHover>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <StatusPillSelect
