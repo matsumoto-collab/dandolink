@@ -25,6 +25,19 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
     return (w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null) as (new () => SpeechRecognitionLike) | null;
 }
 
+// iOS では webkitSpeechRecognition が「存在するのに正常動作しない」（セッションが固まり
+// タッチ入力まで塞ぐ・PWAでは権限プロンプトも出ない）事例があるため使わない。
+// iPhone/iPad はキーボード標準の音声入力（🎤）が確実に動くのでそちらを案内する。
+function detectIOS(): boolean {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent;
+    const iPadOS = navigator.platform === 'MacIntel' && ((navigator as unknown as { maxTouchPoints?: number }).maxTouchPoints ?? 0) > 1;
+    return /iPhone|iPad|iPod/.test(ua) || iPadOS;
+}
+
+/** 聞き取り開始後、結果も終了イベントも来ないまま固まったら強制解除するまでの時間 */
+const SPEECH_WATCHDOG_MS = 12000;
+
 /**
  * スケジュールAI照会（設計書 §6）。
  *
@@ -52,46 +65,95 @@ export default function AiAssistantView() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // 音声入力（対応ブラウザのみ。SSRとの不一致を避けるためマウント後に判定）
+    // 音声入力（対応ブラウザのみ・iOSは除外。SSRとの不一致を避けるためマウント後に判定）
     const [speechSupported, setSpeechSupported] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-    useEffect(() => {
-        setSpeechSupported(getSpeechRecognitionCtor() !== null);
-        return () => recognitionRef.current?.abort();
+    const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // 認識を確実に終了させ UI を解放する（onend が来ない環境でも固まらないように）
+    const stopListening = useCallback((mode: 'stop' | 'abort' = 'abort') => {
+        if (watchdogRef.current) {
+            clearTimeout(watchdogRef.current);
+            watchdogRef.current = null;
+        }
+        const rec = recognitionRef.current;
+        recognitionRef.current = null;
+        if (rec) {
+            rec.onresult = null;
+            rec.onend = null;
+            rec.onerror = null;
+            try {
+                if (mode === 'stop') rec.stop();
+                else rec.abort();
+            } catch {
+                // すでに終了している等は無視
+            }
+        }
+        setIsListening(false);
     }, []);
+
+    useEffect(() => {
+        setSpeechSupported(getSpeechRecognitionCtor() !== null && !detectIOS());
+        // 画面を離れた/バックグラウンドに回ったら必ず解放
+        const onVisibility = () => {
+            if (document.visibilityState === 'hidden') stopListening();
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibility);
+            stopListening();
+        };
+    }, [stopListening]);
+
+    // 無反応のまま固まる環境対策: 一定時間 結果も終了も来なければ強制解除
+    const armWatchdog = useCallback(() => {
+        if (watchdogRef.current) clearTimeout(watchdogRef.current);
+        watchdogRef.current = setTimeout(() => {
+            stopListening();
+            toast('音声を聞き取れませんでした。もう一度お試しください');
+        }, SPEECH_WATCHDOG_MS);
+    }, [stopListening]);
 
     const toggleVoiceInput = useCallback(() => {
         if (isListening) {
-            recognitionRef.current?.stop();
+            stopListening('stop');
             return;
         }
         const Ctor = getSpeechRecognitionCtor();
         if (!Ctor) return;
-        const rec = new Ctor();
-        rec.lang = 'ja-JP';
-        rec.interimResults = true; // 聞き取り途中の文字もリアルタイムで入力欄に流す
-        rec.continuous = false;    // 発話が途切れたら自動で停止
-        rec.onresult = (e) => {
-            const transcript = Array.from({ length: e.results.length }, (_, i) => e.results[i]?.[0]?.transcript ?? '').join('');
-            setInput(transcript);
-        };
-        rec.onend = () => setIsListening(false);
-        rec.onerror = (e) => {
-            setIsListening(false);
-            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-                toast.error('マイクの使用が許可されていません。ブラウザの設定を確認してください');
-            } else if (e.error === 'no-speech') {
-                toast('音声が聞き取れませんでした。もう一度お試しください');
-            } else if (e.error !== 'aborted') {
-                toast.error('音声入力でエラーが発生しました');
-            }
-        };
-        recognitionRef.current = rec;
-        setInput('');
-        rec.start();
-        setIsListening(true);
-    }, [isListening]);
+        try {
+            const rec = new Ctor();
+            rec.lang = 'ja-JP';
+            rec.interimResults = true; // 聞き取り途中の文字もリアルタイムで入力欄に流す
+            rec.continuous = false;    // 発話が途切れたら自動で停止
+            rec.onresult = (e) => {
+                const transcript = Array.from({ length: e.results.length }, (_, i) => e.results[i]?.[0]?.transcript ?? '').join('');
+                setInput(transcript);
+                armWatchdog(); // 結果が流れている間は延命
+            };
+            rec.onend = () => stopListening();
+            rec.onerror = (e) => {
+                stopListening();
+                if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+                    toast.error('マイクの使用が許可されていません。ブラウザの設定を確認してください');
+                } else if (e.error === 'no-speech') {
+                    toast('音声が聞き取れませんでした。もう一度お試しください');
+                } else if (e.error !== 'aborted') {
+                    toast.error('音声入力でエラーが発生しました');
+                }
+            };
+            recognitionRef.current = rec;
+            setInput('');
+            rec.start();
+            setIsListening(true);
+            armWatchdog();
+        } catch (err) {
+            logger.error('[AiAssistant] 音声入力の開始に失敗', err);
+            stopListening();
+            toast.error('この端末では音声入力を開始できませんでした');
+        }
+    }, [isListening, stopListening, armWatchdog]);
 
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -102,8 +164,7 @@ export default function AiAssistantView() {
         if (!question || isLoading) return;
 
         // 聞き取り中に送信されたら認識を止める
-        recognitionRef.current?.abort();
-        setIsListening(false);
+        stopListening();
 
         const history = messages.slice(-10);
         setMessages((prev) => [...prev, { role: 'user', content: question }]);
@@ -129,7 +190,7 @@ export default function AiAssistantView() {
             setIsLoading(false);
             inputRef.current?.focus();
         }
-    }, [messages, isLoading]);
+    }, [messages, isLoading, stopListening]);
 
     return (
         <div className="h-full flex flex-col max-w-3xl mx-auto w-full">
