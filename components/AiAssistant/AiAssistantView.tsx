@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, Send, Mic, Square } from 'lucide-react';
+import { Sparkles, Send, Mic, Square, Volume2, VolumeX } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 
@@ -37,6 +37,19 @@ function detectIOS(): boolean {
 
 /** 聞き取り開始後、結果も終了イベントも来ないまま固まったら強制解除するまでの時間 */
 const SPEECH_WATCHDOG_MS = 12000;
+
+/** 自動読み上げ設定の保存キー */
+const AUTO_SPEAK_STORAGE_KEY = 'dandolink:aiAssistant:autoSpeak';
+
+/** 読み上げ用にテキストを整える（万一残った記号の除去・括弧の参考情報は読まない） */
+function toSpeechText(text: string): string {
+    return text
+        .replace(/[*#`_~]/g, '')
+        .replace(/（参考[^）]*）|\(参考[^)]*\)/g, '')
+        .replace(/・/g, '。')
+        .replace(/\n+/g, '。')
+        .replace(/。{2,}/g, '。');
+}
 
 /**
  * スケジュールAI照会（設計書 §6）。
@@ -93,18 +106,71 @@ export default function AiAssistantView() {
         setIsListening(false);
     }, []);
 
+    // 音声読み上げ（SpeechSynthesis。認識と違い iOS でも安定して動く）
+    const [speakSupported, setSpeakSupported] = useState(false);
+    const [autoSpeak, setAutoSpeak] = useState(false);
+    const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+
+    const stopSpeaking = useCallback(() => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
+        setSpeakingIndex(null);
+    }, []);
+
+    /** index 番目のメッセージを読み上げる。同じものをもう一度押すと停止 */
+    const speak = useCallback((text: string, index: number) => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+        if (speakingIndex === index) {
+            stopSpeaking();
+            return;
+        }
+        const synth = window.speechSynthesis;
+        synth.cancel();
+        const utterance = new SpeechSynthesisUtterance(toSpeechText(text));
+        utterance.lang = 'ja-JP';
+        utterance.rate = 1.05;
+        utterance.onend = () => setSpeakingIndex(null);
+        utterance.onerror = () => setSpeakingIndex(null);
+        setSpeakingIndex(index);
+        synth.speak(utterance);
+    }, [speakingIndex, stopSpeaking]);
+
+    const toggleAutoSpeak = useCallback(() => {
+        setAutoSpeak((prev) => {
+            const next = !prev;
+            try {
+                localStorage.setItem(AUTO_SPEAK_STORAGE_KEY, next ? '1' : '0');
+            } catch {
+                // プライベートモード等で保存できなくても動作は継続
+            }
+            if (!next) stopSpeaking();
+            return next;
+        });
+    }, [stopSpeaking]);
+
     useEffect(() => {
         setSpeechSupported(getSpeechRecognitionCtor() !== null && !detectIOS());
+        setSpeakSupported(typeof window !== 'undefined' && 'speechSynthesis' in window);
+        try {
+            setAutoSpeak(localStorage.getItem(AUTO_SPEAK_STORAGE_KEY) === '1');
+        } catch {
+            // localStorage 不可なら既定OFFのまま
+        }
         // 画面を離れた/バックグラウンドに回ったら必ず解放
         const onVisibility = () => {
-            if (document.visibilityState === 'hidden') stopListening();
+            if (document.visibilityState === 'hidden') {
+                stopListening();
+                stopSpeaking();
+            }
         };
         document.addEventListener('visibilitychange', onVisibility);
         return () => {
             document.removeEventListener('visibilitychange', onVisibility);
             stopListening();
+            stopSpeaking();
         };
-    }, [stopListening]);
+    }, [stopListening, stopSpeaking]);
 
     // 無反応のまま固まる環境対策: 一定時間 結果も終了も来なければ強制解除
     const armWatchdog = useCallback(() => {
@@ -182,7 +248,12 @@ export default function AiAssistantView() {
             }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            setMessages((prev) => [...prev, { role: 'assistant', content: String(data.answer ?? '') }]);
+            const answer = String(data.answer ?? '');
+            setMessages((prev) => [...prev, { role: 'assistant', content: answer }]);
+            // 自動読み上げON: 追加される応答の位置は「送信前の件数 + ユーザー発言1 + 応答」の末尾
+            if (autoSpeak && answer) {
+                speak(answer, messages.length + 1);
+            }
         } catch (e) {
             logger.error('[AiAssistant] 照会に失敗', e);
             setMessages((prev) => [...prev, { role: 'assistant', content: 'エラーが発生しました。時間をおいてもう一度お試しください。' }]);
@@ -190,7 +261,7 @@ export default function AiAssistantView() {
             setIsLoading(false);
             inputRef.current?.focus();
         }
-    }, [messages, isLoading, stopListening]);
+    }, [messages, isLoading, stopListening, autoSpeak, speak]);
 
     return (
         <div className="h-full flex flex-col max-w-3xl mx-auto w-full">
@@ -225,13 +296,35 @@ export default function AiAssistantView() {
                         {messages.map((m, i) => (
                             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                 <div
-                                    className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+                                    className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm ${
                                         m.role === 'user'
                                             ? 'bg-teal-600 text-white rounded-br-md'
                                             : 'bg-white border border-slate-200 text-slate-800 rounded-bl-md shadow-sm'
                                     }`}
                                 >
-                                    {m.content}
+                                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                                    {m.role === 'assistant' && speakSupported && (
+                                        <button
+                                            type="button"
+                                            onClick={() => speak(m.content, i)}
+                                            className={`mt-1.5 flex items-center gap-1 text-[11px] transition-colors ${
+                                                speakingIndex === i ? 'text-teal-600 font-medium' : 'text-slate-400 hover:text-slate-600'
+                                            }`}
+                                            aria-label={speakingIndex === i ? '読み上げを停止' : '音声で聞く'}
+                                        >
+                                            {speakingIndex === i ? (
+                                                <>
+                                                    <Square className="w-3 h-3" />
+                                                    停止
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Volume2 className="w-3 h-3" />
+                                                    音声で聞く
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -252,6 +345,23 @@ export default function AiAssistantView() {
 
             {/* 入力欄 */}
             <div className="flex-shrink-0 border-t border-slate-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+                {speakSupported && (
+                    <div className="flex justify-end mb-1.5">
+                        <button
+                            type="button"
+                            onClick={toggleAutoSpeak}
+                            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                                autoSpeak
+                                    ? 'border-teal-300 bg-teal-50 text-teal-700'
+                                    : 'border-slate-200 text-slate-400 hover:text-slate-600'
+                            }`}
+                            aria-label="回答の自動読み上げを切り替え"
+                        >
+                            {autoSpeak ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                            自動読み上げ{autoSpeak ? 'ON' : 'OFF'}
+                        </button>
+                    </div>
+                )}
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
