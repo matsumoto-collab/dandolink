@@ -1,10 +1,12 @@
-import { getCrewAvailability, getFloating, STANDARD_HOURS } from '@/lib/crewAvailability';
+import { getCrewAvailability, getCrewAvailabilitySummaryRange, getFloating, STANDARD_HOURS } from '@/lib/crewAvailability';
 import { prisma } from '@/lib/prisma';
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma> & {
     projectAssignment: { findMany: jest.Mock };
     systemSettings: { findUnique: jest.Mock };
-    vacationRecord: { findUnique: jest.Mock };
+    vacationRecord: { findUnique: jest.Mock; findMany: jest.Mock };
+    memberAdjustment: { findUnique: jest.Mock; findMany: jest.Mock };
+    memberCountHistory: { findMany: jest.Mock };
     user: { findMany: jest.Mock };
 };
 
@@ -20,8 +22,11 @@ describe('getCrewAvailability', () => {
         jest.clearAllMocks();
         mockPrisma.systemSettings.findUnique.mockResolvedValue({
             displayedForemanIds: JSON.stringify(['f1', 'f2']),
+            totalMembers: 20,
         });
         mockPrisma.vacationRecord.findUnique.mockResolvedValue(null);
+        mockPrisma.memberAdjustment.findUnique.mockResolvedValue(null);
+        mockPrisma.memberCountHistory.findMany.mockResolvedValue([]);
         // loadForemen 用と owners 解決用の user.findMany を順不同で捌く
         mockPrisma.user.findMany.mockImplementation(async (args: { where?: { id?: { in?: string[] } } }) => {
             const ids: string[] = args?.where?.id?.in ?? [];
@@ -105,6 +110,32 @@ describe('getCrewAvailability', () => {
         expect(result.teams.every((t) => t.usedMembers === 0)).toBe(true);
     });
 
+    it('summary: 残り人数 = 総メンバー数 − 使用人数（班ごと最大＋浮き）− 休暇', async () => {
+        mockPrisma.memberCountHistory.findMany.mockResolvedValue([
+            { startDate: new Date('2026-01-01T00:00:00.000Z'), count: 18 },
+        ]);
+        mockPrisma.memberAdjustment.findUnique.mockResolvedValue({ adjustment: 2 });
+        mockPrisma.vacationRecord.findUnique.mockResolvedValue({ employeeIds: JSON.stringify(['x1', 'x2', 'x3']) });
+        mockPrisma.projectAssignment.findMany.mockResolvedValue([
+            // 同じ班の掛け持ちは最大値（3人と2人 → 3人）
+            { assignedEmployeeId: 'f1', estimatedHours: 4, memberCount: 3, dateStatus: 'confirmed', confirmDueDate: null, remarks: null, projectMaster: pm('A') },
+            { assignedEmployeeId: 'f1', estimatedHours: 4, memberCount: 2, dateStatus: 'confirmed', confirmDueDate: null, remarks: null, projectMaster: pm('B') },
+            // 浮きは単純加算
+            { assignedEmployeeId: 'unassigned', estimatedHours: 8, memberCount: 4, dateStatus: 'confirmed', confirmDueDate: null, remarks: null, projectMaster: pm('C') },
+        ]);
+
+        const result = await getCrewAvailability('2026-08-05');
+        // total = 18 + 調整2 = 20 / used = max(3,2) + 浮き4 = 7 / 休暇3 → 残り10
+        expect(result.summary).toMatchObject({
+            totalMembers: 20,
+            usedMembers: 7,
+            vacationMembers: 3,
+            remainingMembers: 10,
+        });
+        // 班別の usedMembers も最大値規約
+        expect(result.teams.find((t) => t.team === '山田')!.usedMembers).toBe(3);
+    });
+
     it('予定合計が8時間を超えたら空きは0（マイナスにしない）、休みの班は off', async () => {
         mockPrisma.vacationRecord.findUnique.mockResolvedValue({
             employeeIds: JSON.stringify(['f2']),
@@ -137,6 +168,35 @@ describe('getCrewAvailability', () => {
 
         const tanaka = result.teams.find((t) => t.team === '田中')!;
         expect(tanaka.status).toBe('off');
+    });
+});
+
+describe('getCrewAvailabilitySummaryRange', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockPrisma.systemSettings.findUnique.mockResolvedValue({ totalMembers: 20 });
+        mockPrisma.memberCountHistory.findMany.mockResolvedValue([]);
+        mockPrisma.vacationRecord.findMany.mockResolvedValue([]);
+        mockPrisma.memberAdjustment.findMany.mockResolvedValue([]);
+    });
+
+    it('日ごとのサマリを日数分返す（配置がない日も残り人数=総数）', async () => {
+        mockPrisma.projectAssignment.findMany.mockResolvedValue([
+            // JST 8/2 0時 = UTC 8/1 15:00
+            { date: new Date('2026-08-01T15:00:00.000Z'), assignedEmployeeId: 'f1', memberCount: 5, dateStatus: 'confirmed' },
+        ]);
+
+        const result = await getCrewAvailabilitySummaryRange('2026-08-01', '2026-08-03');
+        expect(result).toHaveLength(3);
+        expect(result[0]).toMatchObject({ date: '2026-08-01', remainingMembers: 20 });
+        expect(result[1]).toMatchObject({ date: '2026-08-02', usedMembers: 5, remainingMembers: 15 });
+        expect(result[2]).toMatchObject({ date: '2026-08-03', remainingMembers: 20 });
+    });
+
+    it('期間は最大14日にクランプされる', async () => {
+        mockPrisma.projectAssignment.findMany.mockResolvedValue([]);
+        const result = await getCrewAvailabilitySummaryRange('2026-08-01', '2026-09-30');
+        expect(result).toHaveLength(14);
     });
 });
 

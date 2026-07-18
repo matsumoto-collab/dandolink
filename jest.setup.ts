@@ -203,6 +203,14 @@ jest.mock('@/lib/prisma', () => ({
             upsert: jest.fn(),
             deleteMany: jest.fn(),
         },
+        memberAdjustment: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            upsert: jest.fn(),
+        },
+        memberCountHistory: {
+            findMany: jest.fn().mockResolvedValue([]),
+        },
         projectBillingDecision: {
             findMany: jest.fn(),
             findUnique: jest.fn(),

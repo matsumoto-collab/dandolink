@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { requireAuth, errorResponse, serverErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
 import { getAnthropic, SCHEDULE_AI_MODEL } from '@/lib/anthropic';
-import { getCrewAvailability, getFloating } from '@/lib/crewAvailability';
+import { getCrewAvailability, getCrewAvailabilitySummaryRange, getFloating } from '@/lib/crewAvailability';
 import { logger } from '@/lib/logger';
 
 export const maxDuration = 60;
@@ -22,13 +22,26 @@ const TOOLS: Anthropic.Tool[] = [
     {
         name: 'get_crew_availability',
         description:
-            '指定日の班別空き状況を取得する。各班の予定（現場名・時間・人数・確定/仮・確認予定日・担当者）、空き時間、仮予定が動けば浮かせられる人数（negotiableMembers）、その日の浮き（班未定の仕事）を返す。',
+            '指定日1日の詳細を取得する。summary（総メンバー数・使用人数・休暇・残り人数=余っている人数）、各班の予定（現場名・時間・人数・確定/仮・確認予定日・担当者）、仮予定が動けば浮かせられる人数（negotiableMembers）、その日の浮き（班未定の仕事）を返す。',
         input_schema: {
             type: 'object' as const,
             properties: {
                 date: { type: 'string', description: '対象日 YYYY-MM-DD（JST）' },
             },
             required: ['date'],
+        },
+    },
+    {
+        name: 'get_crew_availability_summary_range',
+        description:
+            '期間内の日ごとの人数サマリを取得する。各日の totalMembers（総メンバー数）・usedMembers（配置済み）・vacationMembers（休暇）・remainingMembers（余っている人数）・negotiableMembers・浮き件数を返す。「余っている人数」「残り人数」「空いている人数」「直近の空き」など人数の質問はまずこれを使う（最大14日）。',
+        input_schema: {
+            type: 'object' as const,
+            properties: {
+                startDate: { type: 'string', description: '開始日 YYYY-MM-DD（省略時=今日）' },
+                endDate: { type: 'string', description: '終了日 YYYY-MM-DD（省略時=開始日から7日間）' },
+            },
+            required: [],
         },
     },
     {
@@ -60,9 +73,15 @@ function buildSystemPrompt(): string {
 今日は ${jst}（${isoToday}）です。「明日」「来週の水曜」などの相対的な日付はこれを基準に解釈してください。年の指定がない日付は直近の未来と解釈します。
 
 用語:
+- 「余っている人数」「残り人数」「空いている人数」= remainingMembers（総メンバー数 − 配置で使っている人数 − 休暇の人数）。人数の質問には必ずツールの remainingMembers を使い、自分で計算しない。マイナスの場合は「入れすぎ（人手不足）」。
+- 「直近」「ここ最近」= 今日から7日間と解釈して get_crew_availability_summary_range を呼ぶ（確認の聞き返しは不要）。
 - 「仮予定」= 先方未確定のまま経験則で仮押さえした予定（dateStatus=tentative）。動かせる可能性があるが、動かすには先方への確認が必要な場合がある。
 - 「浮いている／浮き」= 班が決まっていない仕事（未充足の需要）。dateStatus=tentative の浮きは日付自体も仮。
-- negotiableMembers = その班の仮予定が動けば浮かせられる人数。
+- negotiableMembers = 仮予定が動けば浮かせられる人数。
+
+人数サマリの答え方の例（1日1行・remainingMembers を主役に）:
+「・7/22(水): 残り3人（20人中、配置15人・休暇2人）」
+残りが0以下の日は「満員」「◯人超過」と言う。日ごとの差が分かるよう並べて示す。
 
 厳守するルール:
 1. 数字（空き時間・人数・件数）は必ずツールの結果をそのまま使う。自分で計算・推測・補完しない。データにない日付や班について答えない。
@@ -80,6 +99,13 @@ async function runTool(name: string, input: Record<string, unknown>): Promise<st
         const date = String(input.date ?? '');
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return JSON.stringify({ error: 'date は YYYY-MM-DD 形式で指定してください' });
         return JSON.stringify(await getCrewAvailability(date));
+    }
+    if (name === 'get_crew_availability_summary_range') {
+        const startDate = input.startDate ? String(input.startDate) : undefined;
+        const endDate = input.endDate ? String(input.endDate) : undefined;
+        if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return JSON.stringify({ error: 'startDate は YYYY-MM-DD 形式で指定してください' });
+        if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return JSON.stringify({ error: 'endDate は YYYY-MM-DD 形式で指定してください' });
+        return JSON.stringify(await getCrewAvailabilitySummaryRange(startDate, endDate));
     }
     if (name === 'get_floating') {
         const startDate = input.startDate ? String(input.startDate) : undefined;
