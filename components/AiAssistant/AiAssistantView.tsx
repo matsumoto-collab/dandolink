@@ -71,11 +71,95 @@ const QUICK_QUESTIONS = [
     '今浮いている現場はある？',
 ];
 
-export default function AiAssistantView() {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+/**
+ * メッセージ一覧（会話ログ＋ローディング表示）。
+ * 入力欄のタイピングや音声認識の途中結果では再描画しないよう React.memo で分離。
+ * 親の再レンダー（messages / isLoading / speakingIndex 等の変化）時のみ更新される。
+ */
+const MessageList = React.memo(function MessageList({
+    messages,
+    isLoading,
+    speakSupported,
+    speakingIndex,
+    onSpeak,
+}: {
+    messages: ChatMessage[];
+    isLoading: boolean;
+    speakSupported: boolean;
+    speakingIndex: number | null;
+    onSpeak: (text: string, index: number) => void;
+}) {
+    return (
+        <div className="space-y-3">
+            {messages.map((m, i) => (
+                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                        className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm ${
+                            m.role === 'user'
+                                ? 'bg-teal-600 text-white rounded-br-md'
+                                : 'bg-white border border-slate-200 text-slate-800 rounded-bl-md shadow-sm'
+                        }`}
+                    >
+                        <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                        {m.role === 'assistant' && speakSupported && (
+                            <button
+                                type="button"
+                                onClick={() => onSpeak(m.content, i)}
+                                className={`mt-1.5 flex items-center gap-1 text-[11px] transition-colors ${
+                                    speakingIndex === i ? 'text-teal-600 font-medium' : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                                aria-label={speakingIndex === i ? '読み上げを停止' : '音声で聞く'}
+                            >
+                                {speakingIndex === i ? (
+                                    <>
+                                        <Square className="w-3 h-3" />
+                                        停止
+                                    </>
+                                ) : (
+                                    <>
+                                        <Volume2 className="w-3 h-3" />
+                                        音声で聞く
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            ))}
+            {isLoading && (
+                <div className="flex justify-start">
+                    <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-white border border-slate-200 shadow-sm">
+                        <div className="flex gap-1">
+                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+});
+
+/**
+ * 入力欄（自動読み上げトグル・テキスト入力・音声入力・送信）。
+ * input state と音声認識まわりを親から切り離し、タイピングや音声の途中結果で
+ * 親（会話ログ）を再描画させないための子コンポーネント。
+ */
+function ChatInputBar({
+    disabled,
+    onSend,
+    autoSpeak,
+    speakSupported,
+    onToggleAutoSpeak,
+}: {
+    disabled: boolean;
+    onSend: (question: string) => void;
+    autoSpeak: boolean;
+    speakSupported: boolean;
+    onToggleAutoSpeak: () => void;
+}) {
     const [input, setInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     // 音声入力（対応ブラウザのみ・iOSは除外。SSRとの不一致を避けるためマウント後に判定）
@@ -106,71 +190,20 @@ export default function AiAssistantView() {
         setIsListening(false);
     }, []);
 
-    // 音声読み上げ（SpeechSynthesis。認識と違い iOS でも安定して動く）
-    const [speakSupported, setSpeakSupported] = useState(false);
-    const [autoSpeak, setAutoSpeak] = useState(false);
-    const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
-
-    const stopSpeaking = useCallback(() => {
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-        }
-        setSpeakingIndex(null);
-    }, []);
-
-    /** index 番目のメッセージを読み上げる。同じものをもう一度押すと停止 */
-    const speak = useCallback((text: string, index: number) => {
-        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-        if (speakingIndex === index) {
-            stopSpeaking();
-            return;
-        }
-        const synth = window.speechSynthesis;
-        synth.cancel();
-        const utterance = new SpeechSynthesisUtterance(toSpeechText(text));
-        utterance.lang = 'ja-JP';
-        utterance.rate = 1.05;
-        utterance.onend = () => setSpeakingIndex(null);
-        utterance.onerror = () => setSpeakingIndex(null);
-        setSpeakingIndex(index);
-        synth.speak(utterance);
-    }, [speakingIndex, stopSpeaking]);
-
-    const toggleAutoSpeak = useCallback(() => {
-        setAutoSpeak((prev) => {
-            const next = !prev;
-            try {
-                localStorage.setItem(AUTO_SPEAK_STORAGE_KEY, next ? '1' : '0');
-            } catch {
-                // プライベートモード等で保存できなくても動作は継続
-            }
-            if (!next) stopSpeaking();
-            return next;
-        });
-    }, [stopSpeaking]);
-
     useEffect(() => {
         setSpeechSupported(getSpeechRecognitionCtor() !== null && !detectIOS());
-        setSpeakSupported(typeof window !== 'undefined' && 'speechSynthesis' in window);
-        try {
-            setAutoSpeak(localStorage.getItem(AUTO_SPEAK_STORAGE_KEY) === '1');
-        } catch {
-            // localStorage 不可なら既定OFFのまま
-        }
-        // 画面を離れた/バックグラウンドに回ったら必ず解放
+        // 画面を離れた/バックグラウンドに回ったら聞き取りを必ず解放（読み上げ停止は親側で対応）
         const onVisibility = () => {
             if (document.visibilityState === 'hidden') {
                 stopListening();
-                stopSpeaking();
             }
         };
         document.addEventListener('visibilitychange', onVisibility);
         return () => {
             document.removeEventListener('visibilitychange', onVisibility);
             stopListening();
-            stopSpeaking();
         };
-    }, [stopListening, stopSpeaking]);
+    }, [stopListening]);
 
     // 無反応のまま固まる環境対策: 一定時間 結果も終了も来なければ強制解除
     const armWatchdog = useCallback(() => {
@@ -221,6 +254,151 @@ export default function AiAssistantView() {
         }
     }, [isListening, stopListening, armWatchdog]);
 
+    const handleSend = useCallback(() => {
+        const question = input.trim();
+        if (!question || disabled) return;
+        // 聞き取り中に送信されたら認識を止める（旧: 親 send 内にあった処理をここへ移動）
+        stopListening();
+        onSend(question);
+        setInput('');
+        inputRef.current?.focus();
+    }, [input, disabled, stopListening, onSend]);
+
+    return (
+        <div className="flex-shrink-0 border-t border-slate-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+            {speakSupported && (
+                <div className="flex justify-end mb-1.5">
+                    <button
+                        type="button"
+                        onClick={onToggleAutoSpeak}
+                        className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                            autoSpeak
+                                ? 'border-teal-300 bg-teal-50 text-teal-700'
+                                : 'border-slate-200 text-slate-400 hover:text-slate-600'
+                        }`}
+                        aria-label="回答の自動読み上げを切り替え"
+                    >
+                        {autoSpeak ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                        自動読み上げ{autoSpeak ? 'ON' : 'OFF'}
+                    </button>
+                </div>
+            )}
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSend();
+                }}
+                className="flex gap-2"
+            >
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={isListening ? '聞き取り中…話してください' : '例: 8月5日に解体1件（3人）入れたい'}
+                    maxLength={500}
+                    className={`flex-1 min-w-0 px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:border-transparent ${
+                        isListening ? 'border-red-300 ring-2 ring-red-200' : 'border-slate-300 focus:ring-teal-500'
+                    }`}
+                    disabled={disabled}
+                />
+                {speechSupported && (
+                    <button
+                        type="button"
+                        onClick={toggleVoiceInput}
+                        disabled={disabled}
+                        className={`px-3 py-2.5 rounded-xl border transition-colors flex-shrink-0 disabled:opacity-40 ${
+                            isListening
+                                ? 'bg-red-500 border-red-500 text-white animate-pulse'
+                                : 'border-slate-300 text-slate-500 hover:bg-slate-50'
+                        }`}
+                        aria-label={isListening ? '音声入力を停止' : '音声で入力'}
+                        title={isListening ? '音声入力を停止' : '音声で入力'}
+                    >
+                        {isListening ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    </button>
+                )}
+                <button
+                    type="submit"
+                    disabled={disabled || !input.trim()}
+                    className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                    aria-label="送信"
+                >
+                    <Send className="w-4 h-4" />
+                </button>
+            </form>
+        </div>
+    );
+}
+
+export default function AiAssistantView() {
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // 音声読み上げ（SpeechSynthesis。認識と違い iOS でも安定して動く）
+    const [speakSupported, setSpeakSupported] = useState(false);
+    const [autoSpeak, setAutoSpeak] = useState(false);
+    const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+
+    const stopSpeaking = useCallback(() => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
+        setSpeakingIndex(null);
+    }, []);
+
+    /** index 番目のメッセージを読み上げる。同じものをもう一度押すと停止 */
+    const speak = useCallback((text: string, index: number) => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+        if (speakingIndex === index) {
+            stopSpeaking();
+            return;
+        }
+        const synth = window.speechSynthesis;
+        synth.cancel();
+        const utterance = new SpeechSynthesisUtterance(toSpeechText(text));
+        utterance.lang = 'ja-JP';
+        utterance.rate = 1.05;
+        utterance.onend = () => setSpeakingIndex(null);
+        utterance.onerror = () => setSpeakingIndex(null);
+        setSpeakingIndex(index);
+        synth.speak(utterance);
+    }, [speakingIndex, stopSpeaking]);
+
+    const toggleAutoSpeak = useCallback(() => {
+        setAutoSpeak((prev) => {
+            const next = !prev;
+            try {
+                localStorage.setItem(AUTO_SPEAK_STORAGE_KEY, next ? '1' : '0');
+            } catch {
+                // プライベートモード等で保存できなくても動作は継続
+            }
+            if (!next) stopSpeaking();
+            return next;
+        });
+    }, [stopSpeaking]);
+
+    useEffect(() => {
+        setSpeakSupported(typeof window !== 'undefined' && 'speechSynthesis' in window);
+        try {
+            setAutoSpeak(localStorage.getItem(AUTO_SPEAK_STORAGE_KEY) === '1');
+        } catch {
+            // localStorage 不可なら既定OFFのまま
+        }
+        // 画面を離れた/バックグラウンドに回ったら読み上げを必ず停止（聞き取り停止は入力欄側で対応）
+        const onVisibility = () => {
+            if (document.visibilityState === 'hidden') {
+                stopSpeaking();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibility);
+            stopSpeaking();
+        };
+    }, [stopSpeaking]);
+
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }, [messages, isLoading]);
@@ -229,12 +407,10 @@ export default function AiAssistantView() {
         const question = text.trim();
         if (!question || isLoading) return;
 
-        // 聞き取り中に送信されたら認識を止める
-        stopListening();
+        // ※聞き取り中に送信されたら認識を止める処理は ChatInputBar 側へ移動済み
 
         const history = messages.slice(-10);
         setMessages((prev) => [...prev, { role: 'user', content: question }]);
-        setInput('');
         setIsLoading(true);
         try {
             const res = await fetch('/api/ai/availability', {
@@ -259,9 +435,8 @@ export default function AiAssistantView() {
             setMessages((prev) => [...prev, { role: 'assistant', content: 'エラーが発生しました。時間をおいてもう一度お試しください。' }]);
         } finally {
             setIsLoading(false);
-            inputRef.current?.focus();
         }
-    }, [messages, isLoading, stopListening, autoSpeak, speak]);
+    }, [messages, isLoading, autoSpeak, speak]);
 
     return (
         <div className="h-full flex flex-col max-w-3xl mx-auto w-full">
@@ -292,121 +467,24 @@ export default function AiAssistantView() {
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-3">
-                        {messages.map((m, i) => (
-                            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div
-                                    className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm ${
-                                        m.role === 'user'
-                                            ? 'bg-teal-600 text-white rounded-br-md'
-                                            : 'bg-white border border-slate-200 text-slate-800 rounded-bl-md shadow-sm'
-                                    }`}
-                                >
-                                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
-                                    {m.role === 'assistant' && speakSupported && (
-                                        <button
-                                            type="button"
-                                            onClick={() => speak(m.content, i)}
-                                            className={`mt-1.5 flex items-center gap-1 text-[11px] transition-colors ${
-                                                speakingIndex === i ? 'text-teal-600 font-medium' : 'text-slate-400 hover:text-slate-600'
-                                            }`}
-                                            aria-label={speakingIndex === i ? '読み上げを停止' : '音声で聞く'}
-                                        >
-                                            {speakingIndex === i ? (
-                                                <>
-                                                    <Square className="w-3 h-3" />
-                                                    停止
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Volume2 className="w-3 h-3" />
-                                                    音声で聞く
-                                                </>
-                                            )}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                        {isLoading && (
-                            <div className="flex justify-start">
-                                <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-white border border-slate-200 shadow-sm">
-                                    <div className="flex gap-1">
-                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    <MessageList
+                        messages={messages}
+                        isLoading={isLoading}
+                        speakSupported={speakSupported}
+                        speakingIndex={speakingIndex}
+                        onSpeak={speak}
+                    />
                 )}
             </div>
 
             {/* 入力欄 */}
-            <div className="flex-shrink-0 border-t border-slate-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
-                {speakSupported && (
-                    <div className="flex justify-end mb-1.5">
-                        <button
-                            type="button"
-                            onClick={toggleAutoSpeak}
-                            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
-                                autoSpeak
-                                    ? 'border-teal-300 bg-teal-50 text-teal-700'
-                                    : 'border-slate-200 text-slate-400 hover:text-slate-600'
-                            }`}
-                            aria-label="回答の自動読み上げを切り替え"
-                        >
-                            {autoSpeak ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
-                            自動読み上げ{autoSpeak ? 'ON' : 'OFF'}
-                        </button>
-                    </div>
-                )}
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        send(input);
-                    }}
-                    className="flex gap-2"
-                >
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder={isListening ? '聞き取り中…話してください' : '例: 8月5日に解体1件（3人）入れたい'}
-                        maxLength={500}
-                        className={`flex-1 min-w-0 px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:border-transparent ${
-                            isListening ? 'border-red-300 ring-2 ring-red-200' : 'border-slate-300 focus:ring-teal-500'
-                        }`}
-                        disabled={isLoading}
-                    />
-                    {speechSupported && (
-                        <button
-                            type="button"
-                            onClick={toggleVoiceInput}
-                            disabled={isLoading}
-                            className={`px-3 py-2.5 rounded-xl border transition-colors flex-shrink-0 disabled:opacity-40 ${
-                                isListening
-                                    ? 'bg-red-500 border-red-500 text-white animate-pulse'
-                                    : 'border-slate-300 text-slate-500 hover:bg-slate-50'
-                            }`}
-                            aria-label={isListening ? '音声入力を停止' : '音声で入力'}
-                            title={isListening ? '音声入力を停止' : '音声で入力'}
-                        >
-                            {isListening ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                        </button>
-                    )}
-                    <button
-                        type="submit"
-                        disabled={isLoading || !input.trim()}
-                        className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
-                        aria-label="送信"
-                    >
-                        <Send className="w-4 h-4" />
-                    </button>
-                </form>
-            </div>
+            <ChatInputBar
+                disabled={isLoading}
+                onSend={send}
+                autoSpeak={autoSpeak}
+                speakSupported={speakSupported}
+                onToggleAutoSpeak={toggleAutoSpeak}
+            />
         </div>
     );
 }
