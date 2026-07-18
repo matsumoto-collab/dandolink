@@ -192,6 +192,11 @@ jest.mock('@/lib/prisma', () => ({
             findUnique: jest.fn(),
             upsert: jest.fn(),
         },
+        scheduleChangeHistory: {
+            findMany: jest.fn().mockResolvedValue([]),
+            create: jest.fn(),
+            createMany: jest.fn(),
+        },
         vacationRecord: {
             findMany: jest.fn(),
             findUnique: jest.fn(),

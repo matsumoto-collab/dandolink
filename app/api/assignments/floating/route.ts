@@ -4,6 +4,7 @@ import { requireAuth, stringifyJsonField, errorResponse, serverErrorResponse, va
 import { canDispatch } from '@/utils/permissions';
 import { createFloatingAssignmentSchema, validateRequest } from '@/lib/validations';
 import { formatAssignment } from '@/lib/formatters';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/assignments/floating - 浮き（班未定の配置）の新規作成
@@ -51,6 +52,21 @@ export async function POST(req: NextRequest) {
                 assignmentVehicles: true,
             },
         });
+
+        // 変更履歴: 誰がいつ浮きとして登録したかを残す（best-effort）
+        try {
+            await prisma.scheduleChangeHistory.create({
+                data: {
+                    assignmentId: assignment.id,
+                    changedById: session!.user.id,
+                    changeType: 'created',
+                    previousValue: '',
+                    newValue: '浮きとして登録',
+                },
+            });
+        } catch (e) {
+            logger.error('[assignments floating POST] 登録履歴の記録に失敗', e);
+        }
 
         return NextResponse.json(formatAssignment(assignment));
     } catch (error) {

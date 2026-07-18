@@ -21,6 +21,11 @@ import {
 } from '@/lib/scheduleChangeNotify';
 import { notifyUsers } from '@/lib/notifications';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
+import {
+    HISTORY_TRACKED_KEYS,
+    buildAssignmentHistoryEntries,
+    collectHistoryResolutionIds,
+} from '@/lib/assignmentHistory';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -84,12 +89,15 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             return errorResponse('日付確度の値が不正です', 400);
         }
 
+        // foreman2 は限定フィールドのみ更新可（その他は無視してエラーにしない）
+        const allowedForForeman2 = new Set(['meetingTime', 'dispatchRemark', 'sortOrder']);
+        const allowed = (key: string) => !isForeman2 || allowedForForeman2.has(key);
+
         // 楽観的ロック / foreman2オーナーシップ確認 / 変更履歴記録のため現在値をロード
-        // 履歴記録対象: date, assignedEmployeeId, dateStatus 変更時
-        // （仮→確定の切替は「先方に一報を入れた」証跡なので必ず履歴に残す）
-        const willRecordHistory =
-            (body.date !== undefined || body.assignedEmployeeId !== undefined || body.dateStatus !== undefined) &&
-            !isForeman2;
+        // 履歴記録対象: HISTORY_TRACKED_KEYS のいずれかが適用されるとき。
+        // 「誰が・いつ・何を変えたか」を残す（登録者・車両変更・人数変更なども追跡）。
+        // sortOrder（表示順）は雑音になるため記録しない。foreman2 の集合時間/手配備考の変更も記録する。
+        const willRecordHistory = HISTORY_TRACKED_KEYS.some((k) => body[k] !== undefined && allowed(k));
         let current: Awaited<ReturnType<typeof prisma.projectAssignment.findUnique>> = null;
         if (body.expectedUpdatedAt || isForeman2 || willRecordHistory) {
             current = await prisma.projectAssignment.findUnique({
@@ -116,10 +124,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                 return errorResponse('自班の手配のみ編集できます', 403);
             }
         }
-
-        // foreman2 は限定フィールドのみ更新可（その他は無視してエラーにしない）
-        const allowedForForeman2 = new Set(['meetingTime', 'dispatchRemark', 'sortOrder']);
-        const allowed = (key: string) => !isForeman2 || allowedForForeman2.has(key);
 
         const updateData: Record<string, unknown> = {};
         if (body.assignedEmployeeId !== undefined && allowed('assignedEmployeeId')) updateData.assignedEmployeeId = body.assignedEmployeeId;
@@ -169,52 +173,46 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             }
         }
 
-        // 変更履歴記録: date / assignedEmployeeId の変更があったら記録
+        // 変更履歴記録: 誰が・いつ・何を変えたかを残す（差分の検出と整形は lib/assignmentHistory.ts）
         if (current && willRecordHistory) {
-            const historyEntries: Array<{
-                assignmentId: string;
-                changedById: string;
-                changeType: string;
-                previousValue: string;
-                newValue: string;
-            }> = [];
-
-            if (body.date !== undefined) {
-                const prevIso = current.date.toISOString();
-                const newIso = new Date(body.date).toISOString();
-                if (prevIso !== newIso) {
-                    historyEntries.push({
-                        assignmentId: id,
-                        changedById: session!.user.id,
-                        changeType: 'date',
-                        previousValue: prevIso,
-                        newValue: newIso,
+            try {
+                // 適用されないフィールド（foreman2 の制限外など）は diff 対象から除く
+                const trackedBody: Record<string, unknown> = {};
+                for (const k of HISTORY_TRACKED_KEYS) {
+                    if (body[k] !== undefined && allowed(k)) trackedBody[k] = body[k];
+                }
+                const resolveIds = collectHistoryResolutionIds({ current, body: trackedBody });
+                const [historyUsers, historyVehicles, historyTypes] = await Promise.all([
+                    resolveIds.userIds.length
+                        ? prisma.user.findMany({ where: { id: { in: resolveIds.userIds } }, select: { id: true, displayName: true } })
+                        : Promise.resolve([]),
+                    resolveIds.vehicleIds.length
+                        ? prisma.vehicle.findMany({ where: { id: { in: resolveIds.vehicleIds } }, select: { id: true, name: true } })
+                        : Promise.resolve([]),
+                    resolveIds.constructionTypeIds.length
+                        ? prisma.constructionType.findMany({ where: { id: { in: resolveIds.constructionTypeIds } }, select: { id: true, name: true } })
+                        : Promise.resolve([]),
+                ]);
+                const historyEntries = buildAssignmentHistoryEntries({
+                    current,
+                    body: trackedBody,
+                    nameMaps: {
+                        users: new Map(historyUsers.map((u) => [u.id, u.displayName])),
+                        vehicles: new Map(historyVehicles.map((v) => [v.id, v.name])),
+                        constructionTypes: new Map(historyTypes.map((t) => [t.id, t.name])),
+                    },
+                });
+                if (historyEntries.length > 0) {
+                    await prisma.scheduleChangeHistory.createMany({
+                        data: historyEntries.map((e) => ({
+                            assignmentId: id,
+                            changedById: session!.user.id,
+                            ...e,
+                        })),
                     });
                 }
-            }
-
-            if (body.assignedEmployeeId !== undefined && body.assignedEmployeeId !== current.assignedEmployeeId) {
-                historyEntries.push({
-                    assignmentId: id,
-                    changedById: session!.user.id,
-                    changeType: 'foreman',
-                    previousValue: current.assignedEmployeeId,
-                    newValue: body.assignedEmployeeId,
-                });
-            }
-
-            if (body.dateStatus !== undefined && body.dateStatus !== current.dateStatus) {
-                historyEntries.push({
-                    assignmentId: id,
-                    changedById: session!.user.id,
-                    changeType: 'dateStatus',
-                    previousValue: current.dateStatus,
-                    newValue: body.dateStatus,
-                });
-            }
-
-            if (historyEntries.length > 0) {
-                await prisma.scheduleChangeHistory.createMany({ data: historyEntries });
+            } catch (e) {
+                logger.error('[assignments PATCH] 変更履歴の記録に失敗', e);
             }
 
             // 担当職長へ予定変更を即時通知（向こう1週間以内のみ・自己除外・best-effort）

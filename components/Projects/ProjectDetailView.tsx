@@ -12,6 +12,7 @@ import { formatDateKey } from '@/utils/employeeUtils';
 import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
 import ScaffoldingSpecDisplay from '@/components/ProjectMaster/ScaffoldingSpecDisplay';
 import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
+import AssignmentChangeHistory from './AssignmentChangeHistory';
 import WorkStatusReportSection from './WorkStatusReportSection';
 import WorkReportReplyThread, { WorkReportReplyItem } from '@/components/WorkReport/WorkReportReplyThread';
 import { onBroadcast } from '@/lib/broadcastChannel';
@@ -788,6 +789,14 @@ export default function ProjectDetailView({ project, onClose, readOnly = false, 
                         <WorkHistoryDisplay projectMasterId={project.projectMasterId} />
                     </div>
                 )}
+
+                {/* 変更履歴（この予定を誰が・いつ・何を変えたか） */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        変更履歴
+                    </label>
+                    <AssignmentChangeHistory assignmentId={project.id} />
+                </div>
             </div>
 
             {/* 浮きに戻す / 閉じる */}

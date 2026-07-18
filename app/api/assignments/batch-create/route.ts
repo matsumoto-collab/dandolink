@@ -108,6 +108,21 @@ export async function POST(req: NextRequest) {
             },
         });
 
+        // 変更履歴: 誰がいつ登録したかを残す（best-effort）
+        try {
+            await prisma.scheduleChangeHistory.createMany({
+                data: created.map((c) => ({
+                    assignmentId: c.id,
+                    changedById: session!.user.id,
+                    changeType: 'created',
+                    previousValue: '',
+                    newValue: '登録',
+                })),
+            });
+        } catch (e) {
+            logger.error('[assignments batch-create] 登録履歴の記録に失敗', e);
+        }
+
         // 担当職長へ新規予定を即時通知（向こう1週間以内のみ・職長単位で集約・自己除外・best-effort）
         try {
             await notifyAssignmentsCreated({

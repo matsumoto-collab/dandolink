@@ -15,6 +15,17 @@ jest.mock('@/lib/prisma', () => ({
             update: jest.fn(),
             delete: jest.fn(),
         },
+        // 変更履歴の記録（best-effort）と名前解決で触るモデル
+        scheduleChangeHistory: {
+            create: jest.fn(),
+            createMany: jest.fn(),
+        },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+        vehicle: { findMany: jest.fn().mockResolvedValue([]) },
+        constructionType: { findMany: jest.fn().mockResolvedValue([]) },
+        deletedAssignmentLog: {
+            create: jest.fn(),
+        },
     },
 }));
 
@@ -106,6 +117,8 @@ describe('/api/assignments/[id]', () => {
         });
 
         it('should update assignment successfully', async () => {
+            // 変更履歴の記録対象フィールドを含むため、現在値がロードされる
+            (prisma.projectAssignment.findUnique as jest.Mock).mockResolvedValue(mockAssignment);
             (prisma.projectAssignment.update as jest.Mock).mockResolvedValue({ ...mockAssignment, ...updateBody });
             const context = { params: Promise.resolve({ id: mockId }) };
 
@@ -140,15 +153,16 @@ describe('/api/assignments/[id]', () => {
         it('should update successfully without optimistic lock (no expectedUpdatedAt)', async () => {
             const bodyWithoutLock = { ...updateBody };
 
-            // Should skip findUnique and go straight to update
+            // expectedUpdatedAt なしでも、変更履歴の記録のため現在値はロードされる
+            // （409 の競合チェックは expectedUpdatedAt があるときだけ）
+            (prisma.projectAssignment.findUnique as jest.Mock).mockResolvedValue(mockAssignment);
             (prisma.projectAssignment.update as jest.Mock).mockResolvedValue({ ...mockAssignment, ...updateBody });
 
             const context = { params: Promise.resolve({ id: mockId }) };
             const res = await PATCH(updateReq(bodyWithoutLock), context);
 
             expect(res.status).toBe(200);
-            // findUnique shouldn't be called for lock check if not needed
-            expect(prisma.projectAssignment.findUnique).not.toHaveBeenCalled();
+            expect(prisma.projectAssignment.findUnique).toHaveBeenCalled();
         });
 
 
@@ -184,6 +198,7 @@ describe('/api/assignments/[id]', () => {
         });
 
         it('should return 500 on db error', async () => {
+            (prisma.projectAssignment.findUnique as jest.Mock).mockResolvedValue(mockAssignment);
             (prisma.projectAssignment.update as jest.Mock).mockRejectedValue(new Error('DB Error'));
             const context = { params: Promise.resolve({ id: mockId }) };
             const res = await PATCH(updateReq(updateBody), context);
@@ -197,6 +212,8 @@ describe('/api/assignments/[id]', () => {
         const context = { params: Promise.resolve({ id: mockId }) };
 
         it('should delete assignment successfully', async () => {
+            // 削除控え（スナップショット）が取れなくても削除自体は成立する経路を検証
+            (prisma.projectAssignment.findUnique as jest.Mock).mockResolvedValue(null);
             (prisma.projectAssignment.delete as jest.Mock).mockResolvedValue(mockAssignment);
 
             const res = await DELETE(deleteReq(), context);

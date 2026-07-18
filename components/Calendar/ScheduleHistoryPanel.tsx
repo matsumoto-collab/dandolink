@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { X, History, Calendar, Users, RefreshCw, Search, Trash2, Undo2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { ASSIGNMENT_CHANGE_LABELS, DATE_STATUS_VALUE_LABELS, STANDALONE_CHANGE_TYPES } from '@/lib/assignmentHistory';
 
 // 復元/戻しのAPIレスポンス（更新後の配置）をストアへ即時反映する。
 // 同一ブラウザでは Realtime(postgres_changes) が届きにくく、ページ移動まで反映されないため、
@@ -366,7 +367,7 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
                                                 >
                                                     {isDate && <Calendar className="w-2.5 h-2.5" />}
                                                     {isForeman && <Users className="w-2.5 h-2.5" />}
-                                                    {isDate ? '日付' : isForeman ? '職長' : h.changeType}
+                                                    {ASSIGNMENT_CHANGE_LABELS[h.changeType] ?? h.changeType}
                                                 </span>
                                             </div>
 
@@ -400,6 +401,15 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
                                                         <span className="line-through text-slate-400">{h.previousLabel || '(不明)'}</span>
                                                         <span className="text-slate-400">→</span>
                                                         <span className="font-bold">{h.newLabel || '(不明)'}</span>
+                                                    </>
+                                                ) : STANDALONE_CHANGE_TYPES.has(h.changeType) ? (
+                                                    // 登録/復元は単独イベント（→ 表記にしない）
+                                                    <span className="text-slate-600 font-medium">{h.newValue || ASSIGNMENT_CHANGE_LABELS[h.changeType]}</span>
+                                                ) : h.changeType === 'dateStatus' ? (
+                                                    <>
+                                                        <span className="line-through text-slate-400">{DATE_STATUS_VALUE_LABELS[h.previousValue] ?? h.previousValue}</span>
+                                                        <span className="text-slate-400">→</span>
+                                                        <span className="font-bold">{DATE_STATUS_VALUE_LABELS[h.newValue] ?? h.newValue}</span>
                                                     </>
                                                 ) : (
                                                     <span className="text-slate-500">{h.previousValue} → {h.newValue}</span>

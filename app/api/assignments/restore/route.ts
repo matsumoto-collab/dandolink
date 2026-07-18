@@ -91,6 +91,21 @@ export async function POST(req: NextRequest) {
             data: { restoredAt: new Date(), restoredById: session!.user.id },
         });
 
+        // 変更履歴: 誰がいつ復元したかを残す（best-effort。復元は新IDで作られるため履歴もそこに付く）
+        try {
+            await prisma.scheduleChangeHistory.create({
+                data: {
+                    assignmentId: created.id,
+                    changedById: session!.user.id,
+                    changeType: 'restored',
+                    previousValue: '',
+                    newValue: '削除から復元',
+                },
+            });
+        } catch {
+            // 履歴が書けなくても復元自体は成立させる
+        }
+
         return NextResponse.json(formatAssignment(created));
     } catch (error) {
         return serverErrorResponse('配置の復元', error);
