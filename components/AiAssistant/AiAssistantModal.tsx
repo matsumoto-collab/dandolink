@@ -26,7 +26,9 @@ export default function AiAssistantModal({ isOpen, onClose }: AiAssistantModalPr
     if (!hasOpened) return null;
 
     return (
-        <div className={`fixed inset-0 lg:left-48 z-[70] flex flex-col items-center justify-start pt-[4.5rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50 ${isOpen ? '' : 'hidden'}`}>
+        // h-[100dvh]: iOS Safari では inset-0 がツールバー込みの高さになり下端の入力欄が
+        // 画面外に隠れるため、動的ビューポート高で実際に見えている高さに合わせる
+        <div className={`fixed inset-x-0 top-0 h-[100dvh] lg:left-48 z-[70] flex flex-col items-center justify-start pt-[4.5rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50 ${isOpen ? '' : 'hidden'}`}>
             {/* オーバーレイ（デスクトップのみ） */}
             <div className="absolute inset-0 bg-black/50 hidden lg:block" onClick={onClose} />
 
@@ -35,7 +37,7 @@ export default function AiAssistantModal({ isOpen, onClose }: AiAssistantModalPr
                 role="dialog"
                 aria-modal="true"
                 tabIndex={-1}
-                className="relative bg-white flex flex-col w-full h-full flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:h-[75vh]"
+                className="relative bg-white flex flex-col w-full flex-1 min-h-0 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:h-[75vh]"
             >
                 {/* ヘッダー */}
                 <div className="flex-shrink-0 border-b border-slate-200 px-4 py-3 flex items-center justify-between">

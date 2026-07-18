@@ -50,7 +50,8 @@ const nextConfig = {
                     { key: 'X-Frame-Options', value: 'DENY' },
                     { key: 'X-XSS-Protection', value: '1; mode=block' },
                     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-                    { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+                    // microphone=(self): AI照会の音声入力（Web Speech API）が自オリジンでマイクを使うため許可
+                    { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=()' },
                     { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
                     // Spectre 等のクロスオリジン副チャネル攻撃を緩和
                     { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },

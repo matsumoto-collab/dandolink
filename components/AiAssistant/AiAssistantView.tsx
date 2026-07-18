@@ -1,8 +1,29 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, Send } from 'lucide-react';
+import { Sparkles, Send, Mic, Square } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
+
+// Web Speech API（ブラウザ音声入力）。lib.dom に型が無いため必要最小限を自前定義。
+// iOS Safari / Android Chrome は webkit プレフィックス。非対応ブラウザではボタン自体を出さない。
+interface SpeechRecognitionLike {
+    lang: string;
+    interimResults: boolean;
+    continuous: boolean;
+    onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+    onend: (() => void) | null;
+    onerror: ((e: { error?: string }) => void) | null;
+    start: () => void;
+    stop: () => void;
+    abort: () => void;
+}
+
+function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+    if (typeof window === 'undefined') return null;
+    const w = window as unknown as Record<string, unknown>;
+    return (w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null) as (new () => SpeechRecognitionLike) | null;
+}
 
 /**
  * スケジュールAI照会（設計書 §6）。
@@ -31,6 +52,47 @@ export default function AiAssistantView() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // 音声入力（対応ブラウザのみ。SSRとの不一致を避けるためマウント後に判定）
+    const [speechSupported, setSpeechSupported] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+    useEffect(() => {
+        setSpeechSupported(getSpeechRecognitionCtor() !== null);
+        return () => recognitionRef.current?.abort();
+    }, []);
+
+    const toggleVoiceInput = useCallback(() => {
+        if (isListening) {
+            recognitionRef.current?.stop();
+            return;
+        }
+        const Ctor = getSpeechRecognitionCtor();
+        if (!Ctor) return;
+        const rec = new Ctor();
+        rec.lang = 'ja-JP';
+        rec.interimResults = true; // 聞き取り途中の文字もリアルタイムで入力欄に流す
+        rec.continuous = false;    // 発話が途切れたら自動で停止
+        rec.onresult = (e) => {
+            const transcript = Array.from({ length: e.results.length }, (_, i) => e.results[i]?.[0]?.transcript ?? '').join('');
+            setInput(transcript);
+        };
+        rec.onend = () => setIsListening(false);
+        rec.onerror = (e) => {
+            setIsListening(false);
+            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+                toast.error('マイクの使用が許可されていません。ブラウザの設定を確認してください');
+            } else if (e.error === 'no-speech') {
+                toast('音声が聞き取れませんでした。もう一度お試しください');
+            } else if (e.error !== 'aborted') {
+                toast.error('音声入力でエラーが発生しました');
+            }
+        };
+        recognitionRef.current = rec;
+        setInput('');
+        rec.start();
+        setIsListening(true);
+    }, [isListening]);
+
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }, [messages, isLoading]);
@@ -38,6 +100,10 @@ export default function AiAssistantView() {
     const send = useCallback(async (text: string) => {
         const question = text.trim();
         if (!question || isLoading) return;
+
+        // 聞き取り中に送信されたら認識を止める
+        recognitionRef.current?.abort();
+        setIsListening(false);
 
         const history = messages.slice(-10);
         setMessages((prev) => [...prev, { role: 'user', content: question }]);
@@ -137,11 +203,29 @@ export default function AiAssistantView() {
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="例: 8月5日に解体1件（3人）入れたい。空けられそうなところは？"
+                        placeholder={isListening ? '聞き取り中…話してください' : '例: 8月5日に解体1件（3人）入れたい'}
                         maxLength={500}
-                        className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        className={`flex-1 min-w-0 px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:border-transparent ${
+                            isListening ? 'border-red-300 ring-2 ring-red-200' : 'border-slate-300 focus:ring-teal-500'
+                        }`}
                         disabled={isLoading}
                     />
+                    {speechSupported && (
+                        <button
+                            type="button"
+                            onClick={toggleVoiceInput}
+                            disabled={isLoading}
+                            className={`px-3 py-2.5 rounded-xl border transition-colors flex-shrink-0 disabled:opacity-40 ${
+                                isListening
+                                    ? 'bg-red-500 border-red-500 text-white animate-pulse'
+                                    : 'border-slate-300 text-slate-500 hover:bg-slate-50'
+                            }`}
+                            aria-label={isListening ? '音声入力を停止' : '音声で入力'}
+                            title={isListening ? '音声入力を停止' : '音声で入力'}
+                        >
+                            {isListening ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                        </button>
+                    )}
                     <button
                         type="submit"
                         disabled={isLoading || !input.trim()}
