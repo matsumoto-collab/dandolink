@@ -182,7 +182,8 @@ export default function MainContent() {
     }, []);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const canViewHistory = isManagerOrAbove(session?.user);
-    // AI照会モーダル（スケジュールツールバーのAIボタンから開く。scheduleケース到達者=社員のみ）
+    // AI照会モーダル（スケジュールツールバーのAIボタンから開く）。kei指示で admin/manager のみ
+    const canUseAiAssistant = isManagerOrAbove(session?.user);
     const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
 
     const userRole = session?.user?.role;
@@ -284,7 +285,7 @@ export default function MainContent() {
                             onToday={calendarNav?.goToToday}
                             onOpenSearch={scheduleView === 'calendar' && openSearch ? openSearch : undefined}
                             onOpenHistory={canViewHistory ? () => setIsHistoryOpen(true) : undefined}
-                            onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
+                            onOpenAiAssistant={canUseAiAssistant ? () => setIsAiAssistantOpen(true) : undefined}
                         />
                         <div className="flex-1 min-h-0">
                             {scheduleView === 'calendar' ? (
@@ -304,10 +305,12 @@ export default function MainContent() {
                                 onClose={() => setIsHistoryOpen(false)}
                             />
                         )}
-                        <AiAssistantModal
-                            isOpen={isAiAssistantOpen}
-                            onClose={() => setIsAiAssistantOpen(false)}
-                        />
+                        {canUseAiAssistant && (
+                            <AiAssistantModal
+                                isOpen={isAiAssistantOpen}
+                                onClose={() => setIsAiAssistantOpen(false)}
+                            />
+                        )}
                     </>
                 );
 

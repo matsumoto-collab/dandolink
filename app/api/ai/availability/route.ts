@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { requireAuth, errorResponse, serverErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
+import { isManagerOrAbove } from '@/utils/permissions';
 import { getAnthropic, SCHEDULE_AI_MODEL } from '@/lib/anthropic';
 import { getCrewAvailability, getCrewAvailabilitySummaryRange, getFloating } from '@/lib/crewAvailability';
 import { logger } from '@/lib/logger';
@@ -124,9 +125,8 @@ export async function POST(req: NextRequest) {
         const { session, error } = await requireAuth();
         if (error) return error;
 
-        // 協力業者（partner/partner_member）には社内の空き情報を返さない
-        const role = (session!.user.role as string | undefined)?.toLowerCase() ?? '';
-        if (role === 'partner' || role === 'partner_member') {
+        // kei指示（2026-07-18）: AI照会は管理者・マネージャーのみ
+        if (!isManagerOrAbove(session!.user)) {
             return errorResponse('権限がありません', 403);
         }
 
