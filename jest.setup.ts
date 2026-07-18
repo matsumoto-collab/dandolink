@@ -188,6 +188,16 @@ jest.mock('@/lib/prisma', () => ({
             delete: jest.fn(),
             count: jest.fn(),
         },
+        systemSettings: {
+            findUnique: jest.fn(),
+            upsert: jest.fn(),
+        },
+        vacationRecord: {
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
+            upsert: jest.fn(),
+            deleteMany: jest.fn(),
+        },
         projectBillingDecision: {
             findMany: jest.fn(),
             findUnique: jest.fn(),

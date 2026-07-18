@@ -11,7 +11,7 @@ import ScheduleToolbar from './Schedule/ScheduleToolbar';
 import { isManagerOrAbove } from '@/utils/permissions';
 
 const VALID_PAGES: PageType[] = [
-    'schedule', 'tentative-triage', 'my-schedule', 'project-masters', 'reports', 'attendance',
+    'schedule', 'tentative-triage', 'ai-assistant', 'my-schedule', 'project-masters', 'reports', 'attendance',
     'profit-dashboard', 'estimates', 'invoices', 'billing-drafts', 'billing-board',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'material-returns', 'settings', 'chat',
@@ -38,6 +38,9 @@ const AssignmentTable = dynamic(() => import('./Schedule/AssignmentTable'), {
     loading: () => <LoadingSpinner />,
 });
 const TentativeTriageView = dynamic(() => import('./Schedule/TentativeTriageView'), {
+    loading: () => <LoadingSpinner />,
+});
+const AiAssistantView = dynamic(() => import('./AiAssistant/AiAssistantView'), {
     loading: () => <LoadingSpinner />,
 });
 const SettingsPage = dynamic(() => import('@/app/(master)/settings/page'), {
@@ -200,6 +203,7 @@ export default function MainContent() {
     const pageTitleMap: Record<PageType, string> = {
         'schedule': '工程管理',
         'tentative-triage': '仮予定の仕分け',
+        'ai-assistant': 'AI照会',
         'my-schedule': 'マイスケジュール',
         'project-masters': '案件マスタ',
         'reports': '日報',
@@ -310,6 +314,13 @@ export default function MainContent() {
 
             case 'tentative-triage':
                 return <TentativeTriageView />;
+
+            case 'ai-assistant':
+                // 協力業者には社内の空き情報を見せない（API側でも403ガード）
+                if (userRole === 'partner' || userRole === 'partner_member') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <AiAssistantView />;
 
             case 'my-schedule':
                 return <MySchedulePage />;

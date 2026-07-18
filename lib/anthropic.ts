@@ -22,3 +22,7 @@ export function getAnthropic(): Anthropic {
 
 // 請求書の読み取りに使うモデル（精度とコストのバランス）
 export const INVOICE_EXTRACT_MODEL = 'claude-sonnet-4-6';
+
+// スケジュールAI照会（班別空き・浮き）に使うモデル。
+// 日付の解釈と短い文章化だけなので、速くて安い Haiku で十分。
+export const SCHEDULE_AI_MODEL = 'claude-haiku-4-5';
