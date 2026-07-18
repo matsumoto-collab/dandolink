@@ -70,6 +70,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const body = await req.json();
 
+        // 'unassigned'（職長未割当センチネル）への書き換えは拒否。
+        // create系3経路（POST単発/batch/batch-create）は封鎖済みだが、このPATCHだけ
+        // ガードが無く、確定配置を孤児化できる穴が残っていた（2026-06-11 孤児配置の再発防止）。
+        if (body.assignedEmployeeId === 'unassigned') {
+            return errorResponse('職長が選択されていません', 400);
+        }
+
         // 楽観的ロック / foreman2オーナーシップ確認 / 変更履歴記録のため現在値をロード
         // 履歴記録対象: date, assignedEmployeeId 変更時
         const willRecordHistory =
