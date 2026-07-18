@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { useMasterData } from '@/hooks/useMasterData';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { logger } from '@/lib/logger';
 import toast from 'react-hot-toast';
@@ -65,6 +66,7 @@ function toDateInputValue(iso: string | null | undefined): string {
 export default function TentativeTriageView() {
     const { data: session } = useSession();
     const currentUserId = session?.user?.id;
+    const { constructionTypes } = useMasterData();
 
     const [assignments, setAssignments] = useState<TriageAssignment[]>([]);
     const [users, setUsers] = useState<LiteUser[]>([]);
@@ -77,6 +79,12 @@ export default function TentativeTriageView() {
         users.forEach((u) => map.set(u.id, u.displayName));
         return map;
     }, [users]);
+
+    // 工事種別はUUIDマスタ保存（旧データは名前直入りもある）。id→名前で解決し、どちらでもなければそのまま
+    const constructionTypeName = useCallback((raw: string | null): string => {
+        if (!raw) return '-';
+        return constructionTypes.find((t) => t.id === raw || t.name === raw)?.name || raw;
+    }, [constructionTypes]);
 
     const myLeadDays = useMemo(() => {
         const me = users.find((u) => u.id === currentUserId);
@@ -247,7 +255,7 @@ export default function TentativeTriageView() {
                                                 )}
                                             </td>
                                             <td className="px-3 py-2 whitespace-nowrap text-slate-600">
-                                                {a.constructionType || '-'}
+                                                {constructionTypeName(a.constructionType)}
                                             </td>
                                             <td className="px-3 py-2 whitespace-nowrap text-slate-600">
                                                 {a.assignedEmployeeId === 'unassigned'
