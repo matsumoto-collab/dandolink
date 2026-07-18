@@ -135,6 +135,7 @@ export function useProjects() {
     const addProjectStore = useCalendarStore((state) => state.addProject);
     const updateProjectStore = useCalendarStore((state) => state.updateProject);
     const updateProjectsStore = useCalendarStore((state) => state.updateProjects);
+    const demoteToFloatingStore = useCalendarStore((state) => state.demoteToFloating);
     const deleteProjectStore = useCalendarStore((state) => state.deleteProject);
     const restoreAssignmentStore = useCalendarStore((state) => state.restoreAssignment);
     const restoreDeletedAssignmentStore = useCalendarStore((state) => state.restoreDeletedAssignment);
@@ -420,6 +421,24 @@ export function useProjects() {
         }
     }, [updateProjectStore]);
 
+    // 配置を浮き（班未定）に戻す＝降格。updateProject と同じ isUpdating ガード＋broadcast パターン
+    const demoteToFloating = useCallback(async (id: string) => {
+        isUpdatingRef.current = true;
+        setIsUpdating(true);
+        try {
+            await demoteToFloatingStore(id);
+            broadcastRef.current?.postMessage({ type: 'assignment_updated', id });
+            sendBroadcast('assignment_updated', { id });
+        } finally {
+            const tid = setTimeout(() => {
+                isUpdatingRef.current = false;
+                setIsUpdating(false);
+                timeoutRefs.current = timeoutRefs.current.filter(t => t !== tid);
+            }, 500);
+            timeoutRefs.current.push(tid);
+        }
+    }, [demoteToFloatingStore]);
+
     const updateProjects = useCallback(async (updates: Array<{ id: string; data: Partial<Project> }>) => {
         // リアルタイム購読がfetchを呼ばないよう、先にrefを更新
         isUpdatingRef.current = true;
@@ -606,6 +625,7 @@ export function useProjects() {
         addProject,
         updateProject,
         updateProjects,
+        demoteToFloating,
         deleteProject,
         restoreAssignment,
         restoreDeletedAssignment,

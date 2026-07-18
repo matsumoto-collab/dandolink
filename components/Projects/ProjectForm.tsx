@@ -206,6 +206,10 @@ export default function ProjectForm({
         }
     }, [constructionSuffixes, initialData?.title]);
 
+    // 浮き（班未定）動線か。浮きレーンから開いたときだけ 'unassigned' 文脈になる。
+    // 通常の職長行からは 'unassigned' が渡らない（孤児配置ガードは維持）。
+    const isFloatingContext = (initialData?.assignedEmployeeId ?? defaultEmployeeId) === 'unassigned';
+
     // 複数日スケジュール管理用の状態
     const [useMultiDaySchedule, setUseMultiDaySchedule] = useState(false);
     const [multiDaySchedules, setMultiDaySchedules] = useState<DailySchedule[]>([]);
@@ -560,8 +564,10 @@ export default function ProjectForm({
         // 職長の特定（このフォームに職長選択欄は無く、開いた職長行で決まる）。
         // 文脈なしで 'unassigned' のまま保存すると、カレンダーに描画されず
         // 作業履歴で「不明」と表示される消せない孤児配置になるため保存させない。
+        // 例外: 浮き動線（浮きレーンから開いた場合）のみ 'unassigned' を許可する。
+        // 保存はストアが正門 POST /api/assignments/floating へ振り替え、専用レーンに描画される。
         const assignedEmployeeId = initialData?.assignedEmployeeId || defaultEmployeeId;
-        if (!assignedEmployeeId || assignedEmployeeId === 'unassigned') {
+        if (!isFloatingContext && (!assignedEmployeeId || assignedEmployeeId === 'unassigned')) {
             toast.error('職長が特定できないため登録できません。カレンダーの職長行のセルから登録してください。');
             return;
         }
@@ -599,7 +605,9 @@ export default function ProjectForm({
             customer: formData.customer || null,
             createdBy: formData.selectedManagers.length > 0 ? formData.selectedManagers : [],
             startDate: startDate,
-            assignedEmployeeId,
+            // 浮きの編集では職長を送らない（単発PATCHは 'unassigned' を拒否する。
+            // 班の割り当ては昇格モーダル経由）。新規の浮きは 'unassigned' のまま送出し正門へ
+            ...(isFloatingContext && initialData?.id ? {} : { assignedEmployeeId }),
             memberCount: formData.memberCount,
             workers: workers,
             trucks: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : [],
@@ -628,6 +636,14 @@ export default function ProjectForm({
     return (
         <>
             <form onSubmit={handleSubmit} className="space-y-4">
+                {/* 浮き（班未定）動線の説明 */}
+                {isFloatingContext && (
+                    <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                        <span className="font-bold">浮いている現場</span>
+                        （班未定）として登録します。カレンダー最下部のレーンに表示され、班の割り当てはカードのタップから行えます。
+                    </div>
+                )}
+
                 {/* 現場名（4フィールド分離: 名前/敬称/場所/工事名称） */}
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -873,7 +889,8 @@ export default function ProjectForm({
                     )}
                 </div>
 
-                {/* 複数日スケジュール管理 */}
+                {/* 複数日スケジュール管理（浮きは単発の急件のため非表示） */}
+                {!isFloatingContext && (
                 <div>
                     <div className="flex items-center justify-between mb-3">
                         <label className="block text-sm font-medium text-slate-700">
@@ -912,6 +929,7 @@ export default function ProjectForm({
                         </div>
                     )}
                 </div>
+                )}
 
                 {/* 案件担当者（チェックボックス） */}
                 <div>

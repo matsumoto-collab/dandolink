@@ -118,7 +118,8 @@ export function useCalendarModals(
     // 手配確定モーダルを開く
     const handleOpenDispatchModal = useCallback((projectId: string) => {
         const project = projects.find(p => p.id === projectId);
-        if (project) {
+        // 浮き（班未定）は手配確定の対象外（班が無いのに職方・車両は確定できない）
+        if (project && project.assignedEmployeeId !== 'unassigned') {
             setDispatchProject(project);
             setIsDispatchModalOpen(true);
         }

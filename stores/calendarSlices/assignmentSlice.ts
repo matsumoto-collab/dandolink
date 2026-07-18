@@ -49,7 +49,7 @@ function parseRestoredAssignment(
 }
 
 type AssignmentSlice = Pick<CalendarState, 'assignments' | 'projectsLoading' | 'projectsInitialized'> &
-    Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'restoreAssignment' | 'restoreDeletedAssignment' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'upsertAssignments' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
+    Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'demoteToFloating' | 'deleteProject' | 'restoreAssignment' | 'restoreDeletedAssignment' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'upsertAssignments' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
 
 export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) => ({
     assignments: [],
@@ -255,18 +255,23 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 };
             });
         } else {
-            const response = await fetch('/api/assignments', {
+            // 浮き（班未定）は「正門」ルートへ。通常の /api/assignments は 'unassigned' を拒否する
+            const isFloating = project.assignedEmployeeId === 'unassigned';
+            const response = await fetch(isFloating ? '/api/assignments/floating' : '/api/assignments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     projectMasterId,
-                    assignedEmployeeId: project.assignedEmployeeId,
+                    // 正門は assignedEmployeeId をサーバー側で固定するため送らない
+                    ...(isFloating ? {} : { assignedEmployeeId: project.assignedEmployeeId }),
                     date: project.startDate instanceof Date ? project.startDate.toISOString() : project.startDate,
                     memberCount: project.memberCount || project.workers?.length || 0,
-                    workers: project.workers,
-                    vehicles: project.vehicles,
-                    meetingTime: project.meetingTime,
-                    sortOrder: project.sortOrder || 0,
+                    ...(isFloating ? {} : {
+                        workers: project.workers,
+                        vehicles: project.vehicles,
+                        meetingTime: project.meetingTime,
+                        sortOrder: project.sortOrder || 0,
+                    }),
                     remarks: project.remarks,
                     constructionType: project.constructionType,
                     estimatedHours: project.estimatedHours ?? 8.0,
@@ -444,6 +449,60 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 };
                 return { assignments: [...state.assignments, parsedUpdated] };
             });
+        } catch (error) {
+            if (!(error instanceof ConflictUpdateError)) {
+                set({ assignments: previousAssignments });
+            }
+            throw error;
+        }
+    },
+
+    demoteToFloating: async (id) => {
+        const { assignments } = get();
+        const previousAssignments = [...assignments];
+        const assignment = assignments.find((a) => a.id === id);
+
+        // 楽観更新: 職長を外し手配確定をクリア（浮きレーンへ即時移動して見せる）
+        set((state) => ({
+            assignments: state.assignments.map((a) =>
+                a.id === id
+                    ? { ...a, assignedEmployeeId: 'unassigned', isDispatchConfirmed: false, confirmedWorkerIds: [], confirmedVehicleIds: [] }
+                    : a
+            ),
+        }));
+
+        try {
+            const response = await fetch(`/api/assignments/floating/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ expectedUpdatedAt: assignment?.updatedAt?.toISOString() }),
+            });
+
+            if (response.status === 409) {
+                const errorData = await response.json() as ConflictError;
+                set({ assignments: previousAssignments });
+                throw new ConflictUpdateError(errorData.error, errorData.latestData);
+            }
+            if (!response.ok) throw new Error('Failed to demote assignment to floating');
+
+            const updated = await response.json();
+            set((state) => ({
+                assignments: state.assignments.map((a) =>
+                    a.id === id ? {
+                        ...a,
+                        ...updated,
+                        date: new Date(updated.date),
+                        createdAt: new Date(updated.createdAt),
+                        updatedAt: new Date(updated.updatedAt),
+                        confirmDueDate: updated.confirmDueDate ? new Date(updated.confirmDueDate) : null,
+                        projectMaster: updated.projectMaster ? {
+                            ...updated.projectMaster,
+                            createdAt: new Date(updated.projectMaster.createdAt),
+                            updatedAt: new Date(updated.projectMaster.updatedAt),
+                        } : a.projectMaster,
+                    } : a
+                ),
+            }));
         } catch (error) {
             if (!(error instanceof ConflictUpdateError)) {
                 set({ assignments: previousAssignments });

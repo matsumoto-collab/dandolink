@@ -10,6 +10,7 @@ import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
+import FloatingLane, { getFloatingSummaryForDate } from './FloatingLane';
 
 interface DesktopCalendarViewProps {
     weekDays: WeekDay[];
@@ -41,6 +42,9 @@ interface DesktopCalendarViewProps {
     highlightedEventId?: string | null;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
+    // 浮き（班未定）レーン
+    handleFloatingEventClick?: (eventId: string) => void;
+    handleFloatingCellClick?: (date: Date) => void;
     // Navigation
     goToPreviousWeek?: () => void;
     goToNextWeek?: () => void;
@@ -80,6 +84,8 @@ export default function DesktopCalendarView({
     highlightedEventId = null,
     getMemberAdjustment,
     onMemberAdjustmentChange,
+    handleFloatingEventClick,
+    handleFloatingCellClick,
     goToPreviousWeek,
     goToNextWeek,
     goToPreviousDay,
@@ -201,9 +207,20 @@ export default function DesktopCalendarView({
                                     const isSunday = day.dayOfWeek === 0;
                                     const combinedDate = `${dateString}(${dayOfWeekString})`;
 
+                                    const floatingSummary = getFloatingSummaryForDate(events, day.date);
                                     return (
                                         <div key={index} className={`flex-1 min-w-[84px] border-r border-slate-300 h-8 flex flex-col items-center justify-center leading-none gap-0.5 ${isSaturday ? 'bg-blue-50' : isSunday ? 'bg-rose-50' : 'bg-slate-100'} ${day.isToday ? 'bg-teal-600' : ''}`}>
-                                            <div className={`text-[11px] font-bold ${isSaturday ? 'text-slate-700' : isSunday ? 'text-slate-600' : 'text-slate-700'} ${day.isToday ? 'text-white' : ''}`}>{combinedDate}</div>
+                                            <div className={`text-[11px] font-bold ${isSaturday ? 'text-slate-700' : isSunday ? 'text-slate-600' : 'text-slate-700'} ${day.isToday ? 'text-white' : ''}`}>
+                                                {combinedDate}
+                                                {floatingSummary.count > 0 && (
+                                                    <span
+                                                        className="ml-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold leading-none align-middle"
+                                                        title={`浮き ${floatingSummary.count}件・計${floatingSummary.members}人`}
+                                                    >
+                                                        {floatingSummary.count}
+                                                    </span>
+                                                )}
+                                            </div>
                                             {day.isToday && <span className="text-[8px] font-medium text-teal-100">今日</span>}
                                         </div>
                                     );
@@ -309,6 +326,17 @@ export default function DesktopCalendarView({
                                 />
                             ))}
                         </div>
+
+                        {/* 浮いているレーン（班未定の配置置き場）。partner向け閲覧では隠す */}
+                        {!hideForemanSelector && (
+                            <FloatingLane
+                                weekDays={weekDays}
+                                events={events}
+                                onEventClick={handleFloatingEventClick}
+                                onCellClick={handleFloatingCellClick}
+                                isReadOnly={isReadOnly}
+                            />
+                        )}
 
                         {!hideForemanSelector && (
                             <div className="flex border-t-2 border-slate-300 bg-slate-50 p-4">

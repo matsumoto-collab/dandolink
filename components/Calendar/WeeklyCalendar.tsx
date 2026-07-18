@@ -51,6 +51,9 @@ const ConflictResolutionModal = dynamic(() => import('./ConflictResolutionModal'
 const MoveConfirmModal = dynamic(() => import('./MoveConfirmModal'), {
     loading: () => <Loading overlay />
 });
+const FloatingPromoteModal = dynamic(() => import('./FloatingPromoteModal'), {
+    loading: () => <Loading overlay />
+});
 
 interface WeeklyCalendarProps {
     partnerMode?: boolean;
@@ -61,7 +64,7 @@ interface WeeklyCalendarProps {
 
 export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavigationReady, onSearchReady }: WeeklyCalendarProps) {
     const { data: session, status } = useSession();
-    const { projects, addProject, updateProject, updateProjects, deleteProject, restoreAssignment, restoreDeletedAssignment, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
+    const { projects, addProject, updateProject, updateProjects, demoteToFloating, deleteProject, restoreAssignment, restoreDeletedAssignment, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
     const { getTotalMembersForDate } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
@@ -116,6 +119,51 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
         setActivePage('project-masters');
         router.push(`/?page=project-masters&pmId=${pmId}&pmEdit=1`);
     }, [modalInitialData.projectMasterId, handleCloseModal, setActivePage, router]);
+
+    // ── 浮き（班未定の配置）関連 ──
+    const [promoteEvent, setPromoteEvent] = useState<CalendarEvent | null>(null);
+
+    // 浮きカードのタップ → 昇格モーダル（班別の埋まり具合を見て班を選ぶ）
+    const handleFloatingEventClick = useCallback((eventId: string) => {
+        const event = (projects as CalendarEvent[]).find(e => e.id === eventId);
+        if (event) setPromoteEvent(event);
+    }, [projects]);
+
+    // 浮きレーンの空きセルタップ → 既存の登録動線（選択モーダル）に 'unassigned' 文脈で乗せる。
+    // 保存はストアが正門 POST /api/assignments/floating へ振り替える
+    const handleFloatingCellClick = useCallback((date: Date) => {
+        handleCellClick('unassigned', date);
+    }, [handleCellClick]);
+
+    // 昇格: 班を選んで既存PATCH（履歴記録と職長への通知は既存実装が自動で乗る）
+    const handlePromoteFloating = useCallback(async (eventId: string, foremanId: string) => {
+        try {
+            await updateProject(eventId, { assignedEmployeeId: foremanId });
+            toast.success('班に割り当てました');
+        } catch (e) {
+            if (e instanceof ConflictUpdateError) {
+                toast.error('他のユーザーが更新しています。開き直して確認してください');
+            } else {
+                toast.error('割り当てに失敗しました');
+            }
+            throw e;
+        }
+    }, [updateProject]);
+
+    // 降格: 配置を浮きに戻す（編集モーダルの「浮きに戻す」から。正門経由）
+    const handleDemoteToFloating = useCallback(async (eventId: string) => {
+        try {
+            await demoteToFloating(eventId);
+            toast.success('浮きに戻しました');
+            handleCloseModal();
+        } catch (e) {
+            if (e instanceof ConflictUpdateError) {
+                toast.error('他のユーザーが更新しています。開き直して確認してください');
+            } else {
+                toast.error('浮きへの変更に失敗しました');
+            }
+        }
+    }, [demoteToFloating, handleCloseModal]);
 
 useEffect(() => { setIsMounted(true); }, []);
 
@@ -743,6 +791,9 @@ useEffect(() => { setIsMounted(true); }, []);
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     hideRemarks={partnerMode}
+                    handleFloatingEventClick={partnerMode ? undefined : handleFloatingEventClick}
+                    handleFloatingCellClick={isReadOnly ? undefined : handleFloatingCellClick}
+                    handleDemoteToFloating={isReadOnly ? undefined : handleDemoteToFloating}
                 />
             ) : (
                 <DesktopCalendarView
@@ -774,6 +825,8 @@ useEffect(() => { setIsMounted(true); }, []);
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     hideRemarks={partnerMode}
                     hideForemanSelector={partnerMode}
+                    handleFloatingEventClick={partnerMode ? undefined : handleFloatingEventClick}
+                    handleFloatingCellClick={isReadOnly ? undefined : handleFloatingCellClick}
                 />
             )}
 
@@ -793,6 +846,11 @@ useEffect(() => { setIsMounted(true); }, []);
                         ? handleEditProjectMaster
                         : undefined
                 }
+                onDemoteToFloating={
+                    !isReadOnly && modalInitialData.id && modalInitialData.assignedEmployeeId !== 'unassigned'
+                        ? handleDemoteToFloating
+                        : undefined
+                }
             />
 
             <ProjectMasterSearchModal
@@ -807,6 +865,19 @@ useEffect(() => { setIsMounted(true); }, []);
 
             {dispatchProject && (
                 <DispatchConfirmModal isOpen={isDispatchModalOpen} onClose={handleCloseDispatchModal} project={dispatchProject} />
+            )}
+
+            {promoteEvent && (
+                <FloatingPromoteModal
+                    isOpen={promoteEvent !== null}
+                    onClose={() => setPromoteEvent(null)}
+                    event={promoteEvent}
+                    projects={projects}
+                    foremen={employeeRows.map(r => ({ id: r.employeeId, name: r.employeeName }))}
+                    onPromote={handlePromoteFloating}
+                    onEdit={handleEventClick}
+                    isReadOnly={isReadOnly}
+                />
             )}
 
             <CopyAssignmentModal

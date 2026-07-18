@@ -10,8 +10,8 @@ export { createPaymentScheduleSchema, updatePaymentScheduleSchema } from './paym
 export type { CreatePaymentScheduleInput, UpdatePaymentScheduleInput } from './paymentSchedule';
 export { constructionTypeSchema, createProjectMasterSchema, updateProjectMasterSchema } from './project';
 export type { CreateProjectMasterInput, UpdateProjectMasterInput } from './project';
-export { createAssignmentSchema, updateAssignmentSchema, batchUpdateAssignmentsSchema } from './assignment';
-export type { CreateAssignmentInput, UpdateAssignmentInput } from './assignment';
+export { createAssignmentSchema, updateAssignmentSchema, batchUpdateAssignmentsSchema, createFloatingAssignmentSchema } from './assignment';
+export type { CreateAssignmentInput, UpdateAssignmentInput, CreateFloatingAssignmentInput } from './assignment';
 export { workItemSchema, createDailyReportSchema, updateDailyReportSchema, createDailyReportApiSchema } from './dailyReport';
 export type { CreateDailyReportInput, UpdateDailyReportInput } from './dailyReport';
 export { createInvoiceSchema, updateInvoiceSchema, createEstimateSchema, updateEstimateSchema, createInvoicePaymentSchema } from './finance';

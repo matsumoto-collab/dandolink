@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search, UserMinus } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
@@ -11,6 +11,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import VacationSelector from './VacationSelector';
 import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
+import FloatingLane, { getFloatingSummaryForDate } from './FloatingLane';
 import dynamic from 'next/dynamic';
 
 const ProjectChatModal = dynamic(() => import('@/components/Chat/ProjectChatModal'), { ssr: false });
@@ -44,6 +45,10 @@ interface MobileCalendarViewProps {
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
     hideRemarks?: boolean;
+    // 浮き（班未定）レーン・降格
+    handleFloatingEventClick?: (eventId: string) => void;
+    handleFloatingCellClick?: (date: Date) => void;
+    handleDemoteToFloating?: (eventId: string) => void | Promise<void>;
 }
 
 interface ActionSheetState {
@@ -85,6 +90,9 @@ export default function MobileCalendarView({
     getMemberAdjustment,
     onMemberAdjustmentChange,
     hideRemarks = false,
+    handleFloatingEventClick,
+    handleFloatingCellClick,
+    handleDemoteToFloating,
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
     const isLandscape = useMediaQuery('(orientation: landscape) and (max-height: 500px)');
@@ -361,6 +369,17 @@ export default function MobileCalendarView({
                                         isToday ? 'text-white' : isSat ? 'text-slate-700' : isSun ? 'text-slate-600' : 'text-slate-700'
                                     }`}>
                                         {formatDate(day.date, 'short')}({getDayOfWeekString(day.date, 'short')})
+                                        {(() => {
+                                            const fs = getFloatingSummaryForDate(events, day.date);
+                                            return fs.count > 0 ? (
+                                                <span
+                                                    className="ml-1 inline-flex items-center justify-center min-w-[13px] h-[13px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold leading-none align-middle"
+                                                    title={`浮き ${fs.count}件・計${fs.members}人`}
+                                                >
+                                                    {fs.count}
+                                                </span>
+                                            ) : null;
+                                        })()}
                                     </span>
                                     {isToday && <span className="text-[8px] text-teal-100">今日</span>}
                                 </div>
@@ -713,6 +732,20 @@ export default function MobileCalendarView({
                             </div>
                         ))
                     )}
+
+                    {/* 浮いているレーン（班未定の配置置き場）。列幅は上の固定幅グリッドに合わせる */}
+                    {handleFloatingEventClick && (
+                        <FloatingLane
+                            weekDays={weekDays}
+                            events={events}
+                            onEventClick={handleFloatingEventClick}
+                            onCellClick={handleFloatingCellClick}
+                            isReadOnly={isReadOnly}
+                            compact
+                            labelWidth={LABEL_W}
+                            colWidth={COL_W}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -836,7 +869,7 @@ export default function MobileCalendarView({
                                 </button>
                             )}
 
-                            {!isReadOnly && canDispatch && handleOpenDispatchModal && (
+                            {!isReadOnly && canDispatch && handleOpenDispatchModal && actionSheet.event.assignedEmployeeId !== 'unassigned' && (
                                 <button
                                     onClick={() => {
                                         closeActionSheet();
@@ -854,6 +887,21 @@ export default function MobileCalendarView({
                                     ) : (
                                         <><ClipboardCheck className="w-5 h-5 text-slate-500" />手配確定する</>
                                     )}
+                                </button>
+                            )}
+
+                            {/* 浮きに戻す（降格）。すでに浮きの配置には出さない */}
+                            {!isReadOnly && handleDemoteToFloating && actionSheet.event.assignedEmployeeId !== 'unassigned' && (
+                                <button
+                                    onClick={() => {
+                                        const evId = actionSheet.event!.id;
+                                        closeActionSheet();
+                                        handleDemoteToFloating(evId);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <UserMinus className="w-5 h-5 text-slate-500" />
+                                    浮きに戻す（班を外す）
                                 </button>
                             )}
 

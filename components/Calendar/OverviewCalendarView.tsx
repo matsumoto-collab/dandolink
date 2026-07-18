@@ -173,6 +173,32 @@ export default function OverviewCalendarView({
                                 })}
                             </tr>
                         ))}
+                        {/* 浮いている行（班未定の配置）。存在する週だけ表示 */}
+                        {events.some(e => e.assignedEmployeeId === 'unassigned') && (
+                            <tr className="border-b border-red-200 bg-red-50/40">
+                                <td
+                                    className="text-[7px] font-bold text-red-700 border border-red-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-red-50 whitespace-nowrap overflow-hidden"
+                                    style={{ width: '60px', minHeight: MIN_ROW_HEIGHT }}
+                                >
+                                    浮いている
+                                </td>
+                                {weekDays.map((day, i) => {
+                                    const dateKey = formatDateKey(day.date);
+                                    const cellEvents = events
+                                        .filter(e => e.assignedEmployeeId === 'unassigned' && formatDateKey(e.startDate) === dateKey)
+                                        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+                                    return (
+                                        <td key={i} className="border border-red-100 px-px align-top overflow-hidden" style={{ minHeight: MIN_ROW_HEIGHT }}>
+                                            <div>
+                                                {cellEvents.map((event) => (
+                                                    <MiniCard key={event.id} event={event} />
+                                                ))}
+                                            </div>
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

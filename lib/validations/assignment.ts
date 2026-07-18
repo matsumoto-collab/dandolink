@@ -32,6 +32,24 @@ export const createAssignmentSchema = z.object({
 
 export const updateAssignmentSchema = createAssignmentSchema.partial();
 
+/**
+ * 浮き（班未定の配置）の新規作成。「正門」= /api/assignments/floating 専用。
+ * assignedEmployeeId はクライアントから受け取らず、サーバー側で 'unassigned' に固定する。
+ * isDispatchConfirmed も false 固定（班が無いのに手配確定はあり得ない）。
+ */
+export const createFloatingAssignmentSchema = z.object({
+    projectMasterId: z.string().min(1, '案件IDは必須です'),
+    date: z.string().min(1, '日付は必須です'),
+    memberCount: z.number().int().min(0).optional(),
+    remarks: z.string().max(1000).optional().nullable(),
+    constructionType: z.string().optional().nullable(),
+    estimatedHours: z.number().min(0).max(24).optional(),
+    dateStatus: z.enum(['confirmed', 'tentative']).optional(),
+    confirmDueDate: z.string().nullable().optional(),
+});
+
+export type CreateFloatingAssignmentInput = z.infer<typeof createFloatingAssignmentSchema>;
+
 const batchUpdateItemSchema = z.object({
     id: z.string().min(1),
     expectedUpdatedAt: z.string().optional(),

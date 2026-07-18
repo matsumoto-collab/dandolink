@@ -228,6 +228,8 @@ export interface CalendarActions {
     addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
     updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
     updateProjects: (updates: Array<{ id: string; data: Partial<Project> }>) => Promise<void>;
+    // 配置を浮き（班未定）に戻す＝降格。正門 POST /api/assignments/floating/[id] 経由
+    demoteToFloating: (id: string) => Promise<void>;
     // 削除に成功すると、復元用の控え（DeletedAssignmentLog）の logId を返す（控えに失敗した場合は null）。
     deleteProject: (id: string) => Promise<string | null>;
     // 誤削除のUndo。いずれも物理削除→再作成のため新しいIDで作られる。
