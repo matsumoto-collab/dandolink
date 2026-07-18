@@ -18,6 +18,7 @@ import ExpenseCategorySettings from '@/components/Settings/ExpenseCategorySettin
 import SystemSettingsPanel from '@/components/Settings/SystemSettingsPanel';
 import NotificationSettings from '@/components/Settings/NotificationSettings';
 import DispatchOrderSettings from '@/components/Settings/DispatchOrderSettings';
+import TentativeTriageView from '@/components/Schedule/TentativeTriageView';
 import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
@@ -33,7 +34,7 @@ export default function SettingsPage() {
         deleteMemberCountEntry,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [editingRate, setEditingRate] = useState(''); // 車両の日額（編集中）
@@ -53,7 +54,7 @@ export default function SettingsPage() {
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: null },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
             { id: 'constructionTypes' as const, label: '工事種別', count: null },
@@ -68,6 +69,7 @@ export default function SettingsPage() {
             { id: 'system' as const, label: '協力業者費設定', count: null },
             { id: 'notifications' as const, label: '通知', count: null },
             { id: 'dispatchOrder' as const, label: '手配確定の並び', count: null },
+            { id: 'tentativeTriage' as const, label: '仮予定の仕分け', count: null },
         ];
 
         // Add user management tab if user is admin
@@ -386,6 +388,9 @@ export default function SettingsPage() {
                         ) : activeTab === 'dispatchOrder' ? (
                             // 手配確定の並び順
                             <DispatchOrderSettings />
+                        ) : activeTab === 'tentativeTriage' ? (
+                            // 仮予定の仕分け（今後の予定の仮/確定を一括見直し）
+                            <TentativeTriageView />
                         ) : (
                             // List Management (Vehicles, Workers, Managers)
                             <div>

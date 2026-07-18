@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarDays } from 'lucide-react';
+import { Search, History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarDays, Sparkles } from 'lucide-react';
 import { ScheduleView } from './ScheduleViewTabs';
 
 interface ScheduleToolbarProps {
@@ -14,6 +14,8 @@ interface ScheduleToolbarProps {
     onToday?: () => void;
     onOpenSearch?: () => void;
     onOpenHistory?: () => void;
+    /** AI照会モーダル（班別空き・仮予定・浮き）を開く。社員のみ渡す（partner系には渡さない） */
+    onOpenAiAssistant?: () => void;
     weekLabel?: string;
 }
 
@@ -33,6 +35,7 @@ export default function ScheduleToolbar({
     onToday,
     onOpenSearch,
     onOpenHistory,
+    onOpenAiAssistant,
     weekLabel,
 }: ScheduleToolbarProps) {
     // 日付ナビは calendar / overview のときだけ意味がある
@@ -95,8 +98,19 @@ export default function ScheduleToolbar({
                 <div className="hidden lg:block" />
             )}
 
-            {/* 右: 検索 + 変更履歴（lg+ はラベル併記、モバイル/タブレットはアイコンのみ） */}
+            {/* 右: AI照会 + 検索 + 変更履歴（lg+ はラベル併記、モバイル/タブレットはアイコンのみ） */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
+                {onOpenAiAssistant && (
+                    <button
+                        onClick={onOpenAiAssistant}
+                        className="inline-flex items-center gap-1.5 h-10 px-2.5 lg:px-3.5 rounded-xl bg-white border border-teal-200 shadow-sm text-teal-600 hover:text-teal-800 hover:bg-teal-50 transition-colors"
+                        aria-label="AI照会"
+                        title="AI照会（空き・仮予定・浮き）"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        <span className="hidden lg:inline text-sm font-medium">AI照会</span>
+                    </button>
+                )}
                 {onOpenSearch && (
                     <button
                         onClick={onOpenSearch}

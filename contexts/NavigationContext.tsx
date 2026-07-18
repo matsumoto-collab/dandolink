@@ -4,8 +4,6 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 
 export type PageType =
     | 'schedule'         // スケジュール管理
-    | 'tentative-triage' // 仮予定の仕分け（仮/確定の一括見直し）
-    | 'ai-assistant'     // スケジュールAI照会（班別空き・仮予定・浮き）
     | 'my-schedule'      // マイ工程管理
     | 'project-masters'  // 案件マスター管理
     | 'reports'          // 日報入力

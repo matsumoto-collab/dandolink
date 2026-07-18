@@ -11,7 +11,7 @@ import ScheduleToolbar from './Schedule/ScheduleToolbar';
 import { isManagerOrAbove } from '@/utils/permissions';
 
 const VALID_PAGES: PageType[] = [
-    'schedule', 'tentative-triage', 'ai-assistant', 'my-schedule', 'project-masters', 'reports', 'attendance',
+    'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
     'profit-dashboard', 'estimates', 'invoices', 'billing-drafts', 'billing-board',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'material-returns', 'settings', 'chat',
@@ -37,10 +37,7 @@ const OverviewCalendar = dynamic(() => import('./Calendar/OverviewCalendar'), {
 const AssignmentTable = dynamic(() => import('./Schedule/AssignmentTable'), {
     loading: () => <LoadingSpinner />,
 });
-const TentativeTriageView = dynamic(() => import('./Schedule/TentativeTriageView'), {
-    loading: () => <LoadingSpinner />,
-});
-const AiAssistantView = dynamic(() => import('./AiAssistant/AiAssistantView'), {
+const AiAssistantModal = dynamic(() => import('./AiAssistant/AiAssistantModal'), {
     loading: () => <LoadingSpinner />,
 });
 const SettingsPage = dynamic(() => import('@/app/(master)/settings/page'), {
@@ -185,6 +182,8 @@ export default function MainContent() {
     }, []);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const canViewHistory = isManagerOrAbove(session?.user);
+    // AI照会モーダル（スケジュールツールバーのAIボタンから開く。scheduleケース到達者=社員のみ）
+    const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
 
     const userRole = session?.user?.role;
     const userId = session?.user?.id;
@@ -202,8 +201,6 @@ export default function MainContent() {
     // アクセシビリティ/SEO 向けのページタイトル（h1 として読み上げソフトに伝える）
     const pageTitleMap: Record<PageType, string> = {
         'schedule': '工程管理',
-        'tentative-triage': '仮予定の仕分け',
-        'ai-assistant': 'AI照会',
         'my-schedule': 'マイスケジュール',
         'project-masters': '案件マスタ',
         'reports': '日報',
@@ -287,6 +284,7 @@ export default function MainContent() {
                             onToday={calendarNav?.goToToday}
                             onOpenSearch={scheduleView === 'calendar' && openSearch ? openSearch : undefined}
                             onOpenHistory={canViewHistory ? () => setIsHistoryOpen(true) : undefined}
+                            onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
                         />
                         <div className="flex-1 min-h-0">
                             {scheduleView === 'calendar' ? (
@@ -306,21 +304,15 @@ export default function MainContent() {
                                 onClose={() => setIsHistoryOpen(false)}
                             />
                         )}
+                        <AiAssistantModal
+                            isOpen={isAiAssistantOpen}
+                            onClose={() => setIsAiAssistantOpen(false)}
+                        />
                     </>
                 );
 
             case 'settings':
                 return <SettingsPage />;
-
-            case 'tentative-triage':
-                return <TentativeTriageView />;
-
-            case 'ai-assistant':
-                // 協力業者には社内の空き情報を見せない（API側でも403ガード）
-                if (userRole === 'partner' || userRole === 'partner_member') {
-                    return <PlaceholderPage title="アクセス権限がありません" />;
-                }
-                return <AiAssistantView />;
 
             case 'my-schedule':
                 return <MySchedulePage />;
