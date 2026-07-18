@@ -16,7 +16,11 @@ import {
     notifyAssignmentMoved,
     notifyAssignmentReassigned,
     notifyAssignmentDeleted,
+    formatJpShortDate,
+    SCHEDULE_CHANGED_TYPE,
 } from '@/lib/scheduleChangeNotify';
+import { notifyUsers } from '@/lib/notifications';
+import { extractAssigneeIds } from '@/lib/projectAssignees';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -251,6 +255,39 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                 }
             } catch (e) {
                 logger.error('[assignments PATCH] 予定変更通知に失敗', e);
+            }
+
+            // 担当者以外による仮予定の操作（確定化/仮への変更・日程移動）は案件担当者へ通知。
+            // 仮予定は「先方一報」が絡むため、権限壁ではなく可視化で守る（設計 §10-A #8）
+            try {
+                const statusChanged = body.dateStatus !== undefined && body.dateStatus !== current.dateStatus;
+                if (current.dateStatus === 'tentative' && (statusChanged || dateChanged)) {
+                    const assigneeIds = extractAssigneeIds(assignment.projectMaster?.createdBy ?? undefined)
+                        .filter((uid) => uid !== session!.user.id);
+                    if (assigneeIds.length > 0) {
+                        const activeAssignees = await prisma.user.findMany({
+                            where: { id: { in: assigneeIds }, isActive: true },
+                            select: { id: true },
+                        });
+                        if (activeAssignees.length > 0) {
+                            const site = assignment.projectMaster?.name || assignment.projectMaster?.title || '案件';
+                            const what = statusChanged
+                                ? (body.dateStatus === 'confirmed' ? '確定に変更されました' : '仮のままに戻されました')
+                                : `${formatJpShortDate(current.date)} → ${formatJpShortDate(assignment.date)} に移動されました`;
+                            await notifyUsers({
+                                userIds: activeAssignees.map((u) => u.id),
+                                type: SCHEDULE_CHANGED_TYPE,
+                                title: `【仮予定の変更】${site}`,
+                                body: `担当外のメンバーにより仮予定が${what}`,
+                                url: '/?page=schedule&view=assignment',
+                                pushTag: `schedule-${id}`,
+                                data: { assignmentId: id, kind: 'tentative-changed-by-other' },
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                logger.error('[assignments PATCH] 仮予定の担当者通知に失敗', e);
             }
         }
 

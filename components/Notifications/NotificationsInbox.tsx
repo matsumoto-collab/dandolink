@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Check, ChevronDown, MessageSquare, Settings, X } from 'lucide-react';
+import { Bell, Check, ChevronDown, MessageSquare, Settings, Sunrise, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -81,6 +81,13 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
     const [view, setView] = useState<'list' | 'settings'>('list');
     const [items, setItems] = useState<NotificationItem[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    // 未読の「朝の見張りまとめ」は既読になるまで先頭に固定（通常通知に埋もれさせない）
+    const displayItems = useMemo(() => {
+        const pinned = items.filter((n) => n.type === 'schedule-watch' && !n.readAt);
+        if (pinned.length === 0) return items;
+        const rest = items.filter((n) => !(n.type === 'schedule-watch' && !n.readAt));
+        return [...pinned, ...rest];
+    }, [items]);
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [limit, setLimit] = useState(INITIAL_LIMIT);
@@ -388,8 +395,10 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                     ) : (
                         <>
                             <ul className="divide-y divide-slate-100">
-                                {items.map((n) => {
+                                {displayItems.map((n) => {
                                     const unread = !n.readAt;
+                                    // 「朝の見張りまとめ」は通常通知と見た目を区別（専用アイコン＋アクセント色・複数行表示）
+                                    const isWatch = n.type === 'schedule-watch';
                                     const d = (n.data ?? {}) as { assigneeIds?: string[]; assignmentId?: string };
                                     const isAdminOrManager = role === 'admin' || role === 'manager';
                                     // 作業開始/完了通知に「顧客へ連絡」ボタン。admin/manager または案件担当者 のみ表示。
@@ -404,15 +413,23 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                                             <button
                                                 type="button"
                                                 onClick={() => handleClickItem(n)}
-                                                className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-slate-50 transition-colors ${unread ? 'bg-sky-50/60' : ''}`}
+                                                className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-slate-50 transition-colors ${
+                                                    isWatch
+                                                        ? `border-l-4 ${unread ? 'border-amber-400 bg-amber-50/70' : 'border-amber-200'}`
+                                                        : unread ? 'bg-sky-50/60' : ''
+                                                }`}
                                             >
-                                                <span className={`flex-shrink-0 mt-1.5 w-2 h-2 rounded-full ${unread ? 'bg-sky-500' : 'bg-transparent'}`} aria-hidden />
+                                                {isWatch ? (
+                                                    <Sunrise className={`flex-shrink-0 mt-1 w-4 h-4 ${unread ? 'text-amber-500' : 'text-amber-300'}`} aria-hidden />
+                                                ) : (
+                                                    <span className={`flex-shrink-0 mt-1.5 w-2 h-2 rounded-full ${unread ? 'bg-sky-500' : 'bg-transparent'}`} aria-hidden />
+                                                )}
                                                 <span className="flex-1 min-w-0">
                                                     <div className="flex items-start justify-between gap-2">
-                                                        <div className="font-medium text-sm text-slate-800 line-clamp-2">{n.title}</div>
+                                                        <div className={`font-medium text-sm line-clamp-2 ${isWatch ? 'text-amber-900' : 'text-slate-800'}`}>{n.title}</div>
                                                         <div className="flex-shrink-0 text-[11px] text-slate-400">{formatRelative(n.createdAt)}</div>
                                                     </div>
-                                                    <div className="mt-0.5 text-xs text-slate-600 line-clamp-2">{n.body}</div>
+                                                    <div className={`mt-0.5 text-xs text-slate-600 ${isWatch ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>{n.body}</div>
                                                 </span>
                                             </button>
                                             {canNotifyCustomer && notifyKind && (
