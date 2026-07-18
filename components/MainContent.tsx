@@ -11,7 +11,7 @@ import ScheduleToolbar from './Schedule/ScheduleToolbar';
 import { isManagerOrAbove } from '@/utils/permissions';
 
 const VALID_PAGES: PageType[] = [
-    'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
+    'schedule', 'tentative-triage', 'my-schedule', 'project-masters', 'reports', 'attendance',
     'profit-dashboard', 'estimates', 'invoices', 'billing-drafts', 'billing-board',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'material-returns', 'settings', 'chat',
@@ -35,6 +35,9 @@ const OverviewCalendar = dynamic(() => import('./Calendar/OverviewCalendar'), {
     loading: () => <LoadingSpinner />,
 });
 const AssignmentTable = dynamic(() => import('./Schedule/AssignmentTable'), {
+    loading: () => <LoadingSpinner />,
+});
+const TentativeTriageView = dynamic(() => import('./Schedule/TentativeTriageView'), {
     loading: () => <LoadingSpinner />,
 });
 const SettingsPage = dynamic(() => import('@/app/(master)/settings/page'), {
@@ -196,6 +199,7 @@ export default function MainContent() {
     // アクセシビリティ/SEO 向けのページタイトル（h1 として読み上げソフトに伝える）
     const pageTitleMap: Record<PageType, string> = {
         'schedule': '工程管理',
+        'tentative-triage': '仮予定の仕分け',
         'my-schedule': 'マイスケジュール',
         'project-masters': '案件マスタ',
         'reports': '日報',
@@ -303,6 +307,9 @@ export default function MainContent() {
 
             case 'settings':
                 return <SettingsPage />;
+
+            case 'tentative-triage':
+                return <TentativeTriageView />;
 
             case 'my-schedule':
                 return <MySchedulePage />;

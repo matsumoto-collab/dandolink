@@ -15,7 +15,7 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'settings';
+    page: 'schedule' | 'tentative-triage' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
     /** true なら User.canAccessCashbook を持つユーザーにのみ表示（ロールでは表現できない個別許可制） */
@@ -32,6 +32,7 @@ const navigationSections: NavSection[] = [
         title: '業務管理',
         items: [
             { name: 'スケジュール管理', page: 'schedule' },
+            { name: '仮予定の仕分け', page: 'tentative-triage', requiredRoles: ['admin', 'manager', 'foreman1'] },
             { name: 'マイ工程', page: 'my-schedule' },
             { name: '案件一覧', page: 'project-masters' },
             { name: '報告一覧', page: 'reports' },
@@ -287,7 +288,7 @@ export default function Sidebar() {
                             // 職長1/2: 業務管理 + 材料管理
                             if (role === 'foreman1' || role === 'foreman2') {
                                 if (filteredSection.title === '業務管理') {
-                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance' || item.page === 'chat') };
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'tentative-triage' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance' || item.page === 'chat') };
                                 }
                                 if (filteredSection.title === '材料管理') return filteredSection;
                                 return null;

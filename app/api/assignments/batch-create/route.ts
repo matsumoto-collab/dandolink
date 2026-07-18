@@ -18,6 +18,8 @@ interface BatchCreateAssignment {
     remarks?: string;
     constructionType?: string;
     estimatedHours?: number;
+    dateStatus?: string;
+    confirmDueDate?: string | null;
 }
 
 /**
@@ -77,6 +79,8 @@ export async function POST(req: NextRequest) {
                         remarks: a.remarks || null,
                         constructionType: a.constructionType || null,
                         estimatedHours: a.estimatedHours ?? 8.0,
+                        dateStatus: a.dateStatus === 'tentative' ? 'tentative' : 'confirmed',
+                        confirmDueDate: a.confirmDueDate ? new Date(a.confirmDueDate) : null,
                         updatedBy: session!.user.id,
                         assignmentWorkers: {
                             create: Array.isArray(a.workers)

@@ -10,6 +10,7 @@ import { useVacation } from '@/hooks/useVacation';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import VacationSelector from './VacationSelector';
+import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
 import dynamic from 'next/dynamic';
 
 const ProjectChatModal = dynamic(() => import('@/components/Chat/ProjectChatModal'), { ssr: false });
@@ -622,7 +623,10 @@ export default function MobileCalendarView({
                                                                         ? 'ring-4 ring-amber-400 ring-offset-2 animate-pulse'
                                                                         : 'active:brightness-90'
                                                                 }`}
-                                                                style={{ backgroundColor: event.color }}
+                                                                style={{
+                                                                    backgroundColor: event.color,
+                                                                    ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
+                                                                }}
                                                             >
                                                                 {editingUsers.length > 0 && (
                                                                     <Edit3 className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-slate-600 animate-pulse" />
@@ -631,6 +635,7 @@ export default function MobileCalendarView({
                                                                     <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-slate-700" />
                                                                 )}
                                                                 <div className="text-[10px] font-bold text-slate-800 leading-tight truncate pr-3">
+                                                                    {event.dateStatus === 'tentative' && <TentativeBadge />}
                                                                     {event.title}
                                                                 </div>
                                                                 {event.customer && (

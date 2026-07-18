@@ -26,6 +26,8 @@ export interface RawAssignment {
     memberCount?: number;
     remarks?: string | null;
     isDispatchConfirmed?: boolean;
+    dateStatus?: string;
+    confirmDueDate?: Date | null;
     [key: string]: unknown;
 }
 
@@ -102,6 +104,7 @@ export function formatAssignment(a: RawAssignment) {
         vehicles,
         confirmedWorkerIds: parseJsonField<string[]>(a.confirmedWorkerIds, []),
         confirmedVehicleIds: parseJsonField<string[]>(a.confirmedVehicleIds, []),
+        confirmDueDate: a.confirmDueDate ? a.confirmDueDate.toISOString() : null,
         createdAt: a.createdAt.toISOString(),
         updatedAt: a.updatedAt.toISOString(),
         projectMaster: a.projectMaster ? formatProjectMasterBase(a.projectMaster) : null,

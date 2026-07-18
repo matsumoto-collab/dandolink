@@ -50,6 +50,7 @@ function parseAssignmentDates(data: AssignmentWithMaster & {
         updatedAt: new Date(data.updatedAt),
         workStartedAt: data.workStartedAt ? new Date(data.workStartedAt) : null,
         workEndedAt: data.workEndedAt ? new Date(data.workEndedAt) : null,
+        confirmDueDate: data.confirmDueDate ? new Date(data.confirmDueDate) : null,
         projectMaster: data.projectMaster ? {
             ...data.projectMaster,
             createdAt: new Date(data.projectMaster.createdAt),
@@ -588,6 +589,8 @@ export function useProjects() {
             confirmedWorkerIds: a.confirmedWorkerIds,
             confirmedVehicleIds: a.confirmedVehicleIds,
             isDispatchConfirmed: a.isDispatchConfirmed,
+            dateStatus: a.dateStatus ?? 'confirmed',
+            confirmDueDate: a.confirmDueDate ?? null,
             createdBy: a.projectMaster?.createdBy,
             createdAt: a.createdAt,
             updatedAt: a.updatedAt,

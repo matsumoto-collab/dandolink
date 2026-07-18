@@ -4,6 +4,7 @@ import React, { useRef } from 'react';
 import { CalendarEvent, EmployeeRow, WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
 import { getDayOfWeekString } from '@/utils/dateUtils';
+import { TENTATIVE_STRIPE_BG } from './tentativeStyle';
 
 interface OverviewCalendarViewProps {
     weekDays: WeekDay[];
@@ -28,12 +29,14 @@ function MiniCard({ event }: { event: CalendarEvent }) {
             className="rounded px-0.5 overflow-hidden max-w-full"
             style={{
                 backgroundColor: event.color || '#e2e8f0',
+                ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
                 marginBottom: 1,
                 paddingTop: 1,
                 paddingBottom: 1,
             }}
         >
             <div className="font-medium text-slate-800 truncate text-[7px] leading-[8px]">
+                {event.dateStatus === 'tentative' && <span className="font-bold">[仮]</span>}
                 {(event as any).name
                     ? `${(event as any).name}${(event as any).honorific || ''}${(event as any).siteShortName ? ' ' + (event as any).siteShortName : ''}`
                     : event.title}

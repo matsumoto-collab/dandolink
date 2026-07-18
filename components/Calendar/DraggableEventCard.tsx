@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { CalendarEvent, EditingUser } from '@/types/calendar';
 import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle, Copy, Edit3 } from 'lucide-react';
 import EventCardHoverPreview from './EventCardHoverPreview';
+import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
 
 const LONG_PRESS_MS = 500;
 const LONG_PRESS_TOLERANCE = 6;
@@ -170,7 +171,10 @@ export default function DraggableEventCard({
         >
             <div
                 className="relative rounded-lg"
-                style={{ backgroundColor: event.color }}
+                style={{
+                    backgroundColor: event.color,
+                    ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
+                }}
             >
                 {/* 編集中インジケーター */}
                 {hasOtherEditors && (
@@ -217,6 +221,7 @@ export default function DraggableEventCard({
                         >
                             {/* 1段目: 現場名（短縮表示: 名前+敬称+その他） */}
                             <div className="font-medium text-slate-900 truncate">
+                                {event.dateStatus === 'tentative' && <TentativeBadge />}
                                 {(event as any).name
                                     ? `${(event as any).name}${(event as any).honorific || ''}${(event as any).siteShortName ? ' ' + (event as any).siteShortName : ''}`
                                     : event.title}

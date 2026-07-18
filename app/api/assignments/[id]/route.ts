@@ -76,11 +76,16 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.assignedEmployeeId === 'unassigned') {
             return errorResponse('職長が選択されていません', 400);
         }
+        if (body.dateStatus !== undefined && !['confirmed', 'tentative'].includes(body.dateStatus)) {
+            return errorResponse('日付確度の値が不正です', 400);
+        }
 
         // 楽観的ロック / foreman2オーナーシップ確認 / 変更履歴記録のため現在値をロード
-        // 履歴記録対象: date, assignedEmployeeId 変更時
+        // 履歴記録対象: date, assignedEmployeeId, dateStatus 変更時
+        // （仮→確定の切替は「先方に一報を入れた」証跡なので必ず履歴に残す）
         const willRecordHistory =
-            (body.date !== undefined || body.assignedEmployeeId !== undefined) && !isForeman2;
+            (body.date !== undefined || body.assignedEmployeeId !== undefined || body.dateStatus !== undefined) &&
+            !isForeman2;
         let current: Awaited<ReturnType<typeof prisma.projectAssignment.findUnique>> = null;
         if (body.expectedUpdatedAt || isForeman2 || willRecordHistory) {
             current = await prisma.projectAssignment.findUnique({
@@ -127,6 +132,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.confirmedVehicleIds !== undefined && allowed('confirmedVehicleIds')) updateData.confirmedVehicleIds = stringifyJsonField(body.confirmedVehicleIds);
         if (body.constructionType !== undefined && allowed('constructionType')) updateData.constructionType = body.constructionType;
         if (body.estimatedHours !== undefined && allowed('estimatedHours')) updateData.estimatedHours = body.estimatedHours;
+        if (body.dateStatus !== undefined && allowed('dateStatus')) updateData.dateStatus = body.dateStatus;
+        if (body.confirmDueDate !== undefined && allowed('confirmDueDate')) updateData.confirmDueDate = body.confirmDueDate ? new Date(body.confirmDueDate) : null;
         updateData.updatedBy = session!.user.id;
 
         // workers/vehiclesが更新される場合、リレーションテーブルも同期
@@ -189,6 +196,16 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                     changeType: 'foreman',
                     previousValue: current.assignedEmployeeId,
                     newValue: body.assignedEmployeeId,
+                });
+            }
+
+            if (body.dateStatus !== undefined && body.dateStatus !== current.dateStatus) {
+                historyEntries.push({
+                    assignmentId: id,
+                    changedById: session!.user.id,
+                    changeType: 'dateStatus',
+                    previousValue: current.dateStatus,
+                    newValue: body.dateStatus,
                 });
             }
 
@@ -279,6 +296,8 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
                 isDispatchConfirmed: full.isDispatchConfirmed,
                 confirmedWorkerIds: f.confirmedWorkerIds,
                 confirmedVehicleIds: f.confirmedVehicleIds,
+                dateStatus: full.dateStatus,
+                confirmDueDate: full.confirmDueDate ? full.confirmDueDate.toISOString() : null,
             };
             try {
                 const log = await prisma.deletedAssignmentLog.create({

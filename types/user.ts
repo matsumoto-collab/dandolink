@@ -22,6 +22,8 @@ export interface User {
     partnerTaxMode?: PartnerTaxMode;
     /** 現金出納帳へのアクセス許可（ロールではなく個別ユーザー指定） */
     canAccessCashbook?: boolean;
+    /** 仮予定の確認予定日の自動提案リード日数（予定日の◯日前）。初期14日 */
+    tentativeConfirmLeadDays?: number;
     createdAt?: Date;
     updatedAt?: Date;
 }

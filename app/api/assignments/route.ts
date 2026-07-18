@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         const validation = validateRequest(createAssignmentSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        const { projectMasterId, assignedEmployeeId, date, memberCount, workers, vehicles, meetingTime, sortOrder, remarks, isDispatchConfirmed, confirmedWorkerIds, confirmedVehicleIds, estimatedHours } = validation.data;
+        const { projectMasterId, assignedEmployeeId, date, memberCount, workers, vehicles, meetingTime, sortOrder, remarks, isDispatchConfirmed, confirmedWorkerIds, confirmedVehicleIds, estimatedHours, dateStatus, confirmDueDate } = validation.data;
         const constructionType = body.constructionType; // バリデーションスキーマ外で取得
 
         // 一意制約を削除したため、重複チェックは不要（同一案件・同一職長・同一日付で複数配置可能）
@@ -86,6 +86,8 @@ export async function POST(req: NextRequest) {
                 confirmedWorkerIds: stringifyJsonField(confirmedWorkerIds), confirmedVehicleIds: stringifyJsonField(confirmedVehicleIds),
                 constructionType: constructionType || null,
                 estimatedHours: estimatedHours ?? 8.0,
+                dateStatus: dateStatus ?? 'confirmed',
+                confirmDueDate: confirmDueDate ? new Date(confirmDueDate) : null,
                 updatedBy: session!.user.id,
 
                 assignmentWorkers: {

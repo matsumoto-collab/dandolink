@@ -39,6 +39,7 @@ function parseRestoredAssignment(
         workEndedAt: created.workEndedAt ? new Date(created.workEndedAt) : null,
         workStartedComment: created.workStartedComment ?? null,
         workEndedComment: created.workEndedComment ?? null,
+        confirmDueDate: created.confirmDueDate ? new Date(created.confirmDueDate) : null,
         projectMaster: created.projectMaster ? {
             ...created.projectMaster,
             createdAt: new Date(created.projectMaster.createdAt),
@@ -82,6 +83,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     workEndedAt: a.workEndedAt ? new Date(a.workEndedAt) : null,
                     workStartedComment: a.workStartedComment ?? null,
                     workEndedComment: a.workEndedComment ?? null,
+                    confirmDueDate: a.confirmDueDate ? new Date(a.confirmDueDate) : null,
                     projectMaster: a.projectMaster ? {
                         ...a.projectMaster,
                         createdAt: new Date(a.projectMaster.createdAt),
@@ -198,6 +200,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             date: new Date(a.date),
             createdAt: new Date(a.createdAt),
             updatedAt: new Date(a.updatedAt),
+            confirmDueDate: a.confirmDueDate ? new Date(a.confirmDueDate) : null,
             projectMaster: a.projectMaster ? {
                 ...a.projectMaster,
                 createdAt: new Date(a.projectMaster.createdAt),
@@ -221,6 +224,8 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 remarks: schedule.remarks || project.remarks,
                 constructionType: schedule.constructionType ?? project.constructionType,
                 estimatedHours: project.estimatedHours ?? 8.0,
+                dateStatus: project.dateStatus,
+                confirmDueDate: project.confirmDueDate instanceof Date ? project.confirmDueDate.toISOString() : project.confirmDueDate,
             }));
 
             const response = await fetch('/api/assignments/batch-create', {
@@ -265,6 +270,8 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     remarks: project.remarks,
                     constructionType: project.constructionType,
                     estimatedHours: project.estimatedHours ?? 8.0,
+                    dateStatus: project.dateStatus,
+                    confirmDueDate: project.confirmDueDate instanceof Date ? project.confirmDueDate.toISOString() : project.confirmDueDate,
                 }),
             });
 
@@ -376,6 +383,10 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     confirmedVehicleIds: dispatchVehicleIds,
                     constructionType: updates.constructionType,
                     estimatedHours: updates.estimatedHours,
+                    dateStatus: updates.dateStatus,
+                    confirmDueDate: updates.confirmDueDate === undefined
+                        ? undefined
+                        : (updates.confirmDueDate instanceof Date ? updates.confirmDueDate.toISOString() : updates.confirmDueDate),
                 }),
             });
 
@@ -402,6 +413,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                                 date: new Date(updatedAssignment.date),
                                 createdAt: new Date(updatedAssignment.createdAt),
                                 updatedAt: new Date(updatedAssignment.updatedAt),
+                                confirmDueDate: updatedAssignment.confirmDueDate ? new Date(updatedAssignment.confirmDueDate) : null,
                                 projectMaster: updatedAssignment.projectMaster ? {
                                     ...updatedAssignment.projectMaster,
                                     createdAt: new Date(updatedAssignment.projectMaster.createdAt),
@@ -423,6 +435,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     workEndedAt: updatedAssignment.workEndedAt ? new Date(updatedAssignment.workEndedAt) : null,
                     workStartedComment: updatedAssignment.workStartedComment ?? null,
                     workEndedComment: updatedAssignment.workEndedComment ?? null,
+                    confirmDueDate: updatedAssignment.confirmDueDate ? new Date(updatedAssignment.confirmDueDate) : null,
                     projectMaster: updatedAssignment.projectMaster ? {
                         ...updatedAssignment.projectMaster,
                         createdAt: new Date(updatedAssignment.projectMaster.createdAt),

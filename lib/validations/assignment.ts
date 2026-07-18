@@ -24,6 +24,10 @@ export const createAssignmentSchema = z.object({
     confirmedWorkerIds: z.array(z.string()).optional(),
     confirmedVehicleIds: z.array(z.string()).optional(),
     estimatedHours: z.number().min(0).max(24).optional(),
+    // 日付の確度。'tentative' = 先方未確定の仮押さえ（isDispatchConfirmed とは別概念）
+    dateStatus: z.enum(['confirmed', 'tentative']).optional(),
+    // 仮予定の「この日までに先方へ確認する」目安日
+    confirmDueDate: z.string().nullable().optional(),
 });
 
 export const updateAssignmentSchema = createAssignmentSchema.partial();

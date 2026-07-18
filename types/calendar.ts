@@ -34,6 +34,10 @@ export interface CalendarEvent {
     assignedEmployeeId?: string;
     // セル内での表示順序
     sortOrder?: number;
+    // 日付の確度。'tentative' = 先方未確定の仮押さえ（斜線オーバーレイ＋「仮」バッジ表示）
+    dateStatus?: 'confirmed' | 'tentative';
+    // 仮予定の「この日までに先方へ確認する」目安日
+    confirmDueDate?: Date | null;
     // 組立・解体の日程(新規)
     assemblyStartDate?: Date;
     assemblyEndDate?: Date;
@@ -196,6 +200,10 @@ export interface ProjectAssignment {
     confirmedWorkerIds?: string[];  // 確定職方ID配列
     confirmedVehicleIds?: string[]; // 確定車両ID配列
     isDispatchConfirmed: boolean;   // 手配確定フラグ
+
+    // 日付の確度（isDispatchConfirmed=社内手配確定とは別概念）
+    dateStatus?: 'confirmed' | 'tentative';
+    confirmDueDate?: Date | null;   // 仮予定の先方確認予定日
 
     // 作業開始・終了通知済みフラグ（一度押したらブロック）
     workStartedAt?: Date | null;

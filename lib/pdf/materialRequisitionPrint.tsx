@@ -40,9 +40,11 @@ async function buildSlipDataForRequisition(id: string): Promise<MaterialRequisit
             constructionType: { in: ['組立', '解体'] },
         },
         orderBy: { date: 'asc' },
-        select: { date: true, constructionType: true },
+        select: { date: true, constructionType: true, dateStatus: true },
     });
-    const fmt = (d: Date | undefined) => d ? `${d.getMonth() + 1}/${d.getDate()}` : '';
+    // 仮予定（先方未確定の仮押さえ）の日付を確定と誤読させないよう「(仮)」を付す
+    const fmt = (a: { date: Date; dateStatus: string } | undefined) =>
+        a ? `${a.date.getMonth() + 1}/${a.date.getDate()}${a.dateStatus === 'tentative' ? '(仮)' : ''}` : '';
     // notes の日付は YYYY-MM-DD（date input 由来）。PDF 表記に合わせ M/D へ整形（解釈不能はそのまま）
     const fmtYmdToMd = (s: string): string => {
         const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
@@ -50,10 +52,10 @@ async function buildSlipDataForRequisition(id: string): Promise<MaterialRequisit
     };
     const assemblyDate = parsedNotes.assemblyDate
         ? fmtYmdToMd(parsedNotes.assemblyDate)
-        : fmt(dateAssignments.find(a => a.constructionType === '組立')?.date);
+        : fmt(dateAssignments.find(a => a.constructionType === '組立'));
     const demolitionDate = parsedNotes.demolitionDate
         ? fmtYmdToMd(parsedNotes.demolitionDate)
-        : fmt(dateAssignments.find(a => a.constructionType === '解体')?.date);
+        : fmt(dateAssignments.find(a => a.constructionType === '解体'));
 
     // 車両情報: JSON ({vehicles:["車両A","車両B","車両C"]}) 形式を試行、失敗時は単一テキストを 1列目に
     let vehicles: [string, string, string] = ['', '', ''];

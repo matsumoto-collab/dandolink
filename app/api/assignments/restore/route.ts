@@ -25,6 +25,8 @@ interface SnapshotShape {
     isDispatchConfirmed?: boolean;
     confirmedWorkerIds?: string[];
     confirmedVehicleIds?: string[];
+    dateStatus?: string;
+    confirmDueDate?: string | null;
 }
 
 /**
@@ -71,6 +73,8 @@ export async function POST(req: NextRequest) {
                 isDispatchConfirmed: snap.isDispatchConfirmed || false,
                 confirmedWorkerIds: stringifyJsonField(snap.confirmedWorkerIds ?? []),
                 confirmedVehicleIds: stringifyJsonField(snap.confirmedVehicleIds ?? []),
+                dateStatus: snap.dateStatus === 'tentative' ? 'tentative' : 'confirmed',
+                confirmDueDate: snap.confirmDueDate ? new Date(snap.confirmDueDate) : null,
                 updatedBy: session!.user.id,
                 assignmentWorkers: { create: workers.map((w) => ({ workerName: w })) },
                 assignmentVehicles: { create: vehicles.map((v) => ({ vehicleName: v })) },

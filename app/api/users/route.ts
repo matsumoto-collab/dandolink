@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
         const users = await prisma.user.findMany({
             where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
-            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, companyId: true, isLoginEnabled: true, partnerTaxMode: true, canAccessCashbook: true, createdAt: true, updatedAt: true },
+            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, companyId: true, isLoginEnabled: true, partnerTaxMode: true, canAccessCashbook: true, tentativeConfirmLeadDays: true, createdAt: true, updatedAt: true },
             orderBy: { createdAt: 'desc' },
         });
 
@@ -38,6 +38,8 @@ export async function GET(req: NextRequest) {
                 displayName: user.displayName,
                 role: user.role.toLowerCase(),
                 isActive: user.isActive,
+                // 仮予定の確認予定日リード日数。機密ではなく、配置フォームが操作ユーザー分を参照するため全ロールに返す
+                tentativeConfirmLeadDays: user.tentativeConfirmLeadDays,
             };
 
             // 管理者またはマネージャーの場合は詳細情報も含める
@@ -112,7 +114,7 @@ export async function POST(req: NextRequest) {
             return validationErrorResponse(validation.error!, validation.details);
         }
 
-        const { username, email, displayName, password, role, assignedProjects, dailyRate, companyId, isLoginEnabled, partnerTaxMode, canAccessCashbook } = validation.data;
+        const { username, email, displayName, password, role, assignedProjects, dailyRate, companyId, isLoginEnabled, partnerTaxMode, canAccessCashbook, tentativeConfirmLeadDays } = validation.data;
 
         const existingUser = await prisma.user.findUnique({ where: { username } });
         if (existingUser) return errorResponse('このユーザー名は既に使用されています', 400);
@@ -144,6 +146,7 @@ export async function POST(req: NextRequest) {
                 isLoginEnabled: loginEnabled,
                 ...(role === 'partner' && partnerTaxMode ? { partnerTaxMode } : {}),
                 canAccessCashbook: canAccessCashbook ?? false,
+                ...(tentativeConfirmLeadDays !== undefined ? { tentativeConfirmLeadDays } : {}),
             },
         });
 
@@ -156,6 +159,7 @@ export async function POST(req: NextRequest) {
             isLoginEnabled: newUser.isLoginEnabled,
             partnerTaxMode: newUser.partnerTaxMode,
             canAccessCashbook: newUser.canAccessCashbook,
+            tentativeConfirmLeadDays: newUser.tentativeConfirmLeadDays,
             isActive: newUser.isActive, createdAt: newUser.createdAt, updatedAt: newUser.updatedAt,
         });
     } catch (error) {

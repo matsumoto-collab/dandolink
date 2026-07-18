@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DailySchedule, WorkSchedule } from '@/types/calendar';
+import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DailySchedule, WorkSchedule, LEGACY_CONSTRUCTION_CONTENT_LABELS } from '@/types/calendar';
 import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
@@ -143,6 +143,9 @@ export default function ProjectForm({
         // 工事内容
         constructionContent: initialData?.constructionContent || '',
         remarks: initialData?.remarks || '',
+        // 日付の確度（'tentative' = 先方未確定の仮押さえ）と先方確認予定日（YYYY-MM-DD）
+        dateStatus: (initialData?.dateStatus === 'tentative' ? 'tentative' : 'confirmed') as 'confirmed' | 'tentative',
+        confirmDueDate: initialData?.confirmDueDate ? formatDateKey(new Date(initialData.confirmDueDate)) : '',
     });
 
     // initialDataが変わったらformDataをリセット（備考などが前回の値で残るのを防止）
@@ -169,7 +172,10 @@ export default function ProjectForm({
             constructionType: initialData?.constructionType || '',
             constructionContent: initialData?.constructionContent || '',
             remarks: initialData?.remarks || '',
+            dateStatus: (initialData?.dateStatus === 'tentative' ? 'tentative' : 'confirmed') as 'confirmed' | 'tentative',
+            confirmDueDate: initialData?.confirmDueDate ? formatDateKey(new Date(initialData.confirmDueDate)) : '',
         });
+        dateStatusTouchedRef.current = false;
     }, [initialData]);
 
     // 新規作成時、案件担当者にログインユーザーを自動セット
@@ -203,6 +209,54 @@ export default function ProjectForm({
     // 複数日スケジュール管理用の状態
     const [useMultiDaySchedule, setUseMultiDaySchedule] = useState(false);
     const [multiDaySchedules, setMultiDaySchedules] = useState<DailySchedule[]>([]);
+
+    // 仮予定の確認予定日リード日数（担当者ごとの User.tentativeConfirmLeadDays）。
+    // /api/users のレスポンス（apiManagers のフィルタ前）から自分の設定値を引く。
+    const [leadDaysByUser, setLeadDaysByUser] = useState<Record<string, number>>({});
+    const myLeadDays = (currentUserId && leadDaysByUser[currentUserId]) || 14;
+    // ユーザーがトグルを一度でも触ったら、改修×解体の自動初期値より手動選択を優先する
+    const dateStatusTouchedRef = useRef(false);
+
+    // 確認予定日の自動提案（予定日の◯日前。◯=操作ユーザーの設定値・初期14日）
+    const suggestConfirmDueDate = () => {
+        const base = initialData?.startDate || defaultDate || new Date();
+        const d = new Date(base);
+        d.setDate(d.getDate() - myLeadDays);
+        return formatDateKey(d);
+    };
+
+    // 仮/確定トグル。仮に切り替えたとき確認予定日が空なら自動提案を入れる（手修正は常に可能）
+    const handleDateStatusChange = (next: 'confirmed' | 'tentative') => {
+        dateStatusTouchedRef.current = true;
+        setFormData(prev => ({
+            ...prev,
+            dateStatus: next,
+            confirmDueDate: next === 'tentative' && !prev.confirmDueDate ? suggestConfirmDueDate() : prev.confirmDueDate,
+        }));
+    };
+
+    // 「改修 × 解体」の新規登録はトグルの初期値だけ仮側に倒す（保存値の自動変更はしない）。
+    // 改修の解体日は先方連絡待ちが常のため。ユーザーがトグルを触った後は上書きしない。
+    useEffect(() => {
+        if (initialData?.id) return;
+        if (dateStatusTouchedRef.current) return;
+        const contentLabel = LEGACY_CONSTRUCTION_CONTENT_LABELS[formData.constructionContent] || formData.constructionContent;
+        const typeName = constructionTypes.find(t => t.id === formData.constructionType)?.name || formData.constructionType;
+        const shouldTentative = typeName === '解体' && contentLabel === '改修';
+        setFormData(prev => {
+            const next = shouldTentative ? 'tentative' : 'confirmed';
+            if (prev.dateStatus === next) return prev;
+            let due = prev.confirmDueDate;
+            if (next === 'tentative' && !due) {
+                const base = initialData?.startDate || defaultDate || new Date();
+                const d = new Date(base);
+                d.setDate(d.getDate() - myLeadDays);
+                due = formatDateKey(d);
+            }
+            return { ...prev, dateStatus: next, confirmDueDate: due };
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.constructionType, formData.constructionContent, constructionTypes, initialData?.id, myLeadDays]);
 
     // 顧客選択用のstate
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -255,6 +309,12 @@ export default function ProjectForm({
                         isManagerOrAbove(u)
                     );
                     setApiManagers(filtered);
+                    // 仮予定リード日数マップ（フィルタ前の全ユーザーから構築）
+                    const leadMap: Record<string, number> = {};
+                    (users as Array<ManagerUser & { tentativeConfirmLeadDays?: number }>).forEach((u) => {
+                        if (typeof u.tentativeConfirmLeadDays === 'number') leadMap[u.id] = u.tentativeConfirmLeadDays;
+                    });
+                    setLeadDaysByUser(leadMap);
                 }
             } catch (error) {
                 logger.error('Failed to fetch managers:', error);
@@ -553,6 +613,13 @@ export default function ProjectForm({
             color: color,
             remarks: formData.remarks ?? '',
             estimatedHours: formData.estimatedHours,
+            dateStatus: formData.dateStatus,
+            // 確認予定日は JST 0時の Date にして送る（date 列と同じ日境界規約）。確定なら null でクリア
+            confirmDueDate: (() => {
+                if (formData.dateStatus !== 'tentative' || !formData.confirmDueDate) return null;
+                const [cy, cm, cd] = formData.confirmDueDate.split('-').map(Number);
+                return cy && cm && cd ? new Date(cy, cm - 1, cd) : null;
+            })(),
         };
 
         onSubmit(projectData as Omit<Project, 'id' | 'createdAt' | 'updatedAt'>);
@@ -754,6 +821,56 @@ export default function ProjectForm({
                             <option key={item.id} value={item.name}>{item.name}</option>
                         ))}
                     </select>
+                </div>
+
+                {/* 日付の確度（仮予定トグル）。必須操作はこの1タップのみ */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        日付の確度
+                    </label>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <div className="inline-flex rounded-md border border-slate-300 overflow-hidden">
+                            <button
+                                type="button"
+                                onClick={() => handleDateStatusChange('confirmed')}
+                                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                                    formData.dateStatus !== 'tentative'
+                                        ? 'bg-slate-700 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-50'
+                                }`}
+                            >
+                                確定
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleDateStatusChange('tentative')}
+                                className={`px-4 py-2 text-sm font-medium border-l border-slate-300 transition-colors ${
+                                    formData.dateStatus === 'tentative'
+                                        ? 'bg-amber-500 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-50'
+                                }`}
+                            >
+                                仮
+                            </button>
+                        </div>
+                        {formData.dateStatus === 'tentative' && (
+                            <span className="text-xs text-amber-700">
+                                先方未確定の仮押さえとして登録します（カレンダーに斜線で表示）
+                            </span>
+                        )}
+                    </div>
+                    {formData.dateStatus === 'tentative' && (
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                            <label className="text-xs text-slate-500 whitespace-nowrap">先方への確認予定日</label>
+                            <input
+                                type="date"
+                                value={formData.confirmDueDate}
+                                onChange={(e) => setFormData({ ...formData, confirmDueDate: e.target.value })}
+                                className="px-3 py-1.5 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                            />
+                            <span className="text-xs text-slate-400">自動提案: 予定日の{myLeadDays}日前</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* 複数日スケジュール管理 */}

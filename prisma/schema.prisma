@@ -34,6 +34,8 @@ model User {
   partnerTaxMode          String   @default("exclusive")
   // 現金出納帳へのアクセス許可（個別ユーザー指定）。admin ロールでも false なら不可。
   canAccessCashbook       Boolean  @default(false)
+  // 仮予定の「先方確認予定日」自動提案のリード日数（予定日の◯日前）。担当者ごとに感覚が違うため個別に持つ。
+  tentativeConfirmLeadDays Int     @default(14)
   company                 User?    @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: SetNull)
   members                 User[]   @relation("CompanyMembers")
   billingDrafts           BillingDraft[]
@@ -163,6 +165,11 @@ model ProjectAssignment {
   laborCostOverride         Int?
   vehicleCostOverride       Int?
   subcontractorCostOverride Int?
+  // 日付の確度。'confirmed'（確定・既定）| 'tentative'（仮＝先方未確定の仮押さえ）。
+  // isDispatchConfirmed（社内手配の確定）とは別概念・直交。
+  dateStatus                String                @default("confirmed")
+  // 仮予定の「この日までに先方へ確認する」目安日（JST 0時規約）。tentative のときのみ意味を持つ。
+  confirmDueDate            DateTime?
   assignmentVehicles        AssignmentVehicle[]
   assignmentWorkers         AssignmentWorker[]
   dailyReportWorkItems      DailyReportWorkItem[]

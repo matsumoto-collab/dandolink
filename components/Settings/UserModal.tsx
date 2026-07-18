@@ -27,6 +27,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
         dailyRate: '' as string | number,
         partnerTaxMode: 'exclusive' as PartnerTaxMode,
         canAccessCashbook: false,
+        tentativeConfirmLeadDays: '14' as string | number,
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -45,6 +46,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 dailyRate: user.dailyRate != null ? user.dailyRate : '',
                 partnerTaxMode: user.partnerTaxMode ?? 'exclusive',
                 canAccessCashbook: user.canAccessCashbook ?? false,
+                tentativeConfirmLeadDays: user.tentativeConfirmLeadDays != null ? user.tentativeConfirmLeadDays : '14',
             });
         } else {
             setFormData({
@@ -58,6 +60,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 dailyRate: '',
                 partnerTaxMode: 'exclusive',
                 canAccessCashbook: false,
+                tentativeConfirmLeadDays: '14',
             });
         }
         setError('');
@@ -80,6 +83,10 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
 
             if (isAdminOrManager) {
                 dataToSave.dailyRate = formData.dailyRate !== '' ? Number(formData.dailyRate) : undefined;
+            }
+
+            if (formData.role !== 'support' && formData.tentativeConfirmLeadDays !== '') {
+                dataToSave.tentativeConfirmLeadDays = Number(formData.tentativeConfirmLeadDays);
             }
 
             // 協力会社のときだけ請求税区分を送る
@@ -289,6 +296,29 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                     placeholder="例: 18000"
                                 />
+                            </div>
+                        )}
+
+                        {/* 仮予定の確認予定日リード日数（担当者ごと） */}
+                        {formData.role !== 'support' && (
+                            <div>
+                                <label htmlFor="tentativeConfirmLeadDays" className="block text-sm font-medium text-slate-700 mb-2">
+                                    仮予定の確認リード日数（日）
+                                </label>
+                                <input
+                                    id="tentativeConfirmLeadDays"
+                                    type="number"
+                                    min="0"
+                                    max="90"
+                                    step="1"
+                                    value={formData.tentativeConfirmLeadDays}
+                                    onChange={(e) => setFormData({ ...formData, tentativeConfirmLeadDays: e.target.value })}
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                                    placeholder="例: 14"
+                                />
+                                <p className="mt-1 text-xs text-slate-500">
+                                    仮予定を登録するとき「予定日の◯日前」を先方への確認予定日として自動提案します（配置ごとに手修正可）。
+                                </p>
                             </div>
                         )}
 

@@ -120,6 +120,7 @@ describe('UserModal', () => {
                 isActive: true,
                 assignedProjects: [],
                 canAccessCashbook: false,
+                tentativeConfirmLeadDays: 14,
             });
             expect(mockOnClose).toHaveBeenCalled();
         });
