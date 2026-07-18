@@ -2,6 +2,7 @@ import { ProjectMaster, ProjectAssignment, ConflictError } from '@/types/calenda
 import { CalendarSlice, CalendarActions, CalendarState, ConflictUpdateError, assignmentToProject, parseProjectMasterDates } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/fetchWithTimeout';
 import { logger } from '@/lib/logger';
 import toast from 'react-hot-toast';
 
@@ -71,7 +72,8 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             if (endDate) params.append('endDate', endDate);
             const url = `/api/assignments${params.toString() ? `?${params}` : ''}`;
 
-            const response = await fetch(url, { cache: 'no-store', signal });
+            // タイムアウト付き: ストールすると初回ロードのスピナーが永久に解除できないため
+            const response = await fetchWithTimeout(url, { cache: 'no-store', signal });
             if (response.ok) {
                 const data = await response.json();
                 const parsed = data.map((a: ProjectAssignment & { date: string; createdAt: string; updatedAt: string; workStartedAt?: string | null; workEndedAt?: string | null; workStartedComment?: string | null; workEndedComment?: string | null; projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string } }) => ({
@@ -115,6 +117,10 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 return;
             }
             logger.error('Failed to fetch assignments:', error);
+            if (error instanceof FetchTimeoutError) {
+                // 空のカレンダーが「配置ゼロ」に見えないよう、取得失敗を明示する
+                toast.error('スケジュールの取得がタイムアウトしました。電波状況を確認して再読み込みしてください。');
+            }
             set({ projectsInitialized: true });
         } finally {
             if (_retryCount === 0 && !signal?.aborted) set({ projectsLoading: false });

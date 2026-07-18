@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap, recordEquals } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 import { logger } from '@/lib/logger';
 
 interface MemberAdjustmentSlice extends
@@ -15,7 +16,8 @@ export const createMemberAdjustmentSlice: CalendarSlice<MemberAdjustmentSlice> =
             const url = range
                 ? `/api/calendar/member-adjustments?from=${range.from}&to=${range.to}`
                 : '/api/calendar/member-adjustments';
-            const response = await fetch(url, { cache: 'no-store' });
+            // タイムアウト付き: ストールすると初回ロードのスピナーが永久に解除できないため
+            const response = await fetchWithTimeout(url, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 if (range) {

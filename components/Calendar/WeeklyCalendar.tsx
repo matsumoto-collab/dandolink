@@ -21,6 +21,7 @@ import { canDispatch as canDispatchCheck, isManagerOrAbove } from '@/utils/permi
 import { addDays } from '@/utils/dateUtils';
 import { CalendarEvent, CalendarNavigation, Project, Employee, ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
+import Button from '@/components/ui/Button';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import DesktopCalendarView from './DesktopCalendarView';
 import MobileCalendarView from './MobileCalendarView';
@@ -629,6 +630,21 @@ useEffect(() => { setIsMounted(true); }, []);
     const memberAdjustmentsInitialized = useCalendarStore((state) => state.memberAdjustmentsInitialized);
     const vacationsInitialized = useCalendarStore((state) => state.vacationsInitialized);
     const calendarDataReady = cellRemarksInitialized && memberAdjustmentsInitialized && vacationsInitialized;
+
+    // ローディング滞留の見張り: スピナーが一定時間解けない場合に再読み込み導線を出す。
+    // 初回フェッチがストールするとゲートを解除する術がなく固まるため、
+    // フェッチ側のタイムアウト（fetchWithTimeout）と二段構えの保険にする
+    const isLoadingGateClosed = !isMounted || isCalendarLoading || !isInitialized || isMobile === null
+        || !calendarDataReady;
+    const [showStuckReload, setShowStuckReload] = useState(false);
+    useEffect(() => {
+        if (!isLoadingGateClosed) {
+            setShowStuckReload(false);
+            return;
+        }
+        const timer = setTimeout(() => setShowStuckReload(true), 10_000);
+        return () => clearTimeout(timer);
+    }, [isLoadingGateClosed]);
     // 連打対応: pendingは即時UI反映、一定時間後にまとめて確認ダイアログ
     const [pendingAdjustments, setPendingAdjustments] = useState<Record<string, number>>({});
     const pendingTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -751,11 +767,18 @@ useEffect(() => { setIsMounted(true); }, []);
     // ローディング（isMobileがnullの間 = SSR/マウント前も含む）
     // 残り人数・セルメモは副次データに見えるが実際にはヘッダーとセルに直接効くため、
     // 初期化が完了するまで描画しない（部分ロード状態で誤った値が表示されるのを防ぐ）
-    if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null
-        || !calendarDataReady) {
+    if (isLoadingGateClosed) {
         return (
             <div className="h-full flex flex-col items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 min-h-[400px]">
                 <Loading size="lg" text="週間スケジュールを読み込み中..." />
+                {showStuckReload && (
+                    <div className="mt-6 flex flex-col items-center gap-2">
+                        <p className="text-sm text-slate-500">読み込みに時間がかかっています</p>
+                        <Button variant="outline" onClick={() => window.location.reload()}>
+                            再読み込み
+                        </Button>
+                    </div>
+                )}
             </div>
         );
     }

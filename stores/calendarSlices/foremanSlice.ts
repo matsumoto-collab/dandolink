@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState, ForemanUser, MemberUser } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 import { logger } from '@/lib/logger';
 
 type ForemanSlice = Pick<CalendarState, 'displayedForemanIds' | 'allForemen' | 'foremanSettingsLoading' | 'foremanSettingsInitialized' | 'allMembers' | 'allMembersInitialized'> &
@@ -20,7 +21,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
         try {
             // ブラウザHTTPキャッシュ(private, max-age=30) を活用。
             // 変更時は Realtime/broadcast 経由で refresh されるため staleness は短時間で解消する
-            const response = await fetch('/api/dispatch/foremen?scope=schedule');
+            const response = await fetchWithTimeout('/api/dispatch/foremen?scope=schedule');
             if (response.ok) {
                 const data: ForemanUser[] = await response.json();
                 set({ allForemen: data });
@@ -55,7 +56,8 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
     fetchForemanSettings: async () => {
         set({ foremanSettingsLoading: true });
         try {
-            const response = await fetch('/api/system-settings/foremen', { cache: 'no-store' });
+            // タイムアウト付き: ストールすると初回ロードのスピナーが永久に解除できないため
+            const response = await fetchWithTimeout('/api/system-settings/foremen', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 if (data.displayedForemanIds && data.displayedForemanIds.length > 0) {

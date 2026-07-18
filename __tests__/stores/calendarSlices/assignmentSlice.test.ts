@@ -1,9 +1,15 @@
 import { useCalendarStore } from '@/stores/calendarStore';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { ConflictUpdateError } from '@/stores/calendarSlices/types';
+import toast from 'react-hot-toast';
 
 jest.mock('@/lib/broadcastChannel', () => ({
   sendBroadcast: jest.fn(),
+}));
+
+jest.mock('react-hot-toast', () => ({
+  __esModule: true,
+  default: { error: jest.fn(), success: jest.fn() },
 }));
 
 global.fetch = jest.fn();
@@ -68,6 +74,33 @@ describe('assignmentSlice', () => {
 
       expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch assignments:', expect.any(Error));
       consoleSpy.mockRestore();
+    });
+
+    it('フェッチのタイムアウト時は initialized を立ててスピナーを解除し、トーストで知らせる', async () => {
+      jest.useFakeTimers();
+      // ストールしたリクエスト: 渡された signal の中断(タイムアウト)まで応答しない
+      (global.fetch as jest.Mock).mockImplementationOnce(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () => {
+              reject(new DOMException('The user aborted a request.', 'AbortError'));
+            });
+          })
+      );
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const { fetchAssignments } = useCalendarStore.getState();
+      const promise = fetchAssignments('2026-03-10', '2026-03-16');
+      jest.advanceTimersByTime(15_000);
+      await promise;
+
+      const state = useCalendarStore.getState();
+      expect(state.projectsInitialized).toBe(true);
+      expect(state.projectsLoading).toBe(false);
+      expect(toast.error).toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
+      jest.useRealTimers();
     });
   });
 

@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap, recordEquals } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 import { logger } from '@/lib/logger';
 
 type VacationSlice = Pick<CalendarState, 'vacations' | 'vacationsLoading' | 'vacationsInitialized'> &
@@ -21,7 +22,8 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
             const url = range
                 ? `/api/calendar/vacations?from=${range.from}&to=${range.to}`
                 : '/api/calendar/vacations';
-            const response = await fetch(url, { cache: 'no-store' });
+            // タイムアウト付き: ストールすると初回ロードのスピナーが永久に解除できないため
+            const response = await fetchWithTimeout(url, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 // 保存中にfetchが走った場合は無視
