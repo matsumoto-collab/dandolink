@@ -7,7 +7,7 @@ import ProjectDetailView from './ProjectDetailView';
 import EditingIndicator from '../Calendar/EditingIndicator';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
-import { FileText, Pencil, Trash2, MessageSquare, ExternalLink, UserMinus } from 'lucide-react';
+import { FileText, Pencil, Trash2, MessageSquare, ExternalLink } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const ProjectChatTab = dynamic(() => import('@/components/Chat/ProjectChatTab'), { ssr: false });
@@ -163,16 +163,6 @@ export default function ProjectModal({
                                 <span className="hidden md:inline">案件マスタを編集</span>
                             </button>
                         )}
-                        {!readOnly && !isEditMode && initialData?.id && onDemoteToFloating && (
-                            <button
-                                onClick={() => setShowDemoteConfirm(true)}
-                                title="浮きに戻す（班を外す）"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
-                            >
-                                <UserMinus className="w-4 h-4" />
-                                <span className="hidden md:inline">浮きに戻す</span>
-                            </button>
-                        )}
                         {!readOnly && !isEditMode && initialData?.id && onDelete && (
                             <button
                                 onClick={handleDelete}
@@ -215,6 +205,9 @@ export default function ProjectModal({
                             project={initialData as Project}
                             onClose={onClose}
                             readOnly={readOnly}
+                            onDemoteToFloating={
+                                !readOnly && onDemoteToFloating ? () => setShowDemoteConfirm(true) : undefined
+                            }
                         />
                     ) : (
                         // 編集モード（新規作成または編集）

@@ -15,7 +15,7 @@ import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
 import WorkStatusReportSection from './WorkStatusReportSection';
 import WorkReportReplyThread, { WorkReportReplyItem } from '@/components/WorkReport/WorkReportReplyThread';
 import { onBroadcast } from '@/lib/broadcastChannel';
-import { ExternalLink, MessageSquare, Play, Square } from 'lucide-react';
+import { ExternalLink, MessageSquare, Play, Square, UserMinus } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import MapPreview from '@/components/ui/MapPreview';
 
@@ -30,9 +30,11 @@ interface ProjectDetailViewProps {
     project: Project;
     onClose: () => void;
     readOnly?: boolean;
+    /** 配置を浮き（班未定）に戻す＝降格の確認を開く。低頻度操作のためヘッダーではなく末尾に置く */
+    onDemoteToFloating?: () => void;
 }
 
-export default function ProjectDetailView({ project, onClose, readOnly = false }: ProjectDetailViewProps) {
+export default function ProjectDetailView({ project, onClose, readOnly = false, onDemoteToFloating }: ProjectDetailViewProps) {
     const { data: session } = useSession();
     const userRole = session?.user?.role;
     const canEditAssignment = !readOnly && (userRole === 'admin' || userRole === 'manager');
@@ -788,8 +790,17 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
                 )}
             </div>
 
-            {/* 閉じるボタン */}
-            <div className="pt-4 border-t border-slate-200">
+            {/* 浮きに戻す / 閉じる */}
+            <div className="pt-4 border-t border-slate-200 space-y-2">
+                {onDemoteToFloating && (
+                    <button
+                        onClick={onDemoteToFloating}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors font-medium flex items-center justify-center gap-2"
+                    >
+                        <UserMinus className="w-4 h-4" />
+                        浮きに戻す（班を外す）
+                    </button>
+                )}
                 <button
                     onClick={onClose}
                     className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors font-medium"
