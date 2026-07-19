@@ -24,5 +24,7 @@ export function getAnthropic(): Anthropic {
 export const INVOICE_EXTRACT_MODEL = 'claude-sonnet-4-6';
 
 // スケジュールAI照会（班別空き・浮き）に使うモデル。
-// 日付の解釈と短い文章化だけなので、速くて安い Haiku で十分。
-export const SCHEDULE_AI_MODEL = 'claude-haiku-4-5';
+// 当初は Haiku だったが、ツールの正しい数字を無視して会話中の数字から回答を
+// 捏造する事故があり（2026-07-20 kei報告: 残り0人の日を「残り3人」と回答）、
+// 数字の転記精度と自己訂正の頑健性を優先して Sonnet に引き上げた。
+export const SCHEDULE_AI_MODEL = 'claude-sonnet-4-6';
