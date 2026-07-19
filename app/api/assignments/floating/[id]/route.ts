@@ -11,6 +11,7 @@ import {
 import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
 import { logger } from '@/lib/logger';
+import { relocateAssignmentWorkItems } from '@/lib/relocateWorkItems';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { notifyUsers } from '@/lib/notifications';
 import {
@@ -32,6 +33,10 @@ interface RouteContext {
  *  - assignedEmployeeId='unassigned'・isDispatchConfirmed=false・確定職方/車両クリア
  *  - dateStatus は変更しない（仮予定を降格すると「仮の浮き」= 日付も班も未定になる）
  *  - 履歴記録（changeType='foreman'）・旧職長と案件担当者へ通知・楽観ロック対応
+ *
+ * body.date（ISO）を渡すと降格と同時に別日へ移動する（浮きレーンの別日セルへ
+ * ドロップ/移動した場合）。日付が実際に変わったときは旧日付の作業明細を移送し
+ * （孤児化＝原価二重計上の防止）、履歴に changeType='date' も併せて記録する。
  */
 export async function POST(req: NextRequest, context: RouteContext) {
     try {
@@ -61,6 +66,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
             }
         }
 
+        // 日付移動オプション: body.date があれば降格と同時に別日へ移す（浮きレーンの別日セルへドロップ/移動）
+        const movingDate = typeof body.date === 'string' ? new Date(body.date) : null;
+        const dateChanged = movingDate !== null && movingDate.getTime() !== current.date.getTime();
+
         const updated = await prisma.projectAssignment.update({
             where: { id },
             data: {
@@ -68,6 +77,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 isDispatchConfirmed: false,
                 confirmedWorkerIds: stringifyJsonField([]),
                 confirmedVehicleIds: stringifyJsonField([]),
+                ...(movingDate ? { date: movingDate } : {}),
                 updatedBy: session!.user.id,
             },
             include: {
@@ -77,17 +87,37 @@ export async function POST(req: NextRequest, context: RouteContext) {
             },
         });
 
-        // 履歴: 職長変更として記録（new='unassigned'）。仮/確定の状態はそのまま残る
+        // 別日へ動かした場合: 旧日付に残る作業明細を新日付の日報へ移送（孤児化＝原価二重計上を防止）
+        if (dateChanged) {
+            try {
+                await relocateAssignmentWorkItems(id, current.date, updated.date, session!.user.id);
+            } catch (e) {
+                logger.error('[floating demote] 作業明細の移送に失敗', e);
+            }
+        }
+
+        // 履歴: 職長変更として記録（new='unassigned'）。別日移動を伴う場合は日付変更も併せて記録。
+        // 仮/確定の状態はそのまま残る。changeType='date' の値は既存互換で ISO 文字列。
         try {
-            await prisma.scheduleChangeHistory.create({
-                data: {
+            const historyEntries = [
+                {
                     assignmentId: id,
                     changedById: session!.user.id,
                     changeType: 'foreman',
                     previousValue: current.assignedEmployeeId,
                     newValue: 'unassigned',
                 },
-            });
+            ];
+            if (dateChanged) {
+                historyEntries.push({
+                    assignmentId: id,
+                    changedById: session!.user.id,
+                    changeType: 'date',
+                    previousValue: current.date.toISOString(),
+                    newValue: updated.date.toISOString(),
+                });
+            }
+            await prisma.scheduleChangeHistory.createMany({ data: historyEntries });
         } catch (e) {
             logger.error('[floating demote] 履歴記録に失敗', e);
         }

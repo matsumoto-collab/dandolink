@@ -463,16 +463,17 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
         }
     },
 
-    demoteToFloating: async (id) => {
+    demoteToFloating: async (id, date) => {
         const { assignments } = get();
         const previousAssignments = [...assignments];
         const assignment = assignments.find((a) => a.id === id);
 
-        // 楽観更新: 職長を外し手配確定をクリア（浮きレーンへ即時移動して見せる）
+        // 楽観更新: 職長を外し手配確定をクリア（浮きレーンへ即時移動して見せる）。
+        // 別日移動を伴う場合は date も反映して、移動先セルへ即時に見せる。
         set((state) => ({
             assignments: state.assignments.map((a) =>
                 a.id === id
-                    ? { ...a, assignedEmployeeId: 'unassigned', isDispatchConfirmed: false, confirmedWorkerIds: [], confirmedVehicleIds: [] }
+                    ? { ...a, assignedEmployeeId: 'unassigned', isDispatchConfirmed: false, confirmedWorkerIds: [], confirmedVehicleIds: [], ...(date ? { date } : {}) }
                     : a
             ),
         }));
@@ -481,7 +482,10 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             const response = await fetch(`/api/assignments/floating/${id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ expectedUpdatedAt: assignment?.updatedAt?.toISOString() }),
+                body: JSON.stringify({
+                    expectedUpdatedAt: assignment?.updatedAt?.toISOString(),
+                    ...(date ? { date: date.toISOString() } : {}),
+                }),
             });
 
             if (response.status === 409) {

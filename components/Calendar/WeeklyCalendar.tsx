@@ -151,10 +151,11 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
         }
     }, [updateProject]);
 
-    // 降格: 配置を浮きに戻す（編集モーダルの「浮きに戻す」から。正門経由）
-    const handleDemoteToFloating = useCallback(async (eventId: string) => {
+    // 降格: 配置を浮きに戻す（編集モーダルの「浮きに戻す」・浮きレーンへのドロップ/移動から。正門経由）。
+    // date を渡すと降格と同時に別日へ移動する（別日の浮きセルへ落とした場合）。
+    const handleDemoteToFloating = useCallback(async (eventId: string, date?: Date) => {
         try {
-            await demoteToFloating(eventId);
+            await demoteToFloating(eventId, date);
             toast.success('浮きに戻しました');
             handleCloseModal();
         } catch (e) {
@@ -238,6 +239,17 @@ useEffect(() => { setIsMounted(true); }, []);
 
     // セル間移動が発生したら即時確定せず、確認モーダルを開いて空き車両を取得
     const handlePendingMove = useCallback(async (pending: PendingMove) => {
+        // 浮きレーンへのドロップ/移動 = 降格。車両引き継ぎの判断は不要（手配確定は自動クリア）
+        // なので確認モーダルは開かず即実行する
+        if (pending.toEmployeeId === 'unassigned') {
+            const sameDay = formatDateKey(pending.fromDate) === formatDateKey(pending.toDate);
+            // 浮き→浮きの同日移動は変化なし（浮きカードは draggable にしていないので通常起きないが、
+            // D&D経路では pending が届き得るのでガード）
+            if (pending.fromEmployeeId === 'unassigned' && sameDay) return;
+            const projectId = pending.eventId.replace(/-assembly$|-demolition$/, '');
+            handleDemoteToFloating(projectId, sameDay ? undefined : pending.toDate);
+            return;
+        }
         setPendingMove(pending);
         setAvailableVehiclesData(null);
         setIsMoveModalOpen(true);
@@ -257,7 +269,7 @@ useEffect(() => { setIsMounted(true); }, []);
             logger.error('Failed to fetch available vehicles:', e);
             setAvailableVehiclesData({ available: [], inUse: [] });
         }
-    }, []);
+    }, [handleDemoteToFloating]);
 
     const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToDate } = useCalendar(events);
 

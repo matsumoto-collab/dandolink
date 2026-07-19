@@ -421,12 +421,13 @@ export function useProjects() {
         }
     }, [updateProjectStore]);
 
-    // 配置を浮き（班未定）に戻す＝降格。updateProject と同じ isUpdating ガード＋broadcast パターン
-    const demoteToFloating = useCallback(async (id: string) => {
+    // 配置を浮き（班未定）に戻す＝降格。updateProject と同じ isUpdating ガード＋broadcast パターン。
+    // date を渡すと降格と同時に別日へ移動する（浮きレーンの別日セルへドロップ/移動）。
+    const demoteToFloating = useCallback(async (id: string, date?: Date) => {
         isUpdatingRef.current = true;
         setIsUpdating(true);
         try {
-            await demoteToFloatingStore(id);
+            await demoteToFloatingStore(id, date);
             broadcastRef.current?.postMessage({ type: 'assignment_updated', id });
             sendBroadcast('assignment_updated', { id });
         } finally {

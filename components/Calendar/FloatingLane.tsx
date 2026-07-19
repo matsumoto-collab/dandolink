@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { CalendarEvent, WeekDay } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
@@ -20,6 +21,43 @@ interface FloatingLaneProps {
     /** モバイルの固定幅グリッドに合わせる場合に指定（px）。未指定はデスクトップのflexレイアウト */
     labelWidth?: number;
     colWidth?: number;
+    /**
+     * true のとき各日セルを dnd-kit の droppable（id=`unassigned-${dateKey}`）にする。
+     * これで職長行のカードを浮きレーンへ D&D すると toEmployeeId='unassigned' の PendingMove が
+     * 届き、降格（別日なら日付移動も）になる。Mobile は DndContext が無いので渡さない。
+     */
+    enableDrop?: boolean;
+    /** 長押し移動モード中か。true のとき各日セルを移動先ターゲットとして表示する */
+    isMoving?: boolean;
+    /** 移動モード中、セル/カードのタップで呼ぶ（浮きレーンの当該日へ降格移動） */
+    onCommitMove?: (date: Date) => void;
+}
+
+interface FloatingDroppableCellProps {
+    dateKey: string;
+    className: string;
+    style?: React.CSSProperties;
+    onClick: () => void;
+    children: React.ReactNode;
+}
+
+/**
+ * enableDrop 時のみレンダーされる浮きセル。useDroppable は DndContext 内でしか使えないため、
+ * フックの条件呼び出しを避ける目的で子コンポーネントへ切り出している（enableDrop=false 時は
+ * 呼び出し側が素の div を描画する）。isOver は職長セル（DroppableCell）と同系統の赤で強調する。
+ */
+function FloatingDroppableCell({ dateKey, className, style, onClick, children }: FloatingDroppableCellProps) {
+    const { setNodeRef, isOver } = useDroppable({ id: `unassigned-${dateKey}` });
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            onClick={onClick}
+            className={`${className} ${isOver ? 'ring-2 ring-red-400 ring-inset bg-red-100/50' : ''}`}
+        >
+            {children}
+        </div>
+    );
 }
 
 /** 日付ごとの浮き件数・合計人数（日付ヘッダーの赤バッジ用） */
@@ -54,6 +92,9 @@ export default function FloatingLane({
     compact = false,
     labelWidth,
     colWidth,
+    enableDrop = false,
+    isMoving = false,
+    onCommitMove,
 }: FloatingLaneProps) {
     const floating = events.filter((e) => e.assignedEmployeeId === 'unassigned');
 
@@ -73,23 +114,31 @@ export default function FloatingLane({
                     .filter((e) => formatDateKey(e.startDate) === dateKey)
                     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-                return (
-                    <div
-                        key={index}
-                        style={colWidth ? { width: colWidth } : undefined}
-                        className={`${colWidth ? 'grow flex-shrink-0' : `flex-1 ${compact ? 'min-w-[72px]' : 'min-w-[84px]'}`} border-r border-red-100 p-1 ${
-                            isReadOnly || !onCellClick ? '' : 'cursor-pointer hover:bg-red-50'
-                        }`}
-                        onClick={() => {
-                            if (!isReadOnly) onCellClick?.(day.date);
-                        }}
-                    >
+                // 移動モード中はセル/カードのタップで commitMove、それ以外は通常の onCellClick/onEventClick
+                const interactive = (!isReadOnly && !!onCellClick) || (isMoving && !!onCommitMove);
+                const cellClassName = `${colWidth ? 'grow flex-shrink-0' : `flex-1 ${compact ? 'min-w-[72px]' : 'min-w-[84px]'}`} border-r border-red-100 p-1 ${
+                    interactive ? 'cursor-pointer hover:bg-red-50' : ''
+                }`;
+                const handleCellClick = () => {
+                    if (isMoving && onCommitMove) {
+                        onCommitMove(day.date);
+                        return;
+                    }
+                    if (!isReadOnly) onCellClick?.(day.date);
+                };
+
+                const content = (
+                    <>
                         {dayFloating.map((event) => (
                             <button
                                 key={event.id}
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    if (isMoving && onCommitMove) {
+                                        onCommitMove(day.date);
+                                        return;
+                                    }
                                     onEventClick?.(event.id);
                                 }}
                                 // 職長行の通常カードと同じ見た目（工事種別色＋仮なら斜線）にして、
@@ -128,11 +177,42 @@ export default function FloatingLane({
                                 )}
                             </button>
                         ))}
-                        {dayFloating.length === 0 && !isReadOnly && onCellClick && (
+                        {/* 移動モード中: この日を移動先候補として点線ターゲットで示す（職長セルと同系統・赤） */}
+                        {isMoving && onCommitMove && (
+                            <div className={`pointer-events-none flex items-center justify-center ${compact ? 'min-h-[28px]' : 'min-h-[32px]'} my-1 border border-dashed border-red-400 text-red-400 rounded`}>
+                                <Plus className="w-4 h-4" />
+                            </div>
+                        )}
+                        {/* 空セルの新規登録動線（移動モード中はターゲットを優先して隠す） */}
+                        {dayFloating.length === 0 && !isMoving && !isReadOnly && onCellClick && (
                             <div className={`h-full ${compact ? 'min-h-[32px]' : 'min-h-[40px]'} flex items-center justify-center text-red-200`}>
                                 <Plus className="w-3.5 h-3.5" />
                             </div>
                         )}
+                    </>
+                );
+
+                const cellStyle = colWidth ? { width: colWidth } : undefined;
+
+                // enableDrop 時のみ droppable 化（useDroppable の条件呼び出しを避けるため子コンポーネントに委譲）
+                return enableDrop && !isReadOnly ? (
+                    <FloatingDroppableCell
+                        key={index}
+                        dateKey={dateKey}
+                        className={cellClassName}
+                        style={cellStyle}
+                        onClick={handleCellClick}
+                    >
+                        {content}
+                    </FloatingDroppableCell>
+                ) : (
+                    <div
+                        key={index}
+                        style={cellStyle}
+                        className={cellClassName}
+                        onClick={handleCellClick}
+                    >
+                        {content}
                     </div>
                 );
             })}
