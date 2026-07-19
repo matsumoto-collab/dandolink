@@ -42,7 +42,8 @@ export function getFloatingSummaryForDate(events: CalendarEvent[], date: Date): 
  * 浮き = 班が決まっていない仕事（assignedEmployeeId='unassigned'）。従来は
  * 実際には行かない班に載せてマイナス表示で気づく運用だったものを、専用の
  * 置き場所として可視化する（社内用語どおり「浮いている」を画面に使う）。
- * 仮の浮き（dateStatus='tentative'）は斜線＋「(日付も仮)」で区別する。
+ * カード自体は職長行の通常カードと同じ見た目（工事種別色）で描画し、仮の浮き
+ * （dateStatus='tentative'）は斜線＋「仮」バッジで区別する。
  */
 export default function FloatingLane({
     weekDays,
@@ -91,20 +92,40 @@ export default function FloatingLane({
                                     e.stopPropagation();
                                     onEventClick?.(event.id);
                                 }}
-                                className="w-full text-left mb-1 p-1 rounded-lg border-2 border-red-300 bg-white shadow-sm hover:brightness-95 relative overflow-hidden"
-                                style={event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : undefined}
+                                // 職長行の通常カードと同じ見た目（工事種別色＋仮なら斜線）にして、
+                                // 「班を外したカードがそのまま浮きレーンへ移った」ように見せる
+                                className="w-full text-left mb-1 p-1 rounded-lg shadow-sm hover:brightness-95 relative overflow-hidden"
+                                style={{
+                                    backgroundColor: event.color,
+                                    ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
+                                }}
                             >
+                                {/* 1段目: 現場名（仮なら斜線＋「仮」バッジ） */}
                                 <div className={`${compact ? 'text-[10px]' : 'text-[10px] xl:text-[11px]'} font-medium text-slate-900 leading-tight truncate`}>
                                     {event.dateStatus === 'tentative' && <TentativeBadge />}
                                     {event.title}
                                 </div>
-                                <div className="flex items-center gap-1 text-[10px] text-red-700 font-bold whitespace-nowrap">
+
+                                {/* 2段目: 元請名 */}
+                                {event.customer && (
+                                    <div className="text-[10px] text-slate-700 leading-tight truncate mt-0.5">
+                                        {event.customer}
+                                    </div>
+                                )}
+
+                                {/* 3段目: 人数 + 時間（人数は通常カードと同じ色＝赤字にしない） */}
+                                <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-700 whitespace-nowrap">
                                     <Users className="w-3 h-3 flex-shrink-0" />
                                     <span>{event.memberCount ?? 0}人</span>
-                                    {event.dateStatus === 'tentative' && (
-                                        <span className="text-amber-600 font-medium">(日付も仮)</span>
-                                    )}
+                                    {event.estimatedHours != null && <span>{event.estimatedHours}h</span>}
                                 </div>
+
+                                {/* 4段目: 備考 */}
+                                {event.remarks && (
+                                    <div className="text-[10px] text-slate-700 leading-tight truncate mt-0.5">
+                                        {event.remarks}
+                                    </div>
+                                )}
                             </button>
                         ))}
                         {dayFloating.length === 0 && !isReadOnly && onCellClick && (
