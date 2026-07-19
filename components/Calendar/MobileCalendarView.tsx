@@ -744,6 +744,8 @@ export default function MobileCalendarView({
                             compact
                             labelWidth={LABEL_W}
                             colWidth={COL_W}
+                            onLongPressEvent={isReadOnly ? undefined : (ev) => setMovingEvent(ev)}
+                            movingEventId={movingEvent?.id ?? null}
                             isMoving={movingEvent !== null}
                             onCommitMove={(date) => commitMove('unassigned', date)}
                         />

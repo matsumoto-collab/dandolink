@@ -336,6 +336,9 @@ export default function DesktopCalendarView({
                                 onCellClick={handleFloatingCellClick}
                                 isReadOnly={isReadOnly}
                                 enableDrop={!isReadOnly}
+                                enableDrag={!isReadOnly}
+                                onLongPressEvent={handleMoveToCell ? startMoving : undefined}
+                                movingEventId={movingEvent?.id ?? null}
                                 isMoving={movingEvent !== null}
                                 onCommitMove={(date) => commitMove('unassigned', date)}
                             />

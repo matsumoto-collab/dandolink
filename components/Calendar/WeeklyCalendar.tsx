@@ -242,11 +242,22 @@ useEffect(() => { setIsMounted(true); }, []);
         // 浮きレーンへのドロップ/移動 = 降格。車両引き継ぎの判断は不要（手配確定は自動クリア）
         // なので確認モーダルは開かず即実行する
         if (pending.toEmployeeId === 'unassigned') {
-            const sameDay = formatDateKey(pending.fromDate) === formatDateKey(pending.toDate);
-            // 浮き→浮きの同日移動は変化なし（浮きカードは draggable にしていないので通常起きないが、
-            // D&D経路では pending が届き得るのでガード）
-            if (pending.fromEmployeeId === 'unassigned' && sameDay) return;
             const projectId = pending.eventId.replace(/-assembly$|-demolition$/, '');
+            const sameDay = formatDateKey(pending.fromDate) === formatDateKey(pending.toDate);
+            // 浮き → 浮きの移動：班は浮きのまま日付だけ動かす。
+            // assignedEmployeeId は送らない（正門PATCHは 'unassigned' 指定を弾くため、通常の
+            // startDate＋sortOrder 更新だけで完結する）。
+            if (pending.fromEmployeeId === 'unassigned') {
+                if (sameDay) return; // 変化なし
+                const newDateKey = formatDateKey(pending.toDate);
+                // 移動先の浮きレーン末尾に並ぶ sortOrder を採番（applyPendingMove と同じ流儀）
+                const newSortOrder = projectsRef.current
+                    .filter((p) => p.id !== projectId && p.assignedEmployeeId === 'unassigned' && formatDateKey(p.startDate) === newDateKey)
+                    .reduce((max, p) => Math.max(max, p.sortOrder ?? 0), -1) + 1;
+                updateProjectWithConflictHandling(projectId, { startDate: pending.toDate, sortOrder: newSortOrder });
+                return;
+            }
+            // 職長 → 浮き（降格）。別日なら日付移動も同時に（正門経由・手配確定は自動クリア）
             handleDemoteToFloating(projectId, sameDay ? undefined : pending.toDate);
             return;
         }
@@ -269,7 +280,7 @@ useEffect(() => { setIsMounted(true); }, []);
             logger.error('Failed to fetch available vehicles:', e);
             setAvailableVehiclesData({ available: [], inUse: [] });
         }
-    }, [handleDemoteToFloating]);
+    }, [handleDemoteToFloating, updateProjectWithConflictHandling]);
 
     const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToDate } = useCalendar(events);
 
@@ -951,7 +962,9 @@ useEffect(() => { setIsMounted(true); }, []);
                             p => p.id === pendingMove.eventId.replace(/-assembly$|-demolition$/, '')
                         )?.title
                     }
-                    fromForemanName={allForemen.find(f => f.id === pendingMove.fromEmployeeId)?.displayName}
+                    fromForemanName={pendingMove.fromEmployeeId === 'unassigned'
+                        ? '浮き（班未定）'
+                        : allForemen.find(f => f.id === pendingMove.fromEmployeeId)?.displayName}
                     toForemanName={allForemen.find(f => f.id === pendingMove.toEmployeeId)?.displayName}
                     availableVehicles={availableVehiclesData?.available ?? null}
                     inUseVehicles={availableVehiclesData?.inUse ?? []}

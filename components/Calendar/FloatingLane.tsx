@@ -1,11 +1,14 @@
 'use client';
 
-import React from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import React, { useRef, useCallback } from 'react';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { CalendarEvent, WeekDay } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
 import { Plus, Users } from 'lucide-react';
+
+const LONG_PRESS_MS = 500;        // 長押し判定時間（DraggableEventCard と揃える）
+const LONG_PRESS_TOLERANCE = 6;   // 長押し中に許容する指/カーソルの移動量（px）
 
 interface FloatingLaneProps {
     weekDays: WeekDay[];
@@ -27,6 +30,16 @@ interface FloatingLaneProps {
      * 届き、降格（別日なら日付移動も）になる。Mobile は DndContext が無いので渡さない。
      */
     enableDrop?: boolean;
+    /**
+     * true のとき浮きカード自体を dnd-kit の draggable（id=イベントID）にする。
+     * 別日の浮きセルへ落とせば「浮きのまま日付移動」、職長セルへ落とせば「昇格」になる。
+     * useDraggable は DndContext 内でしか使えないため、これも Mobile では渡さない（PC専用）。
+     */
+    enableDrag?: boolean;
+    /** カードの長押し（PC/スマホ共通）で移動モードを開始する。渡されたときだけ長押しを有効化 */
+    onLongPressEvent?: (event: CalendarEvent) => void;
+    /** 移動モード中の移動元カードID（ハイライト表示用） */
+    movingEventId?: string | null;
     /** 長押し移動モード中か。true のとき各日セルを移動先ターゲットとして表示する */
     isMoving?: boolean;
     /** 移動モード中、セル/カードのタップで呼ぶ（浮きレーンの当該日へ降格移動） */
@@ -60,6 +73,182 @@ function FloatingDroppableCell({ dateKey, className, style, onClick, children }:
     );
 }
 
+/**
+ * カードの長押し検出（マウス／タッチ／ペン共通）。DraggableEventCard の実装に倣い、
+ * 500ms 保持で成立させ、6px 以上動いたらキャンセルする（スクロール・ドラッグと両立）。
+ * 長押し成立直後の click を握り潰すため firedRef を返す。
+ */
+function useLongPress(onLongPress?: () => void) {
+    const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const startPos = useRef<{ x: number; y: number } | null>(null);
+    const firedRef = useRef(false);
+
+    const clear = useCallback(() => {
+        if (timer.current) {
+            clearTimeout(timer.current);
+            timer.current = null;
+        }
+    }, []);
+
+    const onPointerDown = useCallback((e: React.PointerEvent) => {
+        if (!onLongPress) return;
+        if (e.button !== undefined && e.button !== 0) return; // 主ボタンのみ
+        firedRef.current = false;
+        startPos.current = { x: e.clientX, y: e.clientY };
+        clear();
+        timer.current = setTimeout(() => {
+            timer.current = null;
+            firedRef.current = true;
+            navigator.vibrate?.(60);
+            onLongPress();
+        }, LONG_PRESS_MS);
+    }, [onLongPress, clear]);
+
+    const onPointerMove = useCallback((e: React.PointerEvent) => {
+        if (!startPos.current) return;
+        const dx = Math.abs(e.clientX - startPos.current.x);
+        const dy = Math.abs(e.clientY - startPos.current.y);
+        if (dx > LONG_PRESS_TOLERANCE || dy > LONG_PRESS_TOLERANCE) {
+            clear();
+            startPos.current = null;
+        }
+    }, [clear]);
+
+    const onPointerEnd = useCallback(() => {
+        clear();
+        startPos.current = null;
+    }, [clear]);
+
+    return { firedRef, onPointerDown, onPointerMove, onPointerEnd };
+}
+
+/** 浮きカードの中身（職長行の通常カードと同じ見た目：工事種別色＋仮なら斜線＋「仮」バッジ） */
+function FloatingCardBody({ event, compact }: { event: CalendarEvent; compact: boolean }) {
+    return (
+        <>
+            {/* 1段目: 現場名（仮なら斜線＋「仮」バッジ） */}
+            <div className={`${compact ? 'text-[10px]' : 'text-[10px] xl:text-[11px]'} font-medium text-slate-900 leading-tight truncate`}>
+                {event.dateStatus === 'tentative' && <TentativeBadge />}
+                {event.title}
+            </div>
+
+            {/* 2段目: 元請名 */}
+            {event.customer && (
+                <div className="text-[10px] text-slate-700 leading-tight truncate mt-0.5">
+                    {event.customer}
+                </div>
+            )}
+
+            {/* 3段目: 人数 + 時間（人数は通常カードと同じ色＝赤字にしない） */}
+            <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-700 whitespace-nowrap">
+                <Users className="w-3 h-3 flex-shrink-0" />
+                <span>{event.memberCount ?? 0}人</span>
+                {event.estimatedHours != null && <span>{event.estimatedHours}h</span>}
+            </div>
+
+            {/* 4段目: 備考 */}
+            {event.remarks && (
+                <div className="text-[10px] text-slate-700 leading-tight truncate mt-0.5">
+                    {event.remarks}
+                </div>
+            )}
+        </>
+    );
+}
+
+const CARD_BASE_CLASS = 'w-full text-left mb-1 p-1 rounded-lg shadow-sm hover:brightness-95 relative overflow-hidden select-none';
+
+interface FloatingCardCommonProps {
+    event: CalendarEvent;
+    compact: boolean;
+    /** 移動モード中の移動元カードならリング表示 */
+    isMovingSource: boolean;
+    /** クリック（タップ）。長押し成立直後は握り潰す */
+    onClick: (e: React.MouseEvent) => void;
+    /** 長押し（未指定なら長押し無効） */
+    onLongPress?: () => void;
+}
+
+/**
+ * enableDrag=false 時（モバイル・閲覧専用）の浮きカード。button のまま長押し移動に対応する。
+ * DndContext を持たないモバイルでも長押し→移動先タップの経路が使える。
+ */
+function FloatingPlainCard({ event, compact, isMovingSource, onClick, onLongPress }: FloatingCardCommonProps) {
+    const lp = useLongPress(onLongPress);
+    return (
+        <button
+            type="button"
+            onPointerDownCapture={lp.onPointerDown}
+            onPointerMoveCapture={lp.onPointerMove}
+            onPointerUpCapture={lp.onPointerEnd}
+            onPointerCancelCapture={lp.onPointerEnd}
+            onClick={(e) => {
+                // 長押し成立直後の click は握り潰す（移動モードへ入っただけで昇格モーダルを開かない）
+                if (lp.firedRef.current) {
+                    lp.firedRef.current = false;
+                    e.stopPropagation();
+                    return;
+                }
+                onClick(e);
+            }}
+            className={`${CARD_BASE_CLASS} ${isMovingSource ? 'ring-2 ring-slate-700 ring-offset-1' : ''}`}
+            style={{
+                backgroundColor: event.color,
+                ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
+            }}
+        >
+            <FloatingCardBody event={event} compact={compact} />
+        </button>
+    );
+}
+
+interface FloatingDraggableCardProps extends FloatingCardCommonProps {
+    /** 移動モード中は D&D を止め、タップ＝移動先確定として扱う */
+    draggableDisabled: boolean;
+}
+
+/**
+ * enableDrag=true 時（PC）の浮きカード。dnd-kit の useDraggable で職長セル/別日の浮きセルへ
+ * ドラッグできる（useDraggable は DndContext 内でしか使えないため子コンポーネントに切り出す）。
+ * id はイベントID。ドラッグ中は opacity を落とす（DragOverlay 側にプレビューが出る）。
+ * PointerSensor の distance=8 制約により、クリック（昇格モーダル）とドラッグは両立する。
+ */
+function FloatingDraggableCard({ event, compact, isMovingSource, draggableDisabled, onClick, onLongPress }: FloatingDraggableCardProps) {
+    const lp = useLongPress(onLongPress);
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+        id: event.id,
+        disabled: draggableDisabled,
+    });
+    return (
+        <div
+            ref={setNodeRef}
+            {...attributes}
+            {...(draggableDisabled ? {} : listeners)}
+            // 長押しは capture フェーズで拾い、dnd-kit の（バブルフェーズ）listeners と両立させる
+            onPointerDownCapture={lp.onPointerDown}
+            onPointerMoveCapture={lp.onPointerMove}
+            onPointerUpCapture={lp.onPointerEnd}
+            onPointerCancelCapture={lp.onPointerEnd}
+            onClick={(e) => {
+                if (lp.firedRef.current) {
+                    lp.firedRef.current = false;
+                    e.stopPropagation();
+                    return;
+                }
+                if (isDragging) return;
+                onClick(e);
+            }}
+            className={`${CARD_BASE_CLASS} ${draggableDisabled ? '' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-40' : ''} ${isMovingSource ? 'ring-2 ring-slate-700 ring-offset-1' : ''}`}
+            style={{
+                backgroundColor: event.color,
+                ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
+            }}
+        >
+            <FloatingCardBody event={event} compact={compact} />
+        </div>
+    );
+}
+
 /** 日付ごとの浮き件数・合計人数（日付ヘッダーの赤バッジ用） */
 export function getFloatingSummaryForDate(events: CalendarEvent[], date: Date): { count: number; members: number } {
     const dateKey = formatDateKey(date);
@@ -82,6 +271,10 @@ export function getFloatingSummaryForDate(events: CalendarEvent[], date: Date): 
  * 置き場所として可視化する（社内用語どおり「浮いている」を画面に使う）。
  * カード自体は職長行の通常カードと同じ見た目（工事種別色）で描画し、仮の浮き
  * （dateStatus='tentative'）は斜線＋「仮」バッジで区別する。
+ *
+ * カード自体を移動できる（enableDrag=PC の D&D／onLongPressEvent=長押し→移動先タップ）:
+ * - 浮きカード → 浮きレーンの別日セル = 浮きのまま日付だけ移動
+ * - 浮きカード → 職長行のセル = 昇格（既存の通常移動フロー=車両確認モーダル経由）
  */
 export default function FloatingLane({
     weekDays,
@@ -93,6 +286,9 @@ export default function FloatingLane({
     labelWidth,
     colWidth,
     enableDrop = false,
+    enableDrag = false,
+    onLongPressEvent,
+    movingEventId = null,
     isMoving = false,
     onCommitMove,
 }: FloatingLaneProps) {
@@ -129,54 +325,42 @@ export default function FloatingLane({
 
                 const content = (
                     <>
-                        {dayFloating.map((event) => (
-                            <button
-                                key={event.id}
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (isMoving && onCommitMove) {
-                                        onCommitMove(day.date);
-                                        return;
-                                    }
-                                    onEventClick?.(event.id);
-                                }}
-                                // 職長行の通常カードと同じ見た目（工事種別色＋仮なら斜線）にして、
-                                // 「班を外したカードがそのまま浮きレーンへ移った」ように見せる
-                                className="w-full text-left mb-1 p-1 rounded-lg shadow-sm hover:brightness-95 relative overflow-hidden"
-                                style={{
-                                    backgroundColor: event.color,
-                                    ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
-                                }}
-                            >
-                                {/* 1段目: 現場名（仮なら斜線＋「仮」バッジ） */}
-                                <div className={`${compact ? 'text-[10px]' : 'text-[10px] xl:text-[11px]'} font-medium text-slate-900 leading-tight truncate`}>
-                                    {event.dateStatus === 'tentative' && <TentativeBadge />}
-                                    {event.title}
-                                </div>
+                        {dayFloating.map((event) => {
+                            const isMovingSource = movingEventId === event.id;
+                            const handleCardClick = (e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                if (isMoving && onCommitMove) {
+                                    // 移動モード中はカードのタップも「この日へ確定」。移動元カード自身は
+                                    // 同日 no-op ガード（handleMoveToCell）で実害なし
+                                    onCommitMove(day.date);
+                                    return;
+                                }
+                                onEventClick?.(event.id);
+                            };
+                            // 移動モード中はこのカード自体が「移動先確定」のタップ対象になるので長押しは無効化
+                            const longPress = !isMoving && onLongPressEvent ? () => onLongPressEvent(event) : undefined;
 
-                                {/* 2段目: 元請名 */}
-                                {event.customer && (
-                                    <div className="text-[10px] text-slate-700 leading-tight truncate mt-0.5">
-                                        {event.customer}
-                                    </div>
-                                )}
-
-                                {/* 3段目: 人数 + 時間（人数は通常カードと同じ色＝赤字にしない） */}
-                                <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-700 whitespace-nowrap">
-                                    <Users className="w-3 h-3 flex-shrink-0" />
-                                    <span>{event.memberCount ?? 0}人</span>
-                                    {event.estimatedHours != null && <span>{event.estimatedHours}h</span>}
-                                </div>
-
-                                {/* 4段目: 備考 */}
-                                {event.remarks && (
-                                    <div className="text-[10px] text-slate-700 leading-tight truncate mt-0.5">
-                                        {event.remarks}
-                                    </div>
-                                )}
-                            </button>
-                        ))}
+                            return enableDrag && !isReadOnly ? (
+                                <FloatingDraggableCard
+                                    key={event.id}
+                                    event={event}
+                                    compact={compact}
+                                    isMovingSource={isMovingSource}
+                                    draggableDisabled={isMoving}
+                                    onClick={handleCardClick}
+                                    onLongPress={longPress}
+                                />
+                            ) : (
+                                <FloatingPlainCard
+                                    key={event.id}
+                                    event={event}
+                                    compact={compact}
+                                    isMovingSource={isMovingSource}
+                                    onClick={handleCardClick}
+                                    onLongPress={longPress}
+                                />
+                            );
+                        })}
                         {/* 移動モード中: この日を移動先候補として点線ターゲットで示す（職長セルと同系統・赤） */}
                         {isMoving && onCommitMove && (
                             <div className={`pointer-events-none flex items-center justify-center ${compact ? 'min-h-[28px]' : 'min-h-[32px]'} my-1 border border-dashed border-red-400 text-red-400 rounded`}>
