@@ -71,7 +71,8 @@ export default function TentativeTriageView() {
     const [assignments, setAssignments] = useState<TriageAssignment[]>([]);
     const [users, setUsers] = useState<LiteUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [mineOnly, setMineOnly] = useState(true);
+    // 絞り込み: 'mine'=自分の担当（既定・従来挙動） / 'all'=すべて / それ以外=担当者UserID
+    const [assigneeFilter, setAssigneeFilter] = useState<string>('mine');
     const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
 
     const userNameById = useMemo(() => {
@@ -79,6 +80,26 @@ export default function TentativeTriageView() {
         users.forEach((u) => map.set(u.id, u.displayName));
         return map;
     }, [users]);
+
+    // 取得済みの予定に実際に登場する担当者（名前を解決できるIDのみ）。日本語ロケールで名前順ソート
+    const assigneeOptions = useMemo(() => {
+        const seen = new Map<string, string>();
+        assignments.forEach((a) => {
+            extractAssigneeIds(a.projectMaster?.createdBy ?? undefined).forEach((id) => {
+                const name = userNameById.get(id);
+                if (name && !seen.has(id)) seen.set(id, name);
+            });
+        });
+        return Array.from(seen.entries())
+            .map(([id, name]) => ({ id, name }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    }, [assignments, userNameById]);
+
+    // 選択中の担当者名（'mine' / 'all' のときは空）。件数・空状態の文言に使う
+    const selectedAssigneeName = useMemo(() => {
+        if (assigneeFilter === 'mine' || assigneeFilter === 'all') return '';
+        return userNameById.get(assigneeFilter) || '';
+    }, [assigneeFilter, userNameById]);
 
     // 工事種別はUUIDマスタ保存（旧データは名前直入りもある）。id→名前で解決し、どちらでもなければそのまま
     const constructionTypeName = useCallback((raw: string | null): string => {
@@ -115,11 +136,19 @@ export default function TentativeTriageView() {
     }, [fetchAll]);
 
     const visible = useMemo(() => {
-        const list = mineOnly && currentUserId
-            ? assignments.filter((a) => extractAssigneeIds(a.projectMaster?.createdBy ?? undefined).includes(currentUserId))
-            : assignments;
+        let list: TriageAssignment[];
+        if (assigneeFilter === 'all') {
+            list = assignments;
+        } else if (assigneeFilter === 'mine') {
+            // 従来挙動: currentUserId が取れない間は全件（安全側）
+            list = currentUserId
+                ? assignments.filter((a) => extractAssigneeIds(a.projectMaster?.createdBy ?? undefined).includes(currentUserId))
+                : assignments;
+        } else {
+            list = assignments.filter((a) => extractAssigneeIds(a.projectMaster?.createdBy ?? undefined).includes(assigneeFilter));
+        }
         return [...list].sort((x, y) => new Date(x.date).getTime() - new Date(y.date).getTime());
-    }, [assignments, mineOnly, currentUserId]);
+    }, [assignments, assigneeFilter, currentUserId]);
 
     const tentativeCount = useMemo(
         () => visible.filter((a) => a.dateStatus === 'tentative').length,
@@ -196,14 +225,19 @@ export default function TentativeTriageView() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-                        <input
-                            type="checkbox"
-                            checked={mineOnly}
-                            onChange={(e) => setMineOnly(e.target.checked)}
-                            className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
-                        />
-                        自分の担当案件のみ
+                    <label className="flex items-center gap-2 text-sm text-slate-700">
+                        担当者:
+                        <select
+                            value={assigneeFilter}
+                            onChange={(e) => setAssigneeFilter(e.target.value)}
+                            className="px-3 py-1.5 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        >
+                            <option value="mine">自分の担当</option>
+                            <option value="all">すべての担当者</option>
+                            {assigneeOptions.map((o) => (
+                                <option key={o.id} value={o.id}>{o.name}</option>
+                            ))}
+                        </select>
                     </label>
                     <button
                         onClick={fetchAll}
@@ -216,6 +250,13 @@ export default function TentativeTriageView() {
             </div>
 
             <div className="mb-3 text-sm text-slate-600">
+                {assigneeFilter === 'all'
+                    ? ''
+                    : assigneeFilter === 'mine'
+                        ? '自分の担当案件 '
+                        : selectedAssigneeName
+                            ? `${selectedAssigneeName}の担当案件 `
+                            : ''}
                 {visible.length}件の予定（うち仮 {tentativeCount}件）
             </div>
 
@@ -223,7 +264,11 @@ export default function TentativeTriageView() {
                 <div className="py-16 text-center text-slate-500">読み込み中...</div>
             ) : visible.length === 0 ? (
                 <div className="py-16 text-center text-slate-500">
-                    {mineOnly ? '自分の担当案件に今後の予定はありません' : '今後の予定はありません'}
+                    {assigneeFilter === 'all'
+                        ? '今後の予定はありません'
+                        : assigneeFilter === 'mine'
+                            ? '自分の担当案件に今後の予定はありません'
+                            : `${selectedAssigneeName || 'この担当者'}の担当案件に今後の予定はありません`}
                 </div>
             ) : (
                 <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
@@ -233,6 +278,7 @@ export default function TentativeTriageView() {
                                 <tr>
                                     <th className="px-3 py-2 text-left whitespace-nowrap">日付</th>
                                     <th className="px-3 py-2 text-left">現場名</th>
+                                    <th className="px-3 py-2 text-left whitespace-nowrap">担当</th>
                                     <th className="px-3 py-2 text-left whitespace-nowrap">種別</th>
                                     <th className="px-3 py-2 text-left whitespace-nowrap">班</th>
                                     <th className="px-3 py-2 text-center whitespace-nowrap">確度</th>
@@ -253,6 +299,12 @@ export default function TentativeTriageView() {
                                                 {(a.memberCount ?? 0) > 0 && (
                                                     <span className="ml-2 text-xs text-slate-500">{a.memberCount}人</span>
                                                 )}
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap text-slate-600">
+                                                {extractAssigneeIds(a.projectMaster?.createdBy ?? undefined)
+                                                    .map((id) => userNameById.get(id))
+                                                    .filter(Boolean)
+                                                    .join(', ') || '-'}
                                             </td>
                                             <td className="px-3 py-2 whitespace-nowrap text-slate-600">
                                                 {constructionTypeName(a.constructionType)}
