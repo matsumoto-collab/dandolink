@@ -27,7 +27,7 @@ const TOOLS: Anthropic.Tool[] = [
     {
         name: 'get_crew_availability',
         description:
-            '指定日1日の詳細を取得する。summary（総メンバー数・使用人数・休暇・残り人数=余っている人数）、各班の予定（現場名・時間・人数・確定/仮・確認予定日・担当者）、仮予定が動けば浮かせられる人数（negotiableMembers）、その日の浮き（班未定の仕事）を返す。',
+            '指定日1日の詳細を取得する。summary（総メンバー数・使用人数・休暇・残り人数=余っている人数・仮予定の件数=tentativeJobCount）、各班の予定（現場名・時間・人数・確定/仮・確認予定日・担当者）、仮予定が動けば浮かせられる人数（negotiableMembers）、その日の浮き（班未定の仕事）を返す。',
         input_schema: {
             type: 'object' as const,
             properties: {
@@ -39,7 +39,7 @@ const TOOLS: Anthropic.Tool[] = [
     {
         name: 'get_crew_availability_summary_range',
         description:
-            '期間内の日ごとの人数サマリを取得する。各日の totalMembers（総メンバー数）・usedMembers（配置済み）・vacationMembers（休暇）・remainingMembers（余っている人数）・negotiableMembers・浮き件数を返す。「余っている人数」「残り人数」「空いている人数」「直近の空き」など人数の質問はまずこれを使う（最大14日）。',
+            '期間内の日ごとの人数サマリを取得する。各日の totalMembers（総メンバー数）・usedMembers（配置済み）・vacationMembers（休暇）・remainingMembers（余っている人数）・negotiableMembers・tentativeJobCount（仮予定の件数）・浮き件数を返す。「余っている人数」「残り人数」「空いている人数」「直近の空き」など人数の質問はまずこれを使う（最大14日）。',
         input_schema: {
             type: 'object' as const,
             properties: {
@@ -83,7 +83,7 @@ function buildSystemPrompt(): string {
 - 「仮予定」= 先方未確定のまま経験則で仮押さえした予定（dateStatus=tentative）。動かせる可能性があるが、動かすには先方への確認が必要な場合がある。
 - 「浮いている／浮き」= 班が決まっていない仕事（未充足の需要）。dateStatus=tentative の浮きは日付自体も仮。
 - 「浮いている現場はある？」「今浮いているのは？」のような期間指定のない浮きの質問は、get_floating を startDate/endDate 省略（=今日から30日間）で呼び、返ってきた全件を答える。
-- negotiableMembers = 仮予定が動けば浮かせられる人数。
+- negotiableMembers = 仮予定が動けば浮かせられる「人数」。tentativeJobCount = 仮予定の「件数」。人数0の仮予定もあるため、negotiableMembers が0でも仮予定が存在することがある。「仮予定なし」と言ってよいのは tentativeJobCount が0のときだけで、negotiableMembers が0でも仮予定が1件でもあるなら「仮予定は◯件あるが、動かしても浮かせられる人数は0」と正確に言う。
 
 人数サマリの答え方の例（1日1行・remainingMembers を主役に）:
 「・7/22(水): 残り3人（20人中、配置15人・休暇2人）」

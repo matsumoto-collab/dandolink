@@ -136,6 +136,42 @@ describe('getCrewAvailability', () => {
         expect(result.teams.find((t) => t.team === '山田')!.usedMembers).toBe(3);
     });
 
+    it('summary: 人数0の仮予定でも tentativeJobCount に数える（negotiableMembers=0 と区別する）', async () => {
+        mockPrisma.projectAssignment.findMany.mockResolvedValue([
+            // 人数0の仮予定 → negotiableMembers は0のままだが件数は1
+            { assignedEmployeeId: 'f1', estimatedHours: 8, memberCount: 0, dateStatus: 'tentative', confirmDueDate: null, remarks: null, projectMaster: pm('A') },
+            { assignedEmployeeId: 'f2', estimatedHours: 8, memberCount: 2, dateStatus: 'confirmed', confirmDueDate: null, remarks: null, projectMaster: pm('B') },
+        ]);
+
+        const result = await getCrewAvailability('2026-08-05');
+        expect(result.summary.tentativeJobCount).toBe(1);
+        expect(result.summary.negotiableMembers).toBe(0);
+    });
+
+    it('JST境界: 日付範囲は「JSTのその日0時」の実時刻で問い合わせる（実時刻の配置を取りこぼさない）', async () => {
+        // date 列は正規化されておらず時分秒入りの実時刻が入る。
+        // where を実際に適用して、範囲がJST日と一致することを検証する。
+        const rows = [
+            // JST 7/23 0:30 → 含まれるべき
+            { date: new Date('2026-07-22T15:30:00.000Z'), assignedEmployeeId: 'f1', estimatedHours: 8, memberCount: 3, dateStatus: 'confirmed', confirmDueDate: null, remarks: null, projectMaster: pm('境界内') },
+            // JST 7/24 1:00 → 含まれてはいけない
+            { date: new Date('2026-07-23T16:00:00.000Z'), assignedEmployeeId: 'f2', estimatedHours: 8, memberCount: 5, dateStatus: 'confirmed', confirmDueDate: null, remarks: null, projectMaster: pm('境界外') },
+        ];
+        mockPrisma.projectAssignment.findMany.mockImplementation(
+            async (args: { where?: { date?: { gte?: Date; lt?: Date } } }) => {
+                const { gte, lt } = args?.where?.date ?? {};
+                return rows.filter((r) => (!gte || r.date >= gte) && (!lt || r.date < lt));
+            }
+        );
+
+        const result = await getCrewAvailability('2026-07-23');
+
+        expect(result.date).toBe('2026-07-23');
+        expect(result.teams.find((t) => t.team === '山田')!.jobs.map((j) => j.site)).toEqual(['境界内様邸']);
+        expect(result.teams.find((t) => t.team === '田中')!.jobs).toHaveLength(0);
+        expect(result.summary.usedMembers).toBe(3);
+    });
+
     it('予定合計が8時間を超えたら空きは0（マイナスにしない）、休みの班は off', async () => {
         mockPrisma.vacationRecord.findUnique.mockResolvedValue({
             employeeIds: JSON.stringify(['f2']),

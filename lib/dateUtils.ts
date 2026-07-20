@@ -19,3 +19,15 @@ export function toJstDateOnly(input: string | Date): Date {
         Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate(), 0, 0, 0, 0),
     );
 }
+
+/**
+ * 「JSTのその日の0時」を表す実際の UTC 時刻を返す（= 前日 15:00Z）。
+ *
+ * toJstDateOnly は JSTカレンダー日を「UTC 0時の印」として返すため、
+ * 実時刻が入った列（ProjectAssignment.date は正規化されておらず時分秒を含む）と
+ * 範囲比較すると 9 時間ずれる（2026-07-20 の実害: AI照会の残り人数が1人ずれた）。
+ * 日付範囲クエリの境界には必ずこちらを使うこと。
+ */
+export function jstDayStartUtc(input: string | Date): Date {
+    return new Date(toJstDateOnly(input).getTime() - 9 * 60 * 60 * 1000);
+}

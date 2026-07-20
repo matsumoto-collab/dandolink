@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { toJstDateOnly } from '@/lib/dateUtils';
+import { toJstDateOnly, jstDayStartUtc } from '@/lib/dateUtils';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { notifyUsers } from '@/lib/notifications';
 import { formatJpShortDate } from '@/lib/scheduleChangeNotify';
@@ -60,9 +60,12 @@ function dueLabel(diffDays: number): string {
  * 戻り値は検知件数と送信ユーザー数（cron のログ用）。
  */
 export async function runScheduleWatch(): Promise<{ detected: number; notifiedUsers: number }> {
+    // today は「JST日の印」（@db.Date の confirmDueDate や daysFromToday の比較用）、
+    // todayStart は実時刻（時分秒を含む ProjectAssignment.date との範囲比較用）
     const today = toJstDateOnly(new Date());
-    const floatingUntil = new Date(today.getTime() + (FLOATING_AHEAD_DAYS + 1) * MS_PER_DAY);
-    const floatingSince = new Date(today.getTime() - FLOATING_BEHIND_DAYS * MS_PER_DAY);
+    const todayStart = jstDayStartUtc(new Date());
+    const floatingUntil = new Date(todayStart.getTime() + (FLOATING_AHEAD_DAYS + 1) * MS_PER_DAY);
+    const floatingSince = new Date(todayStart.getTime() - FLOATING_BEHIND_DAYS * MS_PER_DAY);
 
     const [overdueTentative, floating] = await Promise.all([
         // 1) 確認漏れの仮予定（今後の配置のみ。浮きは 2) 側で統合して扱う）
@@ -70,7 +73,7 @@ export async function runScheduleWatch(): Promise<{ detected: number; notifiedUs
             where: {
                 dateStatus: 'tentative',
                 confirmDueDate: { lte: today },
-                date: { gte: today },
+                date: { gte: todayStart },
             },
             select: {
                 id: true,

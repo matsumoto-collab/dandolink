@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { toJstDateOnly } from '@/lib/dateUtils';
+import { toJstDateOnly, jstDayStartUtc } from '@/lib/dateUtils';
 import { parseJsonField } from '@/lib/json-utils';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
 
@@ -70,6 +70,8 @@ export interface DailyCrewSummary {
     remainingMembers: number;
     /** 仮予定が動けば追加で浮かせられる人数 */
     negotiableMembers: number;
+    /** 仮予定（dateStatus='tentative'）の件数。人数0の仮予定があるため negotiableMembers とは別物 */
+    tentativeJobCount: number;
     /** 浮き（班未定）の件数 */
     floatingCount: number;
     /** 浮きの必要人数合計 */
@@ -208,8 +210,12 @@ function computeDailySummary(params: {
     let floatingMembers = 0;
     let floatingCount = 0;
     let negotiableMembers = 0;
+    let tentativeJobCount = 0;
     for (const r of rows) {
         const count = r.memberCount ?? 0;
+        if (r.dateStatus === 'tentative') {
+            tentativeJobCount += 1;
+        }
         if (r.dateStatus === 'tentative' && r.assignedEmployeeId !== 'unassigned') {
             negotiableMembers += count;
         }
@@ -233,6 +239,7 @@ function computeDailySummary(params: {
         vacationMembers: vacationCount,
         remainingMembers: totalMembers - usedMembers - vacationCount,
         negotiableMembers,
+        tentativeJobCount,
         floatingCount,
         floatingMembers,
     };
@@ -240,7 +247,7 @@ function computeDailySummary(params: {
 
 /** 指定日の班別空き状況＋浮き一覧 */
 export async function getCrewAvailability(dateStr: string): Promise<CrewAvailabilityResult> {
-    const dayStart = toJstDateOnly(dateStr);
+    const dayStart = jstDayStartUtc(dateStr);
     const dayEnd = new Date(dayStart.getTime() + MS_PER_DAY);
     const dateKey = jstDateKey(dayStart);
 
@@ -331,9 +338,9 @@ export async function getCrewAvailabilitySummaryRange(
     startDateStr?: string,
     endDateStr?: string
 ): Promise<DailyCrewSummary[]> {
-    const start = toJstDateOnly(startDateStr ?? new Date());
+    const start = jstDayStartUtc(startDateStr ?? new Date());
     const requestedEnd = endDateStr
-        ? new Date(toJstDateOnly(endDateStr).getTime() + MS_PER_DAY)
+        ? new Date(jstDayStartUtc(endDateStr).getTime() + MS_PER_DAY)
         : new Date(start.getTime() + 7 * MS_PER_DAY);
     const maxEnd = new Date(start.getTime() + MAX_SUMMARY_RANGE_DAYS * MS_PER_DAY);
     const end = requestedEnd.getTime() > maxEnd.getTime() ? maxEnd : requestedEnd;
@@ -379,9 +386,9 @@ export async function getCrewAvailabilitySummaryRange(
 
 /** 期間内の浮き一覧（既定=今日から30日先まで） */
 export async function getFloating(startDateStr?: string, endDateStr?: string): Promise<FloatingItem[]> {
-    const start = toJstDateOnly(startDateStr ?? new Date());
+    const start = jstDayStartUtc(startDateStr ?? new Date());
     const end = endDateStr
-        ? new Date(toJstDateOnly(endDateStr).getTime() + MS_PER_DAY)
+        ? new Date(jstDayStartUtc(endDateStr).getTime() + MS_PER_DAY)
         : new Date(start.getTime() + 30 * MS_PER_DAY);
 
     const rows = await prisma.projectAssignment.findMany({
