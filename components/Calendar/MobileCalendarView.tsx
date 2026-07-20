@@ -809,6 +809,15 @@ export default function MobileCalendarView({
                                             <span className="truncate">{actionSheet.event.remarks}</span>
                                         )}
                                     </div>
+                                    {(() => {
+                                        const vehicleNames = resolveEventVehicleNames(actionSheet.project ?? actionSheet.event, vehicleMaster);
+                                        return vehicleNames.length > 0 ? (
+                                            <div className="flex items-start gap-1 mt-1 text-slate-500 text-xs">
+                                                <Truck className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                                <span>{vehicleNames.join('・')}</span>
+                                            </div>
+                                        ) : null;
+                                    })()}
                                 </div>
                             </div>
                         </div>
