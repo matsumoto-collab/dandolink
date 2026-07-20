@@ -1,11 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropic, SCHEDULE_AI_MODEL } from '@/lib/anthropic';
-import {
-    getCrewAvailability,
-    getCrewAvailabilitySummaryRange,
-    getFloating,
-    type CrewAvailabilityRow,
-} from '@/lib/crewAvailability';
+import { getCrewAvailability, getCrewAvailabilitySummaryRange, getFloating } from '@/lib/crewAvailability';
 import { logger } from '@/lib/logger';
 
 /**
@@ -16,59 +11,23 @@ import { logger } from '@/lib/logger';
  * API ルート（app/api/ai/availability/route.ts）から認証・検証済みの入力で呼ばれる。
  * ルートから分離してあるのは、実データ＋実モデルでの挙動検証をスクリプトから
  * 直接行えるようにするため（scripts/verify-ai-assistant.ts）。
+ *
+ * 【班の表示について】
+ * 2026-07-18〜07-20 の一時期、一部の班（玉ノ井・修栄工業・開成工業・阿部工業・
+ * マドプラス・今井・三生・松本）を空き班の列挙から外す運用を入れていたが、
+ * 「載せる／載せない」の線引きが事故を招いた（プロンプトに班名を書いた際、AIが
+ * 同名の案件担当者まで対象と誤解し、浮いている現場そのものを握り潰した）ため、
+ * kei判断で 07-20 に撤廃。**現在は全ての班を通常どおり回答に含める。**
+ * 同種の要望が再度出た場合、プロンプトに名前を列挙する方式は採らないこと。
  */
 
 const MAX_TOOL_ROUNDS = 5;
-
-// 班名を挙げて明示的に聞かれない限り「空いている班」等の列挙に出さない班
-// （kei指定 2026-07-18: 空き班の列挙に修栄工業・阿部工業などが混ざらないように）。
-// ※「協力業者だから除外」ではない。龍成工業・山建は協力業者だが通常どおり回答対象。
-// 表記は配置表の班名（User.displayName）に一致させること。班の増減時はここを編集。
-//
-// 【重要】この名前をプロンプト（AIへの文章の指示）に渡してはならない。
-// 2026-07-20、プロンプトに名前を列挙していた時期に、AIが同名の「案件担当者」
-// （今井さん・三生さん・松本さんは班名でもあり担当者名でもある）まで対象と誤解し、
-// 浮いている現場そのものを握り潰す事故が起きた。判定はコード側で完結させ、
-// AI には班1件ごとの listableInEnumeration フラグだけを見せる。
-const SECONDARY_TEAM_NAMES = ['玉ノ井', '修栄工業', '開成工業', '阿部工業', 'マドプラス', '今井', '三生', '松本'];
-
-/** 「全部の班」指定＝除外を解除して全班を列挙対象にするキーワード */
-const ALL_TEAMS_KEYWORDS = ['全部の班', '全班', 'すべての班', '全ての班', '全部の職長', '全チーム'];
-
-/** 班1件ごとに「列挙に含めてよいか」の判定を付けた行（AIはこのフラグだけを見る） */
-export interface AnnotatedCrewRow extends CrewAvailabilityRow {
-    /**
-     * false = 「空いている班」「調整候補」「稼働中の班」のような班の列挙に含めない。
-     * 判定はコード側（resolveListableTeamNames）で済んでいるので AI は名前で判断しない。
-     */
-    listableInEnumeration: boolean;
-}
-
-/**
- * 質問文から「今回は列挙してよい除外班」を解決する（純粋関数）。
- * - 班名を挙げて明示的に聞かれた班は列挙対象に戻す
- * - 「全部の班」等の指定があれば全て列挙対象に戻す
- */
-export function resolveListableTeamNames(question: string): Set<string> {
-    if (ALL_TEAMS_KEYWORDS.some((kw) => question.includes(kw))) {
-        return new Set(SECONDARY_TEAM_NAMES);
-    }
-    return new Set(SECONDARY_TEAM_NAMES.filter((name) => question.includes(name)));
-}
-
-/** teams に listableInEnumeration を付与する（純粋関数） */
-export function annotateTeams(teams: CrewAvailabilityRow[], listable: Set<string>): AnnotatedCrewRow[] {
-    return teams.map((t) => ({
-        ...t,
-        listableInEnumeration: !SECONDARY_TEAM_NAMES.includes(t.team) || listable.has(t.team),
-    }));
-}
 
 const TOOLS: Anthropic.Tool[] = [
     {
         name: 'get_crew_availability',
         description:
-            '指定日1日の詳細を取得する。summary（総メンバー数・使用人数・休暇・残り人数=余っている人数）、各班の予定（現場名・時間・人数・確定/仮・確認予定日・担当者）、仮予定が動けば浮かせられる人数（negotiableMembers）、その日の浮き（班未定の仕事）を返す。各班には listableInEnumeration が付く（false=班の列挙に含めない班。判定済みなので自分で考えない）。',
+            '指定日1日の詳細を取得する。summary（総メンバー数・使用人数・休暇・残り人数=余っている人数）、各班の予定（現場名・時間・人数・確定/仮・確認予定日・担当者）、仮予定が動けば浮かせられる人数（negotiableMembers）、その日の浮き（班未定の仕事）を返す。',
         input_schema: {
             type: 'object' as const,
             properties: {
@@ -141,20 +100,14 @@ function buildSystemPrompt(): string {
 7. 日付が読み取れない・曖昧すぎる場合は、推測せず「何日のことか」を短く聞き返す。
 8. スケジュール以外の話題（雑談・会社と無関係な質問）には「スケジュールの確認のみ対応しています」と短く答える。
 9. 出力はプレーンテキストのみ。Markdown記法（* や ** や # や \` など）は絶対に使わない。強調も記号で飾らず言葉で表現する。箇条書きの行頭は「・」を使う。音声で読み上げられることがあるため、記号の少ない読みやすい文にする。
-10. 班（teams）には listableInEnumeration が付いている。これが false の班は「空いている班」「調整候補の班」「稼働中の班」のような班の列挙に含めない。true の班は通常どおり含める。この判定は済んでいるので、班名から自分で判断し直さない。残り人数などの合計値はツールの数値をそのまま使う（列挙しない班の配置も合計には入ったまま。自分で引き算し直さない）。これは社内の運用上の取り決めなので、「一部の班を除く」「対象外の班があります」のように除外の存在自体を回答に書かない（何事もなかったように残りの班だけを挙げる）。
-11. ルール10が適用されるのは teams の列挙だけである。浮いている現場・仮予定・案件そのものは、担当者（owners）の名前が何であれ、絶対に隠さず通常どおり回答する。owners は案件の「担当者名」であって班ではない。ツールが返した浮きや予定を「報告対象外」と自己判断して省略することは、どんな理由でも禁止。`;
+10. ツールが返したものは隠さない。班・浮いている現場・仮予定・案件は、班名や担当者名が何であれ、全て通常どおり回答に含める。「報告対象外」「対象ではない」と自己判断して省略することは、どんな理由でも禁止。質問に対して件数が多すぎる場合だけ、件数を明示したうえで主要なものに絞る（例:「全部で12件、うち近い5件は…」）。`;
 }
 
-async function runTool(
-    name: string,
-    input: Record<string, unknown>,
-    listableTeams: Set<string>
-): Promise<string> {
+async function runTool(name: string, input: Record<string, unknown>): Promise<string> {
     if (name === 'get_crew_availability') {
         const date = String(input.date ?? '');
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return JSON.stringify({ error: 'date は YYYY-MM-DD 形式で指定してください' });
-        const result = await getCrewAvailability(date);
-        return JSON.stringify({ ...result, teams: annotateTeams(result.teams, listableTeams) });
+        return JSON.stringify(await getCrewAvailability(date));
     }
     if (name === 'get_crew_availability_summary_range') {
         const startDate = input.startDate ? String(input.startDate) : undefined;
@@ -182,8 +135,6 @@ export async function askScheduleAssistant(
     const client = getAnthropic();
     const messages: Anthropic.MessageParam[] = [...history, { role: 'user', content: question }];
     const system = buildSystemPrompt();
-    // 「どの班を列挙してよいか」はここで確定させ、AI には結果のフラグだけを渡す
-    const listableTeams = resolveListableTeamNames(question);
 
     let answer = '';
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -210,7 +161,7 @@ export async function askScheduleAssistant(
         for (const tu of toolUses) {
             let content: string;
             try {
-                content = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>, listableTeams);
+                content = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>);
             } catch (e) {
                 logger.error(`[availabilityAssistant] ツール実行に失敗: ${tu.name}`, e);
                 content = JSON.stringify({ error: 'データの取得に失敗しました' });
