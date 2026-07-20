@@ -27,4 +27,5 @@ export const INVOICE_EXTRACT_MODEL = 'claude-sonnet-4-6';
 // 当初は Haiku だったが、ツールの正しい数字を無視して会話中の数字から回答を
 // 捏造する事故があり（2026-07-20 kei報告: 残り0人の日を「残り3人」と回答）、
 // 数字の転記精度と自己訂正の頑健性を優先して Sonnet に引き上げた。
-export const SCHEDULE_AI_MODEL = 'claude-sonnet-4-6';
+// 2026-07-20: 精度不足のkei報告により sonnet-4-6 → 最新世代 sonnet-5 へ変更。
+export const SCHEDULE_AI_MODEL = 'claude-sonnet-5';
