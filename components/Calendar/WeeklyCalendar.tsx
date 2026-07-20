@@ -839,7 +839,6 @@ useEffect(() => { setIsMounted(true); }, []);
                     hideRemarks={partnerMode}
                     handleFloatingEventClick={partnerMode ? undefined : handleFloatingEventClick}
                     handleFloatingCellClick={isReadOnly ? undefined : handleFloatingCellClick}
-                    handleDemoteToFloating={isReadOnly ? undefined : handleDemoteToFloating}
                 />
             ) : (
                 <DesktopCalendarView

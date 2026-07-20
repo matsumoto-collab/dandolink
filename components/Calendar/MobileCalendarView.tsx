@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search, Truck, UserMinus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search, Truck } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
@@ -49,7 +49,6 @@ interface MobileCalendarViewProps {
     // 浮き（班未定）レーン・降格
     handleFloatingEventClick?: (eventId: string) => void;
     handleFloatingCellClick?: (date: Date) => void;
-    handleDemoteToFloating?: (eventId: string) => void | Promise<void>;
 }
 
 interface ActionSheetState {
@@ -93,7 +92,6 @@ export default function MobileCalendarView({
     hideRemarks = false,
     handleFloatingEventClick,
     handleFloatingCellClick,
-    handleDemoteToFloating,
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
     const isLandscape = useMediaQuery('(orientation: landscape) and (max-height: 500px)');
@@ -911,21 +909,6 @@ export default function MobileCalendarView({
                                     ) : (
                                         <><ClipboardCheck className="w-5 h-5 text-slate-500" />手配確定する</>
                                     )}
-                                </button>
-                            )}
-
-                            {/* 浮きに戻す（降格）。すでに浮きの配置には出さない */}
-                            {!isReadOnly && handleDemoteToFloating && actionSheet.event.assignedEmployeeId !== 'unassigned' && (
-                                <button
-                                    onClick={() => {
-                                        const evId = actionSheet.event!.id;
-                                        closeActionSheet();
-                                        handleDemoteToFloating(evId);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <UserMinus className="w-5 h-5 text-slate-500" />
-                                    浮きに戻す（班を外す）
                                 </button>
                             )}
 
