@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Hammer, Users, Truck, ClipboardCheck, UserCircle, CheckCircle } from 'lucide-react';
 import { CalendarEvent } from '@/types/calendar';
 import { useMasterStore, selectVehicles, selectConstructionTypes } from '@/stores/masterStore';
+import { resolveEventVehicleNames } from './vehicleNames';
 import { logger } from '@/lib/logger';
 
 interface EventCardHoverPreviewProps {
@@ -79,15 +80,10 @@ export default function EventCardHoverPreview({ event, anchorRect }: EventCardHo
         return project.confirmedWorkerIds.map(id => users.get(id) ?? '不明');
     }, [isConfirmed, project.confirmedWorkerIds, users]);
 
-    const vehicleNames = useMemo<string[]>(() => {
-        // 確定済みかつ確定車両があれば優先
-        if (isConfirmed && project.confirmedVehicleIds?.length) {
-            return project.confirmedVehicleIds.map(id => vehicles.find(v => v.id === id)?.name ?? '不明');
-        }
-        // 未確定 or 確定車両未設定 → 計画段階の車両名（既に名前で保存）
-        const planned = (project.vehicles ?? project.trucks ?? []) as string[];
-        return planned.filter(Boolean);
-    }, [isConfirmed, project.confirmedVehicleIds, project.vehicles, project.trucks, vehicles]);
+    const vehicleNames = useMemo<string[]>(
+        () => resolveEventVehicleNames(project, vehicles),
+        [project, vehicles]
+    );
 
     // 位置計算: カードの右側に置く。画面右に収まらなければ左側へ。
     const popoverRef = useRef<HTMLDivElement | null>(null);

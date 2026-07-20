@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search, UserMinus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search, Truck, UserMinus } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { useVacation } from '@/hooks/useVacation';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
+import { useMasterStore, selectConstructionTypes, selectVehicles } from '@/stores/masterStore';
+import { resolveEventVehicleNames } from './vehicleNames';
 import VacationSelector from './VacationSelector';
 import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
 import FloatingLane, { getFloatingSummaryForDate } from './FloatingLane';
@@ -107,6 +108,7 @@ export default function MobileCalendarView({
 
     // ── 工事種別の名前解決（カード/アクションシート表示用） ──
     const constructionTypes = useMasterStore(selectConstructionTypes);
+    const vehicleMaster = useMasterStore(selectVehicles);
     const getConstructionTypeName = useCallback(
         (id?: string | null): string | null => {
             if (!id) return null;
@@ -675,6 +677,15 @@ export default function MobileCalendarView({
                                                                         )}
                                                                     </div>
                                                                 )}
+                                                                {(() => {
+                                                                    const vehicleNames = resolveEventVehicleNames(project ?? event, vehicleMaster);
+                                                                    return vehicleNames.length > 0 ? (
+                                                                        <div className="flex items-start gap-0.5 mt-0.5 text-slate-700">
+                                                                            <Truck className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 text-slate-500" />
+                                                                            <span className="text-[9px] leading-tight truncate">{vehicleNames.join('・')}</span>
+                                                                        </div>
+                                                                    ) : null;
+                                                                })()}
                                                                 {event.remarks && (
                                                                     <div className="flex items-start gap-0.5 mt-0.5 text-slate-700">
                                                                         <MessageSquare className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 text-slate-500" />
