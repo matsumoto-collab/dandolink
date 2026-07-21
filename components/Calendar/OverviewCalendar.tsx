@@ -13,13 +13,16 @@ import { addDays } from '@/utils/dateUtils';
 import { CalendarEvent, CalendarNavigation, Employee } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
 import OverviewCalendarView from './OverviewCalendarView';
+import { isManagerOrAbove } from '@/utils/permissions';
 
 interface OverviewCalendarProps {
     onNavigationReady?: (nav: CalendarNavigation) => void;
 }
 
 export default function OverviewCalendar({ onNavigationReady }: OverviewCalendarProps) {
-    const { status } = useSession();
+    const { data: session, status } = useSession();
+    // 浮き（班未定）は管理者・マネージャーのみ（kei指示 2026-07-21・週間カレンダーと同条件）
+    const canSeeFloating = useMemo(() => isManagerOrAbove(session?.user), [session?.user]);
     const { projects, fetchForDateRange, isInitialized, forceRefreshRange } = useProjects();
     const { getTotalMembersForDate } = useMasterData();
     const { getVacationEmployees } = useVacation();
@@ -106,6 +109,7 @@ export default function OverviewCalendar({ onNavigationReady }: OverviewCalendar
             goToPreviousDay={goToPreviousDay}
             goToNextDay={goToNextDay}
             goToToday={goToToday}
+            hideFloatingRow={!canSeeFloating}
         />
     );
 }

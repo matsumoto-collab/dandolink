@@ -54,6 +54,11 @@ interface MobileCalendarViewProps {
      * 位置はPCの▲▼で決めた全社共通の設定（lib/floatingLaneOrder.ts）を共有する。
      */
     floatingLaneAnchorId?: string | null;
+    /**
+     * 浮き（班未定）を一切見せない。kei指示（2026-07-21）で管理者・マネージャー限定にしたため、
+     * レーン本体と日付ヘッダーの赤バッジをまとめて隠す。判定は WeeklyCalendar 側。
+     */
+    hideFloatingLane?: boolean;
 }
 
 interface ActionSheetState {
@@ -98,6 +103,7 @@ export default function MobileCalendarView({
     handleFloatingEventClick,
     handleFloatingCellClick,
     floatingLaneAnchorId = null,
+    hideFloatingLane = false,
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
     const isLandscape = useMediaQuery('(orientation: landscape) and (max-height: 500px)');
@@ -249,7 +255,7 @@ export default function MobileCalendarView({
     const totalGridWidth = LABEL_W + COL_W * weekDays.length;
 
     // 浮きレーン（列幅は上の固定幅グリッドに合わせる）。並べ替えはPC限定のため▲▼は出さない
-    const floatingLane = handleFloatingEventClick ? (
+    const floatingLane = handleFloatingEventClick && !hideFloatingLane ? (
         <FloatingLane
             weekDays={weekDays}
             events={events}
@@ -398,7 +404,8 @@ export default function MobileCalendarView({
                                     }`}>
                                         {formatDate(day.date, 'short')}({getDayOfWeekString(day.date, 'short')})
                                         {(() => {
-                                            const fs = getFloatingSummaryForDate(events, day.date);
+                                            // 浮きの件数バッジもレーンと同じ権限で出し分ける
+                                            const fs = hideFloatingLane ? { count: 0, members: 0 } : getFloatingSummaryForDate(events, day.date);
                                             return fs.count > 0 ? (
                                                 <span
                                                     className="ml-1 inline-flex items-center justify-center min-w-[13px] h-[13px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold leading-none align-middle"

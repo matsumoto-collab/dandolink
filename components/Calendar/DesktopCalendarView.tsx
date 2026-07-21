@@ -59,6 +59,11 @@ interface DesktopCalendarViewProps {
      * 位置の保存・解決は WeeklyCalendar 側（lib/floatingLaneOrder.ts）が受け持つ。
      */
     floatingLaneAnchorId?: string | null;
+    /**
+     * 浮き（班未定）を一切見せない。kei指示（2026-07-21）で管理者・マネージャー限定にしたため、
+     * レーン本体と日付ヘッダーの赤バッジをまとめて隠す。判定は WeeklyCalendar 側。
+     */
+    hideFloatingLane?: boolean;
     /** 浮きレーン自体の並び替え（渡すとレーンのラベルに▲▼が出る） */
     moveFloatingLane?: (direction: 'up' | 'down') => void;
     canMoveFloatingLaneUp?: boolean;
@@ -104,6 +109,7 @@ export default function DesktopCalendarView({
     hideRemarks = false,
     hideForemanSelector = false,
     floatingLaneAnchorId = null,
+    hideFloatingLane = false,
     moveFloatingLane,
     canMoveFloatingLaneUp = true,
     canMoveFloatingLaneDown = true,
@@ -136,8 +142,8 @@ export default function DesktopCalendarView({
     }, [movingEvent, handleMoveToCell]);
 
     // 浮きレーンは職長行の並びの中に差し込む（位置は floatingLaneAnchorId。null なら一番下）。
-    // partner向け閲覧（hideForemanSelector）では出さない。
-    const floatingLane = hideForemanSelector ? null : (
+    // 管理者・マネージャー以外（hideFloatingLane）と partner向け閲覧では出さない。
+    const floatingLane = hideFloatingLane || hideForemanSelector ? null : (
         <FloatingLane
             weekDays={weekDays}
             events={events}
@@ -245,7 +251,10 @@ export default function DesktopCalendarView({
                                     const isSunday = day.dayOfWeek === 0;
                                     const combinedDate = `${dateString}(${dayOfWeekString})`;
 
-                                    const floatingSummary = getFloatingSummaryForDate(events, day.date);
+                                    // 浮きの件数バッジもレーンと同じ権限で出し分ける
+                                    const floatingSummary = hideFloatingLane
+                                        ? { count: 0, members: 0 }
+                                        : getFloatingSummaryForDate(events, day.date);
                                     return (
                                         <div key={index} className={`flex-1 min-w-[84px] border-r border-slate-300 h-8 flex flex-col items-center justify-center leading-none gap-0.5 ${isSaturday ? 'bg-blue-50' : isSunday ? 'bg-rose-50' : 'bg-slate-100'} ${day.isToday ? 'bg-teal-600' : ''}`}>
                                             <div className={`text-[11px] font-bold ${isSaturday ? 'text-slate-700' : isSunday ? 'text-slate-600' : 'text-slate-700'} ${day.isToday ? 'text-white' : ''}`}>

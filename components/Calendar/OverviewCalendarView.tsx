@@ -18,6 +18,8 @@ interface OverviewCalendarViewProps {
     goToPreviousDay?: () => void;
     goToNextDay?: () => void;
     goToToday?: () => void;
+    /** 浮き（班未定）行を出さない。kei指示（2026-07-21）で管理者・マネージャー限定 */
+    hideFloatingRow?: boolean;
 }
 
 // Min row height in px — rows won't shrink below this
@@ -62,6 +64,7 @@ export default function OverviewCalendarView({
     goToPreviousDay,
     goToNextDay,
     goToToday: _goToToday,
+    hideFloatingRow = false,
 }: OverviewCalendarViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     // ナビ系 props はもう ScheduleToolbar に集約されたため使わない（互換のため受け取りはする）
@@ -173,8 +176,8 @@ export default function OverviewCalendarView({
                                 })}
                             </tr>
                         ))}
-                        {/* 浮いている行（班未定の配置）。存在する週だけ表示 */}
-                        {events.some(e => e.assignedEmployeeId === 'unassigned') && (
+                        {/* 浮いている行（班未定の配置）。管理者・マネージャーのみ・存在する週だけ表示 */}
+                        {!hideFloatingRow && events.some(e => e.assignedEmployeeId === 'unassigned') && (
                             <tr className="border-b border-red-200 bg-red-50/40">
                                 <td
                                     className="text-[7px] font-bold text-red-700 border border-red-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-red-50 whitespace-nowrap overflow-hidden"

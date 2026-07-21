@@ -110,6 +110,10 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     const router = useRouter();
     const { setActivePage } = useNavigation();
     const canEditProjectMaster = useMemo(() => isManagerOrAbove(session?.user), [session?.user]);
+
+    // 浮き（班未定）の見せ方: kei指示（2026-07-21）で管理者・マネージャー限定。
+    // レーン本体・日付ヘッダーの赤バッジ・「浮きに戻す」導線をまとめてこれで制御する
+    const canSeeFloatingLane = useMemo(() => !partnerMode && isManagerOrAbove(session?.user), [partnerMode, session?.user]);
     const handleEditProjectMaster = useCallback(() => {
         const pmId = modalInitialData.projectMasterId;
         if (!pmId) return;
@@ -853,9 +857,10 @@ useEffect(() => { setIsMounted(true); }, []);
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     hideRemarks={partnerMode}
-                    handleFloatingEventClick={partnerMode ? undefined : handleFloatingEventClick}
-                    handleFloatingCellClick={isReadOnly ? undefined : handleFloatingCellClick}
+                    handleFloatingEventClick={canSeeFloatingLane ? handleFloatingEventClick : undefined}
+                    handleFloatingCellClick={isReadOnly || !canSeeFloatingLane ? undefined : handleFloatingCellClick}
                     floatingLaneAnchorId={floatingLaneAnchorId}
+                    hideFloatingLane={!canSeeFloatingLane}
                 />
             ) : (
                 <DesktopCalendarView
@@ -887,9 +892,10 @@ useEffect(() => { setIsMounted(true); }, []);
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     hideRemarks={partnerMode}
                     hideForemanSelector={partnerMode}
-                    handleFloatingEventClick={partnerMode ? undefined : handleFloatingEventClick}
-                    handleFloatingCellClick={isReadOnly ? undefined : handleFloatingCellClick}
+                    handleFloatingEventClick={canSeeFloatingLane ? handleFloatingEventClick : undefined}
+                    handleFloatingCellClick={isReadOnly || !canSeeFloatingLane ? undefined : handleFloatingCellClick}
                     floatingLaneAnchorId={floatingLaneAnchorId}
+                    hideFloatingLane={!canSeeFloatingLane}
                     moveFloatingLane={isReadOnly ? undefined : moveFloatingLane}
                     canMoveFloatingLaneUp={canMoveFloatingLaneUp}
                     canMoveFloatingLaneDown={canMoveFloatingLaneDown}
@@ -913,7 +919,7 @@ useEffect(() => { setIsMounted(true); }, []);
                         : undefined
                 }
                 onDemoteToFloating={
-                    !isReadOnly && modalInitialData.id && modalInitialData.assignedEmployeeId !== 'unassigned'
+                    !isReadOnly && canSeeFloatingLane && modalInitialData.id && modalInitialData.assignedEmployeeId !== 'unassigned'
                         ? handleDemoteToFloating
                         : undefined
                 }
