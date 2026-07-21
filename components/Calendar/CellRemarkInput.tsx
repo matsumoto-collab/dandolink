@@ -8,9 +8,17 @@ interface CellRemarkInputProps {
     foremanId: string;
     dateKey: string;
     isReadOnly?: boolean;
+    /**
+     * 浮きレーン用の詰めレイアウト。職長行はセルが高く mt-auto + 末尾スペーサーで
+     * 最下部に置けるが、浮きレーンのセルは低くスペーサーが下枠へはみ出す。はみ出した
+     * 鉛筆にカーソルが乗るとホバー領域を出入りして点滅する（連打に見える）ため、
+     * 浮きレーンでは鉛筆をセル基準の絶対配置（右下）＋常時薄表示にして高さを増やさない。
+     * セル側に relative を付けておくこと。
+     */
+    floatingLane?: boolean;
 }
 
-export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false }: CellRemarkInputProps) {
+export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false, floatingLane = false }: CellRemarkInputProps) {
     const { setCellRemark } = useCalendarStore();
     // ストアから現在の値を取得
     const savedRemark = useCalendarStore(state => state.cellRemarks[`${foremanId}-${dateKey}`] || '');
@@ -63,7 +71,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
             {/* data-cell-remark 内は stopPropagation → メモ操作のみ */}
             <div
                 ref={triggerRef}
-                className="mt-auto w-full"
+                className={floatingLane ? 'w-full' : 'mt-auto w-full'}
                 data-cell-remark
                 onClick={(e) => e.stopPropagation()}
             >
@@ -75,10 +83,12 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                         {savedRemark}
                     </div>
                 ) : !isReadOnly && (
-                    <div className="flex justify-end">
+                    // 浮きレーン: セル基準の右下に絶対配置＋常時薄表示（はみ出し・点滅を防ぐ）。
+                    // 職長行: 従来どおり右寄せ＋ホバーで出す。
+                    <div className={floatingLane ? 'absolute bottom-0.5 right-0.5 z-10' : 'flex justify-end'}>
                         <button
                             onClick={handleStartEdit}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+                            className={`${floatingLane ? 'opacity-40 hover:opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600`}
                             title="メモを追加"
                             aria-label="メモを追加"
                         >
@@ -87,8 +97,9 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                     </div>
                 )}
             </div>
-            {/* data-cell-remark の外 → クリックが DroppableCell に伝わり新規案件モーダルが開く */}
-            <div className="h-6 w-full" />
+            {/* data-cell-remark の外 → クリックが DroppableCell に伝わり新規案件モーダルが開く。
+                浮きレーンはセルの空白クリックで直接 onCellClick が走るためスペーサー不要 */}
+            {!floatingLane && <div className="h-6 w-full" />}
 
             {/* Portal Popover */}
             {isEditing && createPortal(
