@@ -5,6 +5,7 @@ import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { CalendarEvent, WeekDay } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
+import CellRemarkInput from './CellRemarkInput';
 import { Plus, Users } from 'lucide-react';
 
 const LONG_PRESS_MS = 500;        // 長押し判定時間（DraggableEventCard と揃える）
@@ -312,7 +313,8 @@ export default function FloatingLane({
 
                 // 移動モード中はセル/カードのタップで commitMove、それ以外は通常の onCellClick/onEventClick
                 const interactive = (!isReadOnly && !!onCellClick) || (isMoving && !!onCommitMove);
-                const cellClassName = `${colWidth ? 'grow flex-shrink-0' : `flex-1 ${compact ? 'min-w-[72px]' : 'min-w-[84px]'}`} border-r border-red-100 p-1 ${
+                // group: 空メモのホバー鉛筆（CellRemarkInput）を職長行と同じく hover で出すため
+                const cellClassName = `group ${colWidth ? 'grow flex-shrink-0' : `flex-1 ${compact ? 'min-w-[72px]' : 'min-w-[84px]'}`} border-r border-red-100 p-1 ${
                     interactive ? 'cursor-pointer hover:bg-red-50' : ''
                 }`;
                 const handleCellClick = () => {
@@ -373,6 +375,10 @@ export default function FloatingLane({
                                 <Plus className="w-3.5 h-3.5" />
                             </div>
                         )}
+                        {/* その日の浮きメモ（職長行のセルメモと同じ仕組み・foremanId='unassigned'）。
+                            CellRemarkInput は data-cell-remark 内で stopPropagation するため、
+                            メモ操作が浮きの新規登録クリック（handleCellClick）に化けない */}
+                        <CellRemarkInput foremanId="unassigned" dateKey={dateKey} isReadOnly={isReadOnly} />
                     </>
                 );
 

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropic, SCHEDULE_AI_MODEL } from '@/lib/anthropic';
 import { getCrewAvailability, getCrewAvailabilitySummaryRange, getFloating } from '@/lib/crewAvailability';
+import { getFloatingMemo, appendFloatingMemo } from '@/lib/floatingMemo';
 import { logger } from '@/lib/logger';
 
 /**
@@ -62,6 +63,31 @@ const TOOLS: Anthropic.Tool[] = [
             required: [],
         },
     },
+    {
+        name: 'get_floating_memo',
+        description:
+            '指定日の「浮きレーンのメモ」の現在値を取得する（週間カレンダー最下部の浮きレーンに人が手で書くのと同じメモ）。追記の前に現在値を確認したいときに使う。',
+        input_schema: {
+            type: 'object' as const,
+            properties: {
+                date: { type: 'string', description: '対象日 YYYY-MM-DD（JST）' },
+            },
+            required: ['date'],
+        },
+    },
+    {
+        name: 'append_floating_memo',
+        description:
+            '指定日の「浮きレーンのメモ」に text を追記する（既存メモは消さず改行で連結）。ユーザーが「メモして」「浮きに残して」等、明確に記録を指示したときだけ使う。書けるのはこの浮きメモだけで、予定・案件・班へは一切書き込めない。500文字を超えて入りきらない場合は追記せず tooLong を返す。',
+        input_schema: {
+            type: 'object' as const,
+            properties: {
+                date: { type: 'string', description: '対象日 YYYY-MM-DD（JST）' },
+                text: { type: 'string', description: 'メモに追記する内容（素のテキスト。出所印は付けない）' },
+            },
+            required: ['date', 'text'],
+        },
+    },
 ];
 
 function buildSystemPrompt(): string {
@@ -100,10 +126,18 @@ function buildSystemPrompt(): string {
 7. 日付が読み取れない・曖昧すぎる場合は、推測せず「何日のことか」を短く聞き返す。
 8. スケジュール以外の話題（雑談・会社と無関係な質問）には「スケジュールの確認のみ対応しています」と短く答える。
 9. 出力はプレーンテキストのみ。Markdown記法（* や ** や # や \` など）は絶対に使わない。強調も記号で飾らず言葉で表現する。箇条書きの行頭は「・」を使う。音声で読み上げられることがあるため、記号の少ない読みやすい文にする。
-10. ツールが返したものは隠さない。班・浮いている現場・仮予定・案件は、班名や担当者名が何であれ、全て通常どおり回答に含める。「報告対象外」「対象ではない」と自己判断して省略することは、どんな理由でも禁止。質問に対して件数が多すぎる場合だけ、件数を明示したうえで主要なものに絞る（例:「全部で12件、うち近い5件は…」）。`;
+10. ツールが返したものは隠さない。班・浮いている現場・仮予定・案件は、班名や担当者名が何であれ、全て通常どおり回答に含める。「報告対象外」「対象ではない」と自己判断して省略することは、どんな理由でも禁止。質問に対して件数が多すぎる場合だけ、件数を明示したうえで主要なものに絞る（例:「全部で12件、うち近い5件は…」）。
+
+浮きレーンのメモへの書き込みについて（あなたが書けるのはこのメモだけ）:
+11. あなたが書き込めるのは浮きレーンのメモ欄だけです。予定・案件・確定枠・班の予定は一切変更・登録・削除できません（従来どおり）。求められても「メモには残せますが、予定の登録・変更はできません」と伝える。
+12. append_floating_memo を呼ぶのは、ユーザーが「メモして」「書いといて」「浮きに残して」など、明確に記録を指示したときだけ。空き状況や浮きを聞かれただけで勝手に書いてはいけない。
+13. 依頼があいまいで、書く日付や内容が特定できないときは、書かずに「◯月◯日の浮きメモに『…』と書きますか？」と一度だけ短く確認する。
+14. 書く前に必要なら get_floating_memo でその日の現在値を確認する。既存のメモは消さず追記する（append 関数が追記するので、あなたは上書きのつもりで呼んではいけない）。
+15. 書いたら必ず「◯月◯日の浮きメモに『…』と追記しました。取り消すにはスケジュールの浮きレーンのメモから削除してください」と報告する。
+16. append_floating_memo が「500文字の上限で入りきらない（tooLong）」と返したら、その旨を伝えて追記しない。`;
 }
 
-async function runTool(name: string, input: Record<string, unknown>): Promise<string> {
+async function runTool(name: string, input: Record<string, unknown>, updatedBy?: string): Promise<string> {
     if (name === 'get_crew_availability') {
         const date = String(input.date ?? '');
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return JSON.stringify({ error: 'date は YYYY-MM-DD 形式で指定してください' });
@@ -121,16 +155,35 @@ async function runTool(name: string, input: Record<string, unknown>): Promise<st
         const endDate = input.endDate ? String(input.endDate) : undefined;
         return JSON.stringify(await getFloating(startDate, endDate));
     }
+    if (name === 'get_floating_memo') {
+        const date = String(input.date ?? '');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return JSON.stringify({ error: 'date は YYYY-MM-DD 形式で指定してください' });
+        return JSON.stringify({ dateKey: date, text: await getFloatingMemo(date) });
+    }
+    if (name === 'append_floating_memo') {
+        const date = String(input.date ?? '');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return JSON.stringify({ error: 'date は YYYY-MM-DD 形式で指定してください' });
+        const text = typeof input.text === 'string' ? input.text : '';
+        if (!text.trim()) return JSON.stringify({ error: 'text（メモに書く内容）が空です' });
+        const result = await appendFloatingMemo(date, text, updatedBy);
+        if (result.tooLong) {
+            // 丸めずに「入りきらない」と返す＝AIはこの旨を伝えて追記しない
+            return JSON.stringify({ ok: false, tooLong: true, message: '浮きメモが500文字の上限に達するため追記できませんでした', currentText: result.text });
+        }
+        return JSON.stringify({ ok: true, dateKey: result.dateKey, text: result.text });
+    }
     return JSON.stringify({ error: `unknown tool: ${name}` });
 }
 
 /**
  * 質問＋会話履歴を受け取り、ツール実行ループを回して最終回答テキストを返す。
  * 回答が得られなかった場合は空文字列（呼び出し側でフォールバック文言にする）。
+ * userId は浮きメモ追記（append_floating_memo）の updatedBy として渡す（無くても動く）。
  */
 export async function askScheduleAssistant(
     question: string,
-    history: Anthropic.MessageParam[]
+    history: Anthropic.MessageParam[],
+    userId?: string
 ): Promise<string> {
     const client = getAnthropic();
     const messages: Anthropic.MessageParam[] = [...history, { role: 'user', content: question }];
@@ -161,7 +214,7 @@ export async function askScheduleAssistant(
         for (const tu of toolUses) {
             let content: string;
             try {
-                content = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>);
+                content = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>, userId);
             } catch (e) {
                 logger.error(`[availabilityAssistant] ツール実行に失敗: ${tu.name}`, e);
                 content = JSON.stringify({ error: 'データの取得に失敗しました' });

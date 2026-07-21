@@ -41,8 +41,9 @@ export async function POST(req: NextRequest) {
                   .map((m) => ({ role: m.role as 'user' | 'assistant', content: String(m.content).slice(0, 2000) }))
             : [];
 
+        // userId は浮きメモ追記の updatedBy に使う（記録指示があったときのみ書き込み）
         const answer =
-            (await askScheduleAssistant(question, history)) ||
+            (await askScheduleAssistant(question, history, session!.user.id)) ||
             'すみません、うまく回答できませんでした。もう一度言い方を変えて聞いてください。';
 
         return NextResponse.json({ answer });

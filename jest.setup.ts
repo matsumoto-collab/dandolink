@@ -211,6 +211,12 @@ jest.mock('@/lib/prisma', () => ({
         memberCountHistory: {
             findMany: jest.fn().mockResolvedValue([]),
         },
+        cellRemark: {
+            findUnique: jest.fn(),
+            findMany: jest.fn(),
+            upsert: jest.fn(),
+            deleteMany: jest.fn(),
+        },
         projectBillingDecision: {
             findMany: jest.fn(),
             findUnique: jest.fn(),
