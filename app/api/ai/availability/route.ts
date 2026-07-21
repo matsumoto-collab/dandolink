@@ -42,11 +42,13 @@ export async function POST(req: NextRequest) {
             : [];
 
         // userId は浮きメモ追記の updatedBy に使う（記録指示があったときのみ書き込み）
-        const answer =
-            (await askScheduleAssistant(question, history, session!.user.id)) ||
-            'すみません、うまく回答できませんでした。もう一度言い方を変えて聞いてください。';
+        const { answer, memoDates } = await askScheduleAssistant(question, history, session!.user.id);
 
-        return NextResponse.json({ answer });
+        // memoDates: 浮きメモを書き込んだ日付。画面側がこれを見てカレンダーのメモを即時再取得する
+        return NextResponse.json({
+            answer: answer || 'すみません、うまく回答できませんでした。もう一度言い方を変えて聞いてください。',
+            memoDates,
+        });
     } catch (error) {
         return serverErrorResponse('AI照会', error);
     }

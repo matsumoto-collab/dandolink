@@ -162,7 +162,7 @@ async function main() {
     let failed = 0;
 
     for (const c of cases) {
-        const answer = await askScheduleAssistant(c.question, []);
+        const { answer } = await askScheduleAssistant(c.question, []);
         const normalized = norm(answer);
         const missing = c.mustInclude.filter((s) => !normalized.includes(norm(s)));
         const leaked = c.mustNotInclude.filter((s) => normalized.includes(norm(s)));

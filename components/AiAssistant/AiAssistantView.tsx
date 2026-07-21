@@ -52,6 +52,25 @@ function toSpeechText(text: string): string {
 }
 
 /**
+ * AIが浮きメモを書いた後、カレンダーのメモ表示を追いつかせる。
+ * カレンダーストア・broadcastは重いので、書き込みがあったときだけ動的importする。
+ * 他端末へは broadcast（'cell_remark_updated'）で通知する（未接続なら相手側の
+ * ポーリングで最大2分後に追いつく＝従来どおり）。
+ */
+async function syncFloatingMemos(dateKeys: string[]): Promise<void> {
+    try {
+        const [{ useCalendarStore }, { sendBroadcast }] = await Promise.all([
+            import('@/stores/calendarStore'),
+            import('@/lib/broadcastChannel'),
+        ]);
+        await useCalendarStore.getState().fetchCellRemarks();
+        dateKeys.forEach((dateKey) => sendBroadcast('cell_remark_updated', { foremanId: 'unassigned', dateKey }));
+    } catch (e) {
+        logger.error('[AiAssistant] 浮きメモの反映に失敗', e);
+    }
+}
+
+/**
  * スケジュールAI照会（設計書 §6）。
  *
  * 「◯月◯日に解体1件（3人）入れたい。空けられそうなところは？」のような質問に、
@@ -426,6 +445,12 @@ export default function AiAssistantView() {
             const data = await res.json();
             const answer = String(data.answer ?? '');
             setMessages((prev) => [...prev, { role: 'assistant', content: answer }]);
+            // 浮きメモを書いたらカレンダー側へ即時反映（この端末＝ストア再取得／他端末＝broadcast）。
+            // カレンダーは cellRemarksInitialized が立っていると再訪しても取り直さないため、
+            // ここで明示的に取り直さないとリロードするまでメモが出ない。
+            if (Array.isArray(data.memoDates) && data.memoDates.length > 0) {
+                void syncFloatingMemos(data.memoDates as string[]);
+            }
             // 自動読み上げON: 追加される応答の位置は「送信前の件数 + ユーザー発言1 + 応答」の末尾
             if (autoSpeak && answer) {
                 speak(answer, messages.length + 1);

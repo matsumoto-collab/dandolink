@@ -137,7 +137,17 @@ function buildSystemPrompt(): string {
 16. append_floating_memo が「500文字の上限で入りきらない（tooLong）」と返したら、その旨を伝えて追記しない。`;
 }
 
-async function runTool(name: string, input: Record<string, unknown>, updatedBy?: string): Promise<string> {
+/**
+ * ツール実行の文脈。
+ * - userId: 浮きメモ追記の updatedBy
+ * - memoDates: 実際に書き込んだ日付（呼び出し側へ返し、画面のメモを即時再取得させる）
+ */
+interface ToolContext {
+    userId?: string;
+    memoDates: string[];
+}
+
+async function runTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
     if (name === 'get_crew_availability') {
         const date = String(input.date ?? '');
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return JSON.stringify({ error: 'date は YYYY-MM-DD 形式で指定してください' });
@@ -165,29 +175,37 @@ async function runTool(name: string, input: Record<string, unknown>, updatedBy?:
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return JSON.stringify({ error: 'date は YYYY-MM-DD 形式で指定してください' });
         const text = typeof input.text === 'string' ? input.text : '';
         if (!text.trim()) return JSON.stringify({ error: 'text（メモに書く内容）が空です' });
-        const result = await appendFloatingMemo(date, text, updatedBy);
+        const result = await appendFloatingMemo(date, text, ctx.userId);
         if (result.tooLong) {
             // 丸めずに「入りきらない」と返す＝AIはこの旨を伝えて追記しない
             return JSON.stringify({ ok: false, tooLong: true, message: '浮きメモが500文字の上限に達するため追記できませんでした', currentText: result.text });
         }
+        if (!ctx.memoDates.includes(result.dateKey)) ctx.memoDates.push(result.dateKey);
         return JSON.stringify({ ok: true, dateKey: result.dateKey, text: result.text });
     }
     return JSON.stringify({ error: `unknown tool: ${name}` });
 }
 
+export interface ScheduleAssistantResult {
+    /** 最終回答テキスト。得られなかった場合は空文字列（呼び出し側でフォールバック文言にする） */
+    answer: string;
+    /** この照会で浮きメモを書き込んだ日付（YYYY-MM-DD）。画面側はこれを見て即時再取得する */
+    memoDates: string[];
+}
+
 /**
- * 質問＋会話履歴を受け取り、ツール実行ループを回して最終回答テキストを返す。
- * 回答が得られなかった場合は空文字列（呼び出し側でフォールバック文言にする）。
+ * 質問＋会話履歴を受け取り、ツール実行ループを回して最終回答を返す。
  * userId は浮きメモ追記（append_floating_memo）の updatedBy として渡す（無くても動く）。
  */
 export async function askScheduleAssistant(
     question: string,
     history: Anthropic.MessageParam[],
     userId?: string
-): Promise<string> {
+): Promise<ScheduleAssistantResult> {
     const client = getAnthropic();
     const messages: Anthropic.MessageParam[] = [...history, { role: 'user', content: question }];
     const system = buildSystemPrompt();
+    const ctx: ToolContext = { userId, memoDates: [] };
 
     let answer = '';
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -214,7 +232,7 @@ export async function askScheduleAssistant(
         for (const tu of toolUses) {
             let content: string;
             try {
-                content = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>, userId);
+                content = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>, ctx);
             } catch (e) {
                 logger.error(`[availabilityAssistant] ツール実行に失敗: ${tu.name}`, e);
                 content = JSON.stringify({ error: 'データの取得に失敗しました' });
@@ -224,5 +242,5 @@ export async function askScheduleAssistant(
         messages.push({ role: 'user', content: results });
     }
 
-    return answer;
+    return { answer, memoDates: ctx.memoDates };
 }

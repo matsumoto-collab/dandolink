@@ -370,8 +370,10 @@ export default function FloatingLane({
                             </div>
                         )}
                         {/* 空セルの新規登録動線（移動モード中はターゲットを優先して隠す） */}
+                        {/* h-full は付けないこと: 伸びたセル高さの100%を取り直すため、
+                            メモがあるとその分だけセル下枠へはみ出す（2026-07-21の実害） */}
                         {dayFloating.length === 0 && !isMoving && !isReadOnly && onCellClick && (
-                            <div className={`h-full ${compact ? 'min-h-[32px]' : 'min-h-[40px]'} flex items-center justify-center text-red-200`}>
+                            <div className={`${compact ? 'min-h-[32px]' : 'min-h-[40px]'} flex items-center justify-center text-red-200`}>
                                 <Plus className="w-3.5 h-3.5" />
                             </div>
                         )}
