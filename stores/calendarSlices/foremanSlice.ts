@@ -2,15 +2,32 @@ import { CalendarSlice, CalendarActions, CalendarState, ForemanUser, MemberUser 
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { fetchWithTimeout } from '@/lib/fetchWithTimeout';
 import { logger } from '@/lib/logger';
+import { splitForemanOrder, mergeForemanOrder, clampFloatingLaneIndex, nextFloatingLaneIndex } from '@/lib/floatingLaneOrder';
 
-type ForemanSlice = Pick<CalendarState, 'displayedForemanIds' | 'allForemen' | 'foremanSettingsLoading' | 'foremanSettingsInitialized' | 'allMembers' | 'allMembersInitialized'> &
-    Pick<CalendarActions, 'fetchForemen' | 'fetchForemanSettings' | 'fetchAllMembers' | 'addForeman' | 'removeForeman' | 'moveForeman' | 'getAvailableForemen' | 'getForemanName' | 'initializeForemenFromAll'>;
+type ForemanSlice = Pick<CalendarState, 'displayedForemanIds' | 'floatingLaneIndex' | 'allForemen' | 'foremanSettingsLoading' | 'foremanSettingsInitialized' | 'allMembers' | 'allMembersInitialized'> &
+    Pick<CalendarActions, 'fetchForemen' | 'fetchForemanSettings' | 'fetchAllMembers' | 'addForeman' | 'removeForeman' | 'moveForeman' | 'moveFloatingLane' | 'getAvailableForemen' | 'getForemanName' | 'initializeForemenFromAll'>;
 
 // 同時マウント時の重複fetch排除（同一Promise共有）
 let allMembersFetchPromise: Promise<void> | null = null;
 
+/**
+ * 職長の並び順を保存する。浮きレーンの位置（floatingLaneIndex）は同じ配列に
+ * 予約ID 'unassigned' として混ぜて送る（lib/floatingLaneOrder.ts）。
+ * ストアが持つ displayedForemanIds には予約IDを入れない＝他画面へ漏らさない。
+ */
+async function persistForemanOrder(ids: string[], floatingLaneIndex: number | null): Promise<void> {
+    const res = await fetch('/api/system-settings/foremen', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayedForemanIds: mergeForemanOrder(ids, floatingLaneIndex) }),
+    });
+    if (!res.ok) throw new Error('Failed to save foreman order');
+    sendBroadcast('foreman_settings_updated', {});
+}
+
 export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
     displayedForemanIds: [],
+    floatingLaneIndex: null,
     allForemen: [],
     foremanSettingsLoading: false,
     foremanSettingsInitialized: false,
@@ -61,7 +78,9 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
             if (response.ok) {
                 const data = await response.json();
                 if (data.displayedForemanIds && data.displayedForemanIds.length > 0) {
-                    set({ displayedForemanIds: data.displayedForemanIds });
+                    // 保存配列に混ぜてある浮きレーンの位置をここで切り離す
+                    const { foremanIds, floatingLaneIndex } = splitForemanOrder(data.displayedForemanIds);
+                    set({ displayedForemanIds: foremanIds, floatingLaneIndex });
                 }
             }
         } catch (error) {
@@ -72,46 +91,41 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
     },
 
     addForeman: async (employeeId) => {
-        const { displayedForemanIds } = get();
+        const { displayedForemanIds, floatingLaneIndex } = get();
         if (!displayedForemanIds.includes(employeeId)) {
             const previousIds = [...displayedForemanIds];
             const newIds = [...displayedForemanIds, employeeId];
-            set({ displayedForemanIds: newIds });
+            // 浮きレーンを一番下に置いていたなら、追加後も一番下のままにする
+            const newIndex = floatingLaneIndex != null && floatingLaneIndex >= previousIds.length
+                ? newIds.length
+                : floatingLaneIndex;
+            set({ displayedForemanIds: newIds, floatingLaneIndex: newIndex });
             try {
-                const res = await fetch('/api/system-settings/foremen', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ displayedForemanIds: newIds }),
-                });
-                if (!res.ok) throw new Error('Failed to add foreman');
-                sendBroadcast('foreman_settings_updated', {});
+                await persistForemanOrder(newIds, newIndex);
             } catch (error) {
-                set({ displayedForemanIds: previousIds });
+                set({ displayedForemanIds: previousIds, floatingLaneIndex });
                 logger.error('Failed to add foreman:', error);
             }
         }
     },
 
     removeForeman: async (employeeId) => {
-        const previousIds = [...get().displayedForemanIds];
+        const { displayedForemanIds, floatingLaneIndex } = get();
+        const previousIds = [...displayedForemanIds];
         const newIds = previousIds.filter((id) => id !== employeeId);
-        set({ displayedForemanIds: newIds });
+        // 職長が減った分だけ位置が溢れることがあるので詰める
+        const newIndex = floatingLaneIndex == null ? null : clampFloatingLaneIndex(floatingLaneIndex, newIds.length);
+        set({ displayedForemanIds: newIds, floatingLaneIndex: newIndex });
         try {
-            const res = await fetch('/api/system-settings/foremen', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ displayedForemanIds: newIds }),
-            });
-            if (!res.ok) throw new Error('Failed to remove foreman');
-            sendBroadcast('foreman_settings_updated', {});
+            await persistForemanOrder(newIds, newIndex);
         } catch (error) {
-            set({ displayedForemanIds: previousIds });
+            set({ displayedForemanIds: previousIds, floatingLaneIndex });
             logger.error('Failed to remove foreman:', error);
         }
     },
 
     moveForeman: async (employeeId, direction) => {
-        const { displayedForemanIds } = get();
+        const { displayedForemanIds, floatingLaneIndex } = get();
         const currentIndex = displayedForemanIds.indexOf(employeeId);
         if (currentIndex === -1) return;
 
@@ -123,16 +137,28 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
         [newIds[currentIndex], newIds[newIndex]] = [newIds[newIndex], newIds[currentIndex]];
         set({ displayedForemanIds: newIds });
         try {
-            const res = await fetch('/api/system-settings/foremen', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ displayedForemanIds: newIds }),
-            });
-            if (!res.ok) throw new Error('Failed to move foreman');
-            sendBroadcast('foreman_settings_updated', {});
+            await persistForemanOrder(newIds, floatingLaneIndex);
         } catch (error) {
             set({ displayedForemanIds: previousIds });
             logger.error('Failed to move foreman:', error);
+        }
+    },
+
+    moveFloatingLane: async (direction) => {
+        const { displayedForemanIds, floatingLaneIndex, allForemen } = get();
+        // 画面に出ている職長だけを数える（退職者などが並びに残っていても1段ずつ動かすため）
+        const visible = new Set(
+            displayedForemanIds.filter((id) => allForemen.some((f) => f.id === id))
+        );
+        const newIndex = nextFloatingLaneIndex(floatingLaneIndex, direction, displayedForemanIds, visible);
+        if (newIndex === clampFloatingLaneIndex(floatingLaneIndex, displayedForemanIds.length)) return;
+
+        set({ floatingLaneIndex: newIndex });
+        try {
+            await persistForemanOrder(displayedForemanIds, newIndex);
+        } catch (error) {
+            set({ floatingLaneIndex });
+            logger.error('Failed to move floating lane:', error);
         }
     },
 

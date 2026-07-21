@@ -49,6 +49,11 @@ interface MobileCalendarViewProps {
     // 浮き（班未定）レーン・降格
     handleFloatingEventClick?: (eventId: string) => void;
     handleFloatingCellClick?: (date: Date) => void;
+    /**
+     * 浮きレーンをこの職長行の直前に挟む。null/未指定なら職長行の一番下。
+     * 位置はPCの▲▼で決めた全社共通の設定（lib/floatingLaneOrder.ts）を共有する。
+     */
+    floatingLaneAnchorId?: string | null;
 }
 
 interface ActionSheetState {
@@ -92,6 +97,7 @@ export default function MobileCalendarView({
     hideRemarks = false,
     handleFloatingEventClick,
     handleFloatingCellClick,
+    floatingLaneAnchorId = null,
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
     const isLandscape = useMediaQuery('(orientation: landscape) and (max-height: 500px)');
@@ -241,6 +247,28 @@ export default function MobileCalendarView({
         : '';
 
     const totalGridWidth = LABEL_W + COL_W * weekDays.length;
+
+    // 浮きレーン（列幅は上の固定幅グリッドに合わせる）。並べ替えはPC限定のため▲▼は出さない
+    const floatingLane = handleFloatingEventClick ? (
+        <FloatingLane
+            weekDays={weekDays}
+            events={events}
+            onEventClick={handleFloatingEventClick}
+            onCellClick={handleFloatingCellClick}
+            isReadOnly={isReadOnly}
+            compact
+            labelWidth={LABEL_W}
+            colWidth={COL_W}
+            onLongPressEvent={isReadOnly ? undefined : (ev) => setMovingEvent(ev)}
+            movingEventId={movingEvent?.id ?? null}
+            isMoving={movingEvent !== null}
+            onCommitMove={(date) => commitMove('unassigned', date)}
+        />
+    ) : null;
+    // アンカーの職長が実在するときだけ行間に挟む（見つからなければ末尾）
+    const anchorIndex = floatingLaneAnchorId
+        ? employeeRows.findIndex((row) => row.employeeId === floatingLaneAnchorId)
+        : -1;
 
     return (
         <div className="h-full flex flex-col bg-white overflow-hidden">
@@ -522,9 +550,10 @@ export default function MobileCalendarView({
                     {employeeRows.length === 0 ? (
                         <div className="py-16 text-center text-slate-400 text-sm">表示する職長がいません</div>
                     ) : (
-                        employeeRows.map((row) => (
+                        employeeRows.map((row, rowPos) => (
+                            <React.Fragment key={`${row.employeeId}-${row.rowIndex}`}>
+                            {rowPos === anchorIndex && floatingLane}
                             <div
-                                key={`${row.employeeId}-${row.rowIndex}`}
                                 className={`flex border-b border-slate-200 ${isLandscape ? 'min-h-[52px]' : 'min-h-[80px]'}`}
                             >
                                 {/* 職長名（左固定） */}
@@ -739,26 +768,12 @@ export default function MobileCalendarView({
                                     );
                                 })}
                             </div>
+                            </React.Fragment>
                         ))
                     )}
 
-                    {/* 浮いているレーン（班未定の配置置き場）。列幅は上の固定幅グリッドに合わせる */}
-                    {handleFloatingEventClick && (
-                        <FloatingLane
-                            weekDays={weekDays}
-                            events={events}
-                            onEventClick={handleFloatingEventClick}
-                            onCellClick={handleFloatingCellClick}
-                            isReadOnly={isReadOnly}
-                            compact
-                            labelWidth={LABEL_W}
-                            colWidth={COL_W}
-                            onLongPressEvent={isReadOnly ? undefined : (ev) => setMovingEvent(ev)}
-                            movingEventId={movingEvent?.id ?? null}
-                            isMoving={movingEvent !== null}
-                            onCommitMove={(date) => commitMove('unassigned', date)}
-                        />
-                    )}
+                    {/* 浮いているレーン。職長行の間へ動かしている場合は上のmap内で描画済み */}
+                    {anchorIndex === -1 && floatingLane}
                 </div>
             </div>
 

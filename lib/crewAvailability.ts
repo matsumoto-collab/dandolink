@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { toJstDateOnly, jstDayStartUtc } from '@/lib/dateUtils';
 import { parseJsonField } from '@/lib/json-utils';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
+import { FLOATING_LANE_ID } from '@/lib/floatingLaneOrder';
 
 /**
  * 班別空き状況の計算（AIなしの純粋なDB集計）。
@@ -115,7 +116,9 @@ async function loadForemen(): Promise<Array<{ id: string; name: string }>> {
         where: { id: 'default' },
         select: { displayedForemanIds: true },
     });
-    const ids = parseJsonField<string[]>(settings?.displayedForemanIds ?? null, []);
+    // 'unassigned' は浮きレーンの表示位置を表す予約IDで班ではない（lib/floatingLaneOrder.ts）
+    const ids = parseJsonField<string[]>(settings?.displayedForemanIds ?? null, [])
+        .filter((id) => id !== FLOATING_LANE_ID);
 
     if (ids.length > 0) {
         const users = await prisma.user.findMany({

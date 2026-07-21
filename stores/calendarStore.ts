@@ -17,6 +17,7 @@ const initialState: CalendarState = {
     projectMastersError: null,
     projectMastersInitialized: false,
     displayedForemanIds: [],
+    floatingLaneIndex: null,
     allForemen: [],
     foremanSettingsLoading: false,
     foremanSettingsInitialized: false,

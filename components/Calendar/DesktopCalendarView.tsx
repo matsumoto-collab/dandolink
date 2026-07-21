@@ -54,6 +54,15 @@ interface DesktopCalendarViewProps {
     weekLabel?: string;
     hideRemarks?: boolean;
     hideForemanSelector?: boolean;
+    /**
+     * 浮きレーンをこの職長行の直前に挟む。null/未指定なら従来どおり職長行の一番下。
+     * 位置の保存・解決は WeeklyCalendar 側（lib/floatingLaneOrder.ts）が受け持つ。
+     */
+    floatingLaneAnchorId?: string | null;
+    /** 浮きレーン自体の並び替え（渡すとレーンのラベルに▲▼が出る） */
+    moveFloatingLane?: (direction: 'up' | 'down') => void;
+    canMoveFloatingLaneUp?: boolean;
+    canMoveFloatingLaneDown?: boolean;
 }
 
 export default function DesktopCalendarView({
@@ -94,6 +103,10 @@ export default function DesktopCalendarView({
     weekLabel,
     hideRemarks = false,
     hideForemanSelector = false,
+    floatingLaneAnchorId = null,
+    moveFloatingLane,
+    canMoveFloatingLaneUp = true,
+    canMoveFloatingLaneDown = true,
 }: DesktopCalendarViewProps) {
     // PointerSensor を距離アクティベーション化（長押しと共存させる）
     const sensors = useSensors(
@@ -121,6 +134,31 @@ export default function DesktopCalendarView({
         handleMoveToCell(movingEvent, employeeId, date);
         setMovingEvent(null);
     }, [movingEvent, handleMoveToCell]);
+
+    // 浮きレーンは職長行の並びの中に差し込む（位置は floatingLaneAnchorId。null なら一番下）。
+    // partner向け閲覧（hideForemanSelector）では出さない。
+    const floatingLane = hideForemanSelector ? null : (
+        <FloatingLane
+            weekDays={weekDays}
+            events={events}
+            onEventClick={handleFloatingEventClick}
+            onCellClick={handleFloatingCellClick}
+            isReadOnly={isReadOnly}
+            enableDrop={!isReadOnly}
+            enableDrag={!isReadOnly}
+            onLongPressEvent={handleMoveToCell ? startMoving : undefined}
+            movingEventId={movingEvent?.id ?? null}
+            isMoving={movingEvent !== null}
+            onCommitMove={(date) => commitMove('unassigned', date)}
+            onMoveLane={moveFloatingLane}
+            canMoveUp={canMoveFloatingLaneUp}
+            canMoveDown={canMoveFloatingLaneDown}
+        />
+    );
+    // アンカーの職長が実在するときだけ行間に挟む（見つからなければ末尾に置く）
+    const anchorIndex = floatingLaneAnchorId
+        ? employeeRows.findIndex((row) => row.employeeId === floatingLaneAnchorId)
+        : -1;
 
     return (
         <DndContext
@@ -300,8 +338,9 @@ export default function DesktopCalendarView({
 
                         <div className="flex-1 flex flex-col">
                             {employeeRows.map((row, index) => (
+                                <React.Fragment key={row.employeeId}>
+                                {index === anchorIndex && floatingLane}
                                 <EmployeeRowComponent
-                                    key={row.employeeId}
                                     row={row}
                                     weekDays={weekDays}
                                     showEmployeeName={true}
@@ -324,25 +363,12 @@ export default function DesktopCalendarView({
                                     onCancelMove={cancelMoving}
                                     highlightedEventId={highlightedEventId}
                                 />
+                                </React.Fragment>
                             ))}
                         </div>
 
-                        {/* 浮いているレーン（班未定の配置置き場）。partner向け閲覧では隠す */}
-                        {!hideForemanSelector && (
-                            <FloatingLane
-                                weekDays={weekDays}
-                                events={events}
-                                onEventClick={handleFloatingEventClick}
-                                onCellClick={handleFloatingCellClick}
-                                isReadOnly={isReadOnly}
-                                enableDrop={!isReadOnly}
-                                enableDrag={!isReadOnly}
-                                onLongPressEvent={handleMoveToCell ? startMoving : undefined}
-                                movingEventId={movingEvent?.id ?? null}
-                                isMoving={movingEvent !== null}
-                                onCommitMove={(date) => commitMove('unassigned', date)}
-                            />
-                        )}
+                        {/* 浮いているレーン（班未定の配置置き場）。職長行の間へ動かしている場合は上のmap内で描画済み */}
+                        {anchorIndex === -1 && floatingLane}
 
                         {!hideForemanSelector && (
                             <div className="flex border-t-2 border-slate-300 bg-slate-50 p-4">

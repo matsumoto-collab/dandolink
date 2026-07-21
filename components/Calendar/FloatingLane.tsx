@@ -6,7 +6,7 @@ import { CalendarEvent, WeekDay } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
 import CellRemarkInput from './CellRemarkInput';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, ChevronUp, ChevronDown } from 'lucide-react';
 
 const LONG_PRESS_MS = 500;        // 長押し判定時間（DraggableEventCard と揃える）
 const LONG_PRESS_TOLERANCE = 6;   // 長押し中に許容する指/カーソルの移動量（px）
@@ -45,6 +45,15 @@ interface FloatingLaneProps {
     isMoving?: boolean;
     /** 移動モード中、セル/カードのタップで呼ぶ（浮きレーンの当該日へ降格移動） */
     onCommitMove?: (date: Date) => void;
+    /**
+     * レーン自体の並び替え（職長行の▲▼と同じ操作）。渡されたときだけラベルに▲▼を出す。
+     * 位置は職長の並び順設定に相乗りして保存される（lib/floatingLaneOrder.ts）
+     */
+    onMoveLane?: (direction: 'up' | 'down') => void;
+    /** ▲を出すか（一番上なら false） */
+    canMoveUp?: boolean;
+    /** ▼を出すか（一番下なら false） */
+    canMoveDown?: boolean;
 }
 
 interface FloatingDroppableCellProps {
@@ -292,6 +301,9 @@ export default function FloatingLane({
     movingEventId = null,
     isMoving = false,
     onCommitMove,
+    onMoveLane,
+    canMoveUp = true,
+    canMoveDown = true,
 }: FloatingLaneProps) {
     const floating = events.filter((e) => e.assignedEmployeeId === 'unassigned');
 
@@ -299,9 +311,34 @@ export default function FloatingLane({
         <div className={`flex border-t-2 border-b-2 border-red-200 bg-red-50/40 ${compact ? 'min-h-[44px]' : 'min-h-[56px]'}`}>
             {/* 左固定ラベル（職長列と同じ幅） */}
             <div className="sticky left-0 z-10 bg-red-50 border-r-2 border-red-200 shadow-sm flex-shrink-0" style={labelWidth ? { width: labelWidth } : undefined}>
-                <div className={`${labelWidth ? 'w-full' : compact ? 'w-14' : 'w-20 lg:w-24 xl:w-32'} h-full flex flex-col items-center justify-center px-1`}>
+                <div className={`${labelWidth ? 'w-full' : compact ? 'w-14' : 'w-20 lg:w-24 xl:w-32'} h-full flex flex-col items-center justify-center px-1 relative group`}>
                     <span className={`${compact ? 'text-[10px]' : 'text-xs'} font-bold text-red-700 tracking-wide`}>浮いている</span>
                     <span className="text-[9px] text-red-400">班未定</span>
+                    {/* レーンの上下移動（職長行の▲▼と同じ位置・同じ見た目） */}
+                    {onMoveLane && (
+                        <div className="absolute right-0 top-0 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                            {canMoveUp && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onMoveLane('up'); }}
+                                    className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                                    title="上へ移動"
+                                    aria-label="浮いているレーンを上へ移動"
+                                >
+                                    <ChevronUp className="w-3 h-3 text-red-600" />
+                                </button>
+                            )}
+                            {canMoveDown && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onMoveLane('down'); }}
+                                    className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                                    title="下へ移動"
+                                    aria-label="浮いているレーンを下へ移動"
+                                >
+                                    <ChevronDown className="w-3 h-3 text-red-600" />
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -68,7 +68,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     const { projects, addProject, updateProject, updateProjects, demoteToFloating, deleteProject, restoreAssignment, restoreDeletedAssignment, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
     const { getTotalMembersForDate } = useMasterData();
     const { getVacationEmployees } = useVacation();
-    const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
+    const { displayedForemanIds, removeForeman, allForemen, moveForeman, floatingLaneIndex, moveFloatingLane, isLoading: isCalendarLoading } = useCalendarDisplay();
     const [isMounted, setIsMounted] = useState(false);
     const userRole = session?.user?.role;
     const isForeman2 = userRole === 'foreman2';
@@ -523,6 +523,22 @@ useEffect(() => { setIsMounted(true); }, []);
         return generateEmployeeRows(filteredEmployees, events, weekDays);
     }, [events, weekDays, displayedForemanIds, allForemen, partnerMode, partnerId]);
 
+    // 浮きレーンをどの職長行の前に挟むか。null = 一番下（従来どおり）。
+    // 保存値は「displayedForemanIdsの何番目の前か」だが、退職などで行にならないIDが
+    // 混じることがあるため、そこから下方向へ実在する行を探してアンカーにする。
+    const floatingLaneAnchorId = useMemo(() => {
+        const start = floatingLaneIndex ?? displayedForemanIds.length;
+        const rowIds = new Set(employeeRows.map((r) => r.employeeId));
+        for (let i = Math.max(0, start); i < displayedForemanIds.length; i++) {
+            if (rowIds.has(displayedForemanIds[i])) return displayedForemanIds[i];
+        }
+        return null;
+    }, [floatingLaneIndex, displayedForemanIds, employeeRows]);
+
+    // ▲▼の出し分け（端では隠す）
+    const canMoveFloatingLaneUp = (floatingLaneIndex ?? displayedForemanIds.length) > 0;
+    const canMoveFloatingLaneDown = (floatingLaneIndex ?? displayedForemanIds.length) < displayedForemanIds.length;
+
     const activeEvent = useMemo(() => activeId ? events.find(event => event.id === activeId) ?? null : null, [activeId, events]);
 
     // 矢印ボタンでイベントを上下に移動
@@ -839,6 +855,7 @@ useEffect(() => { setIsMounted(true); }, []);
                     hideRemarks={partnerMode}
                     handleFloatingEventClick={partnerMode ? undefined : handleFloatingEventClick}
                     handleFloatingCellClick={isReadOnly ? undefined : handleFloatingCellClick}
+                    floatingLaneAnchorId={floatingLaneAnchorId}
                 />
             ) : (
                 <DesktopCalendarView
@@ -872,6 +889,10 @@ useEffect(() => { setIsMounted(true); }, []);
                     hideForemanSelector={partnerMode}
                     handleFloatingEventClick={partnerMode ? undefined : handleFloatingEventClick}
                     handleFloatingCellClick={isReadOnly ? undefined : handleFloatingCellClick}
+                    floatingLaneAnchorId={floatingLaneAnchorId}
+                    moveFloatingLane={isReadOnly ? undefined : moveFloatingLane}
+                    canMoveFloatingLaneUp={canMoveFloatingLaneUp}
+                    canMoveFloatingLaneDown={canMoveFloatingLaneDown}
                 />
             )}
 

@@ -11,6 +11,7 @@ export function useCalendarDisplay() {
 
     // Get state from Zustand store
     const displayedForemanIds = useCalendarStore((state) => state.displayedForemanIds);
+    const floatingLaneIndex = useCalendarStore((state) => state.floatingLaneIndex);
     const allForemen = useCalendarStore((state) => state.allForemen);
     const isLoading = useCalendarStore((state) => state.foremanSettingsLoading);
     const isInitialized = useCalendarStore((state) => state.foremanSettingsInitialized);
@@ -21,6 +22,7 @@ export function useCalendarDisplay() {
     const addForemanStore = useCalendarStore((state) => state.addForeman);
     const removeForemanStore = useCalendarStore((state) => state.removeForeman);
     const moveForemanStore = useCalendarStore((state) => state.moveForeman);
+    const moveFloatingLaneStore = useCalendarStore((state) => state.moveFloatingLane);
     const getAvailableForemenStore = useCalendarStore((state) => state.getAvailableForemen);
     const getForemanNameStore = useCalendarStore((state) => state.getForemanName);
     const initializeForemenFromAll = useCalendarStore((state) => state.initializeForemenFromAll);
@@ -59,6 +61,10 @@ export function useCalendarDisplay() {
         await moveForemanStore(employeeId, direction);
     }, [moveForemanStore]);
 
+    const moveFloatingLane = useCallback(async (direction: 'up' | 'down') => {
+        await moveFloatingLaneStore(direction);
+    }, [moveFloatingLaneStore]);
+
     const getAvailableForemen = useCallback(() => {
         return getAvailableForemenStore();
     }, [getAvailableForemenStore]);
@@ -69,11 +75,13 @@ export function useCalendarDisplay() {
 
     return {
         displayedForemanIds,
+        floatingLaneIndex,
         allForemen,
         isLoading,
         addForeman,
         removeForeman,
         moveForeman,
+        moveFloatingLane,
         getAvailableForemen,
         getForemanName,
     };

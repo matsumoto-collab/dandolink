@@ -160,6 +160,8 @@ export interface CalendarState {
 
     // Calendar Display (Foreman settings)
     displayedForemanIds: string[];
+    /** 浮きレーンを職長行の何番目の前に挟むか。null = 未設定（一番下）。lib/floatingLaneOrder.ts 参照 */
+    floatingLaneIndex: number | null;
     allForemen: ForemanUser[];
     foremanSettingsLoading: boolean;
     foremanSettingsInitialized: boolean;
@@ -213,6 +215,8 @@ export interface CalendarActions {
     addForeman: (employeeId: string) => Promise<void>;
     removeForeman: (employeeId: string) => Promise<void>;
     moveForeman: (employeeId: string, direction: 'up' | 'down') => Promise<void>;
+    /** 浮きレーンを職長行の並びの中で1段上下させる（職長の▲▼と同じ操作感） */
+    moveFloatingLane: (direction: 'up' | 'down') => Promise<void>;
     getAvailableForemen: () => { id: string; name: string }[];
     getForemanName: (id: string) => string;
     initializeForemenFromAll: () => void;
