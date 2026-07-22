@@ -34,6 +34,11 @@ interface MobileCalendarViewProps {
     goToPreviousDay: () => void;
     goToNextDay: () => void;
     goToToday: () => void;
+    /** 週送り/日送りの可否（協力会社モードの閲覧範囲制限）。false でボタンを無効表示にする */
+    canGoPrevWeek?: boolean;
+    canGoNextWeek?: boolean;
+    canGoPrevDay?: boolean;
+    canGoNextDay?: boolean;
     // Event handlers
     handleEventClick: (eventId: string) => void;
     handleCellClick?: (employeeId: string, date: Date) => void;
@@ -358,6 +363,10 @@ function MobileCalendarView({
     goToPreviousDay,
     goToNextDay,
     goToToday,
+    canGoPrevWeek = true,
+    canGoNextWeek = true,
+    canGoPrevDay = true,
+    canGoNextDay = true,
     handleEventClick,
     handleCellClick,
     handleMoveEvent,
@@ -555,14 +564,16 @@ function MobileCalendarView({
                     <div className="flex items-center">
                         <button
                             onClick={goToPreviousWeek}
-                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
+                            disabled={!canGoPrevWeek}
+                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
                             aria-label="1週間前"
                         >
                             <svg className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
                         </button>
                         <button
                             onClick={goToPreviousDay}
-                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
+                            disabled={!canGoPrevDay}
+                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
                             aria-label="1日前"
                         >
                             <ChevronLeft className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
@@ -602,14 +613,16 @@ function MobileCalendarView({
                     <div className="flex items-center">
                         <button
                             onClick={goToNextDay}
-                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
+                            disabled={!canGoNextDay}
+                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
                             aria-label="1日後"
                         >
                             <ChevronRight className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
                         </button>
                         <button
                             onClick={goToNextWeek}
-                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
+                            disabled={!canGoNextWeek}
+                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
                             aria-label="1週間後"
                         >
                             <svg className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>

@@ -18,7 +18,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
 import { canDispatch as canDispatchCheck, isManagerOrAbove } from '@/utils/permissions';
-import { addDays } from '@/utils/dateUtils';
+import { addDays, formatDate } from '@/utils/dateUtils';
 import { CalendarEvent, CalendarNavigation, Project, Employee, ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
 import Button from '@/components/ui/Button';
@@ -287,6 +287,32 @@ useEffect(() => { setIsMounted(true); }, []);
     }, [handleDemoteToFloating, updateProjectWithConflictHandling]);
 
     const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToDate } = useCalendar(events);
+
+    // 協力会社モード: 閲覧できる範囲を「今週〜2週先(再来週)」に制限する（kei指示 2026-07-22）。
+    // 表示開始日が今週の月曜から何日先か(0〜14日)で判定する。日送りは表示窓を1日ずらす機能
+    // なので、週送り(±7日)・日送り(±1日)それぞれ移動後も範囲内に収まるときだけ許可する。
+    const partnerFirstMonday = useMemo(() => {
+        if (!partnerMode) return null;
+        const now = new Date();
+        const day = now.getDay();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate() + (day === 0 ? -6 : 1 - day)).getTime();
+    }, [partnerMode]);
+    const partnerDayOffset = partnerFirstMonday === null
+        ? 0
+        : Math.round((new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()).getTime() - partnerFirstMonday) / 86400000);
+    const canGoPrevWeek = partnerFirstMonday === null || partnerDayOffset - 7 >= 0;
+    const canGoNextWeek = partnerFirstMonday === null || partnerDayOffset + 7 <= 14;
+    const canGoPrevDay = partnerFirstMonday === null || partnerDayOffset - 1 >= 0;
+    const canGoNextDay = partnerFirstMonday === null || partnerDayOffset + 1 <= 14;
+    // 非協力会社モードでは素の関数をそのまま渡す（既存挙動を変えない）
+    const navGoToPreviousWeek = partnerMode ? () => { if (canGoPrevWeek) goToPreviousWeek(); } : goToPreviousWeek;
+    const navGoToNextWeek = partnerMode ? () => { if (canGoNextWeek) goToNextWeek(); } : goToNextWeek;
+    const navGoToPreviousDay = partnerMode ? () => { if (canGoPrevDay) goToPreviousDay(); } : goToPreviousDay;
+    const navGoToNextDay = partnerMode ? () => { if (canGoNextDay) goToNextDay(); } : goToNextDay;
+    // 協力会社モードのPC用: DesktopCalendarView 内蔵ナビバーに渡す週ラベル
+    const weekLabel = useMemo(() => weekDays.length > 0
+        ? `${formatDate(weekDays[0].date, 'short')}〜${formatDate(weekDays[weekDays.length - 1].date, 'short')}`
+        : '', [weekDays]);
 
     // 検索パネルの開閉
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -841,11 +867,15 @@ useEffect(() => { setIsMounted(true); }, []);
                     getTotalMembersForDate={getTotalMembersForDate}
                     getVacationEmployees={getVacationEmployees}
                     getEditingUsers={getEditingUsers}
-                    goToPreviousWeek={goToPreviousWeek}
-                    goToNextWeek={goToNextWeek}
-                    goToPreviousDay={goToPreviousDay}
-                    goToNextDay={goToNextDay}
+                    goToPreviousWeek={navGoToPreviousWeek}
+                    goToNextWeek={navGoToNextWeek}
+                    goToPreviousDay={navGoToPreviousDay}
+                    goToNextDay={navGoToNextDay}
                     goToToday={goToToday}
+                    canGoPrevWeek={canGoPrevWeek}
+                    canGoNextWeek={canGoNextWeek}
+                    canGoPrevDay={canGoPrevDay}
+                    canGoNextDay={canGoNextDay}
                     handleEventClick={handleEventClick}
                     handleCellClick={isReadOnly ? undefined : handleCellClick}
                     handleMoveEvent={isReadOnly ? undefined : handleMoveEvent}
@@ -892,6 +922,12 @@ useEffect(() => { setIsMounted(true); }, []);
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     hideRemarks={partnerMode}
                     hideForemanSelector={partnerMode}
+                    goToPreviousWeek={partnerMode ? navGoToPreviousWeek : undefined}
+                    goToNextWeek={partnerMode ? navGoToNextWeek : undefined}
+                    goToToday={partnerMode ? goToToday : undefined}
+                    weekLabel={partnerMode ? weekLabel : undefined}
+                    canGoPrevWeek={canGoPrevWeek}
+                    canGoNextWeek={canGoNextWeek}
                     handleFloatingEventClick={canSeeFloatingLane ? handleFloatingEventClick : undefined}
                     handleFloatingCellClick={isReadOnly || !canSeeFloatingLane ? undefined : handleFloatingCellClick}
                     floatingLaneAnchorId={floatingLaneAnchorId}

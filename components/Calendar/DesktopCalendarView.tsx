@@ -52,6 +52,9 @@ interface DesktopCalendarViewProps {
     goToNextDay?: () => void;
     goToToday?: () => void;
     weekLabel?: string;
+    /** 週送りの可否（協力会社モードの閲覧範囲制限）。false でボタンを無効表示にする */
+    canGoPrevWeek?: boolean;
+    canGoNextWeek?: boolean;
     hideRemarks?: boolean;
     hideForemanSelector?: boolean;
     /**
@@ -106,6 +109,8 @@ function DesktopCalendarView({
     goToNextDay,
     goToToday,
     weekLabel,
+    canGoPrevWeek = true,
+    canGoNextWeek = true,
     hideRemarks = false,
     hideForemanSelector = false,
     floatingLaneAnchorId = null,
@@ -197,7 +202,7 @@ function DesktopCalendarView({
             {goToPreviousWeek && goToNextWeek && goToToday && (
                 <div className="flex-shrink-0 bg-white border border-slate-200 rounded-lg shadow-sm mb-2 px-4 py-1.5 flex items-center justify-between">
                     <div className="flex items-center gap-1">
-                        <button onClick={goToPreviousWeek} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors" aria-label="1週間前">
+                        <button onClick={goToPreviousWeek} disabled={!canGoPrevWeek} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default" aria-label="1週間前">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
                         </button>
                         {goToPreviousDay && (
@@ -227,7 +232,7 @@ function DesktopCalendarView({
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                             </button>
                         )}
-                        <button onClick={goToNextWeek} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors" aria-label="1週間後">
+                        <button onClick={goToNextWeek} disabled={!canGoNextWeek} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default" aria-label="1週間後">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
                         </button>
                     </div>
