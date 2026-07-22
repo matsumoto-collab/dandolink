@@ -288,9 +288,10 @@ useEffect(() => { setIsMounted(true); }, []);
 
     const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToDate } = useCalendar(events);
 
-    // 協力会社モード: 閲覧できる範囲を「今週〜2週先(再来週)」に制限する（kei指示 2026-07-22）。
-    // 表示開始日が今週の月曜から何日先か(0〜14日)で判定する。日送りは表示窓を1日ずらす機能
+    // 協力会社モード: 閲覧できる範囲を「今週〜4週先(約1ヶ月)」に制限する（kei指示 2026-07-22）。
+    // 表示開始日が今週の月曜から何日先か(0〜28日)で判定する。日送りは表示窓を1日ずらす機能
     // なので、週送り(±7日)・日送り(±1日)それぞれ移動後も範囲内に収まるときだけ許可する。
+    const PARTNER_MAX_DAY_OFFSET = 28; // 4週先の月曜まで(その週の日曜まで表示される)
     const partnerFirstMonday = useMemo(() => {
         if (!partnerMode) return null;
         const now = new Date();
@@ -301,9 +302,9 @@ useEffect(() => { setIsMounted(true); }, []);
         ? 0
         : Math.round((new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()).getTime() - partnerFirstMonday) / 86400000);
     const canGoPrevWeek = partnerFirstMonday === null || partnerDayOffset - 7 >= 0;
-    const canGoNextWeek = partnerFirstMonday === null || partnerDayOffset + 7 <= 14;
+    const canGoNextWeek = partnerFirstMonday === null || partnerDayOffset + 7 <= PARTNER_MAX_DAY_OFFSET;
     const canGoPrevDay = partnerFirstMonday === null || partnerDayOffset - 1 >= 0;
-    const canGoNextDay = partnerFirstMonday === null || partnerDayOffset + 1 <= 14;
+    const canGoNextDay = partnerFirstMonday === null || partnerDayOffset + 1 <= PARTNER_MAX_DAY_OFFSET;
     // 非協力会社モードでは素の関数をそのまま渡す（既存挙動を変えない）
     const navGoToPreviousWeek = partnerMode ? () => { if (canGoPrevWeek) goToPreviousWeek(); } : goToPreviousWeek;
     const navGoToNextWeek = partnerMode ? () => { if (canGoNextWeek) goToNextWeek(); } : goToNextWeek;
