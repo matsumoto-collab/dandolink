@@ -41,6 +41,8 @@ export default function ProjectDetailView({ project, onClose, readOnly = false, 
     const canEditAssignment = !readOnly && (userRole === 'admin' || userRole === 'manager');
     const canEditMemberCount = canEditAssignment;
     const canEditVehicles = canEditAssignment;
+    // 協力会社ロールには社内の履歴（作業履歴・変更履歴）を見せない
+    const isPartnerRole = userRole === 'partner' || userRole === 'partner_member';
     const { updateProject, projects } = useProjects();
     const { getForemanName } = useCalendarDisplay();
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
@@ -781,7 +783,7 @@ export default function ProjectDetailView({ project, onClose, readOnly = false, 
                 )}
 
                 {/* 作業履歴 */}
-                {project.projectMasterId && (
+                {project.projectMasterId && !isPartnerRole && (
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                             作業履歴
@@ -791,12 +793,14 @@ export default function ProjectDetailView({ project, onClose, readOnly = false, 
                 )}
 
                 {/* 変更履歴（この予定を誰が・いつ・何を変えたか） */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                        変更履歴
-                    </label>
-                    <AssignmentChangeHistory assignmentId={project.id} />
-                </div>
+                {!isPartnerRole && (
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                            変更履歴
+                        </label>
+                        <AssignmentChangeHistory assignmentId={project.id} />
+                    </div>
+                )}
             </div>
 
             {/* 浮きに戻す / 閉じる */}

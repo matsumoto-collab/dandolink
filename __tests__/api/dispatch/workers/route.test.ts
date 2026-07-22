@@ -74,4 +74,21 @@ describe('/api/dispatch/workers', () => {
         const res = await GET();
         expect(res.status).toBe(403);
     });
+
+    it.each(['partner', 'partner_member'])('should return only id/displayName for %s role', async (role) => {
+        (requireAuth as jest.Mock).mockResolvedValue({ session: { user: { id: 'partner-1', role } }, error: null });
+        const minimalWorker = { id: 'worker-1', displayName: 'Worker A' };
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([minimalWorker]);
+
+        const res = await GET();
+        const json = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(json).toEqual([minimalWorker]);
+        expect(prisma.user.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                select: { id: true, displayName: true },
+            })
+        );
+    });
 });
