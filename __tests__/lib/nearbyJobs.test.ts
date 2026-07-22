@@ -153,7 +153,7 @@ describe('findNearbyJobs', () => {
         });
     });
 
-    it('半径10km以内の現場だけを近い順に返す', async () => {
+    it('既定の半径3km以内の現場だけを近い順に返す', async () => {
         mockPrisma.projectAssignment.findMany.mockResolvedValue([
             { date: new Date('2026-07-23T00:00:00+09:00'), projectMasterId: 'p1', assignedEmployeeId: 'f1', memberCount: 3, dateStatus: 'confirmed', projectMaster: projectAt('山田', HOJO, '松山市北条辻') },
             { date: new Date('2026-07-24T00:00:00+09:00'), projectMasterId: 'p2', assignedEmployeeId: 'f2', memberCount: 2, dateStatus: 'confirmed', projectMaster: projectAt('鈴木', MATSUYAMA, '松山市南吉田町') },
@@ -162,9 +162,11 @@ describe('findNearbyJobs', () => {
         const result = await findNearbyJobs({ place: '北条', startDate: '2026-07-22', endDate: '2026-07-28' });
 
         expect(result.radiusKm).toBe(DEFAULT_RADIUS_KM);
+        expect(DEFAULT_RADIUS_KM).toBe(3);
+        expect(result.expanded).toBe(false);
         expect(result.resolved?.source).toBe('projects');
         expect(result.checkedCount).toBe(2);
-        // 松山市中心（約15km）は半径外なので落ちる
+        // 松山市中心（約15km）は範囲外なので落ちる
         expect(result.jobs).toHaveLength(1);
         expect(result.jobs[0].site).toBe('山田様邸');
         expect(result.jobs[0].schedule).toEqual([
@@ -215,13 +217,49 @@ describe('findNearbyJobs', () => {
         expect(result.unknownLocation.sites).toEqual(['田中様邸']);
     });
 
-    it('半径内が0件なら一番近い現場を outsideRadius 付きで返す', async () => {
+    it('3km以内が0件なら5kmまで広げて拾う（expanded=true）', async () => {
+        // 基準点（北条）から約4km北の現場＝3kmでは空振り・5kmなら入る
+        const four_km_north = { latitude: HOJO.latitude + 0.036, longitude: HOJO.longitude };
+        mockPrisma.projectAssignment.findMany.mockResolvedValue([
+            { date: new Date('2026-07-23T00:00:00+09:00'), projectMasterId: 'p1', assignedEmployeeId: 'f1', memberCount: 3, dateStatus: 'confirmed', projectMaster: projectAt('山田', four_km_north, '松山市河野') },
+        ]);
+
+        const result = await findNearbyJobs({ place: '北条' });
+
+        expect(result.expanded).toBe(true);
+        expect(result.radiusKm).toBe(5);
+        expect(result.totalInRadius).toBe(1);
+        expect(result.jobs[0].outsideRadius).toBeUndefined();
+        expect(result.jobs[0].distanceKm).toBeGreaterThan(3);
+        // 「広げた」ことはプロンプト任せにせずデータで渡す
+        expect(result.notice).toBe('3km以内には予定がなかったため、5km以内まで広げた結果です。');
+    });
+
+    it('半径を明示された質問では自動拡大しない（指定の意図を尊重する）', async () => {
+        const four_km_north = { latitude: HOJO.latitude + 0.036, longitude: HOJO.longitude };
+        mockPrisma.projectAssignment.findMany.mockResolvedValue([
+            { date: new Date('2026-07-23T00:00:00+09:00'), projectMasterId: 'p1', assignedEmployeeId: 'f1', memberCount: 3, dateStatus: 'confirmed', projectMaster: projectAt('山田', four_km_north, '松山市河野') },
+        ]);
+
+        const result = await findNearbyJobs({ place: '北条', radiusKm: 2 });
+
+        expect(result.radiusKm).toBe(2);
+        expect(result.expanded).toBe(false);
+        expect(result.totalInRadius).toBe(0);
+        expect(result.jobs[0].outsideRadius).toBe(true);
+    });
+
+    it('5km以内にも無ければ一番近い現場を outsideRadius 付きで返す', async () => {
         mockPrisma.projectAssignment.findMany.mockResolvedValue([
             { date: new Date('2026-07-23T00:00:00+09:00'), projectMasterId: 'p1', assignedEmployeeId: 'f1', memberCount: 3, dateStatus: 'confirmed', projectMaster: projectAt('鈴木', MATSUYAMA, '松山市南吉田町') },
         ]);
 
         const result = await findNearbyJobs({ place: '北条' });
 
+        // 3km→5kmまで広げても見つからなかったので最寄りを参考として返す
+        expect(result.expanded).toBe(true);
+        expect(result.radiusKm).toBe(5);
+        expect(result.notice).toBe('5km以内には予定がありません。参考に一番近い現場を挙げています。');
         expect(result.totalInRadius).toBe(0);
         expect(result.jobs).toHaveLength(1);
         expect(result.jobs[0].outsideRadius).toBe(true);

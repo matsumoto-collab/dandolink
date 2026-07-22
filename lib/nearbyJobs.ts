@@ -25,8 +25,13 @@ import { logger } from '@/lib/logger';
  * 3. どちらも駄目なら resolved=null を返す（AIは「その地名が分かりません」と答える）。
  */
 
-/** 「近く」の既定半径。kei選択（2026-07-22）＝車で20分程度＝現調でついでに寄れる範囲 */
-export const DEFAULT_RADIUS_KM = 10;
+/**
+ * 「近く」の既定半径。kei指示（2026-07-22）で 10km → 3km に変更。
+ * 松山市内は半径10kmに40現場以上入ってしまい「ついでに寄れる」判断に使えなかったため。
+ */
+export const DEFAULT_RADIUS_KM = 3;
+/** 既定の3kmで1件も無かったときに、ここまでだけ自動で広げる（kei指示 2026-07-22） */
+export const EXPANDED_RADIUS_KM = 5;
 /** 質問で半径を指定されたときの上限（これ以上は「近く」ではなく全件列挙になるため） */
 const MAX_RADIUS_KM = 50;
 /** 既定の照会期間（今日から7日間＝「今週」） */
@@ -90,7 +95,16 @@ export interface NearbyJobsResult {
     place: string;
     /** 基準点。特定できなければ null（AIは「地名が分かりません」と答える） */
     resolved: ResolvedPlace | null;
+    /** 実際に適用した半径km（既定3km・拡大した場合は5km・質問で指定されたときはその値） */
     radiusKm: number;
+    /** 既定の3kmで1件も無かったため5kmまで広げた場合 true */
+    expanded: boolean;
+    /**
+     * 回答にそのまま含めさせたい注記（無ければ undefined）。
+     * 「広げた」ことをプロンプトの禁止・強調で守らせようとすると他のルールと干渉して
+     * 落ちるため、言わせたい文そのものをデータとして渡す（コードで決めてAIは伝えるだけ）。
+     */
+    notice?: string;
     startDate: string;
     endDate: string;
     /** 近い順の現場。半径内が0件のときだけ outsideRadius=true の最寄りが入る */
@@ -274,20 +288,23 @@ export interface FindNearbyJobsParams {
     startDate?: string;
     /** 終了日 YYYY-MM-DD（省略時=開始日から7日間） */
     endDate?: string;
-    /** 半径km（省略時=10・最大50） */
+    /** 半径km（省略時=3。1件も無ければ5kmまで自動で広げる。質問で指定されたときは広げない・最大50） */
     radiusKm?: number;
 }
 
 /**
  * 指定地名の周辺で予定が入っている現場を、近い順に返す。
- * 半径内が0件のときは「一番近い現場」を3件だけ outsideRadius=true で返す
+ * 既定の3kmで1件も無ければ5kmまで自動で広げ（expanded=true）、それでも無ければ
+ * 「一番近い現場」を3件だけ outsideRadius=true で返す
  * （「近くに無い」で終わらせず、どれくらい離れているかを言えるようにするため）。
  */
 export async function findNearbyJobs(params: FindNearbyJobsParams): Promise<NearbyJobsResult> {
     const place = (params.place ?? '').trim();
+    // 質問で半径を指定されたときは、その意図を尊重して自動拡大しない
+    const hasExplicitRadius = typeof params.radiusKm === 'number' && Number.isFinite(params.radiusKm);
     const radiusKm = Math.min(
         MAX_RADIUS_KM,
-        Math.max(1, params.radiusKm && Number.isFinite(params.radiusKm) ? params.radiusKm : DEFAULT_RADIUS_KM)
+        Math.max(1, hasExplicitRadius ? params.radiusKm! : DEFAULT_RADIUS_KM)
     );
 
     const start = jstDayStartUtc(params.startDate ?? new Date());
@@ -301,7 +318,7 @@ export async function findNearbyJobs(params: FindNearbyJobsParams): Promise<Near
     const endKey = jstDateKey(new Date(end.getTime() - MS_PER_DAY));
 
     const empty = (resolved: ResolvedPlace | null): NearbyJobsResult => ({
-        place, resolved, radiusKm, startDate: startKey, endDate: endKey,
+        place, resolved, radiusKm, expanded: false, startDate: startKey, endDate: endKey,
         jobs: [], checkedCount: 0, unknownLocation: { count: 0, sites: [] }, totalInRadius: 0,
     });
 
@@ -383,16 +400,32 @@ export async function findNearbyJobs(params: FindNearbyJobsParams): Promise<Near
         job.schedule.sort((a, b) => a.date.localeCompare(b.date) || (a.team ?? '').localeCompare(b.team ?? ''));
     }
     withDistance.sort((a, b) => a.distanceKm - b.distanceKm || a.schedule[0].date.localeCompare(b.schedule[0].date));
-    const inRadius = withDistance.filter((j) => j.distanceKm <= radiusKm);
+    let appliedRadiusKm = radiusKm;
+    let inRadius = withDistance.filter((j) => j.distanceKm <= appliedRadiusKm);
+    // 既定の3kmで空振りなら5kmまでだけ広げる（kei指示）。半径を明示された質問では広げない
+    let expanded = false;
+    if (inRadius.length === 0 && !hasExplicitRadius) {
+        appliedRadiusKm = EXPANDED_RADIUS_KM;
+        inRadius = withDistance.filter((j) => j.distanceKm <= appliedRadiusKm);
+        expanded = true;
+    }
 
     const jobs = inRadius.length > 0
         ? inRadius.slice(0, MAX_JOBS)
         : withDistance.slice(0, NEAREST_FALLBACK_COUNT).map((j) => ({ ...j, outsideRadius: true }));
 
+    const notice = expanded
+        ? (inRadius.length > 0
+            ? `${DEFAULT_RADIUS_KM}km以内には予定がなかったため、${EXPANDED_RADIUS_KM}km以内まで広げた結果です。`
+            : `${EXPANDED_RADIUS_KM}km以内には予定がありません。参考に一番近い現場を挙げています。`)
+        : undefined;
+
     return {
         place,
         resolved,
-        radiusKm,
+        radiusKm: appliedRadiusKm,
+        expanded,
+        notice,
         startDate: startKey,
         endDate: endKey,
         jobs,

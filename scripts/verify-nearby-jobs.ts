@@ -49,7 +49,7 @@ async function main() {
 
     for (const place of places) {
         const r = await findNearbyJobs({ place, radiusKm: argRadius });
-        console.log(`━━━ 「${place}」の近く（半径${r.radiusKm}km・${r.startDate}〜${r.endDate}）`);
+        console.log(`━━━ 「${place}」の近く（半径${r.radiusKm}km${r.expanded ? '・3kmで空振りのため拡大' : ''}・${r.startDate}〜${r.endDate}）`);
         if (!r.resolved) {
             console.log('  × 地名を特定できませんでした（AIは「分かりません」と答えます）\n');
             continue;
