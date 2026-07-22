@@ -19,7 +19,9 @@ interface CellRemarkInputProps {
 }
 
 export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false, floatingLane = false }: CellRemarkInputProps) {
-    const { setCellRemark } = useCalendarStore();
+    // セレクタ購読必須: このコンポーネントは全セル分（7日×職長数=100個超）マウントされるため、
+    // セレクタ無し購読だとストアのあらゆる変更で全インスタンスが一斉に再レンダーされる
+    const setCellRemark = useCalendarStore(state => state.setCellRemark);
     // ストアから現在の値を取得
     const savedRemark = useCalendarStore(state => state.cellRemarks[`${foremanId}-${dateKey}`] || '');
 

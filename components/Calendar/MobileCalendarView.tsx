@@ -113,7 +113,7 @@ export default function MobileCalendarView({
 
     // ── 備考・休暇 ──
     const { getRemarks, setRemarks, getVacationEmployees: getVacEmp, addVacationEmployee, removeVacationEmployee } = useVacation();
-    const { setCellRemark } = useCalendarStore();
+    const setCellRemark = useCalendarStore(state => state.setCellRemark);
     const cellRemarks = useCalendarStore(state => state.cellRemarks);
 
     // ── 工事種別の名前解決（カード/アクションシート表示用） ──
