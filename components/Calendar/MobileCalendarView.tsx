@@ -73,7 +73,276 @@ const LABEL_W_LANDSCAPE = 52;
 const COL_W_LANDSCAPE = 80;
 const LONG_PRESS_MS = 500; // 長押し判定時間（ms）
 
-export default function MobileCalendarView({
+interface MobileForemanRowProps {
+    row: EmployeeRow;
+    weekDays: WeekDay[];
+    todayKey: string;
+    isLandscape: boolean | null; // useMediaQuery の戻り値。null は falsy として従来どおり縦向き扱い
+    colW: number;
+    labelW: number;
+    // movingEvent はオブジェクトではなくIDだけ渡す（参照変化での無駄な再レンダー防止）
+    movingEventId: string | null;
+    touchMovedRef: React.MutableRefObject<boolean>;
+    isReadOnly: boolean;
+    cellRemarks: Record<string, string>;
+    projects: Project[];
+    vehicleMaster: ReturnType<typeof selectVehicles>;
+    highlightedEventId: string | null;
+    getEditingUsers: (assignmentId: string) => EditingUser[];
+    handleCellClick?: (employeeId: string, date: Date) => void;
+    commitMove: (employeeId: string, date: Date) => void;
+    cancelMoving: () => void;
+    openActionSheet: (event: CalendarEvent) => void;
+    startEditCellMemo: (foremanId: string, dateKey: string) => void;
+    onCardTouchStart: (event: CalendarEvent, employeeId: string, date: Date, cellCount: number) => void;
+    onCardTouchEnd: () => void;
+}
+
+// 職長行を React.memo で切り出す。ストア更新や親 state 変化で本体が再レンダーされても、
+// props が不変な行の再構築（約105セル＋100超カード）をスキップする（発熱対策）。
+const MobileForemanRow = React.memo(function MobileForemanRow({
+    row,
+    weekDays,
+    todayKey,
+    isLandscape,
+    colW,
+    labelW,
+    movingEventId,
+    touchMovedRef,
+    isReadOnly,
+    cellRemarks,
+    projects,
+    vehicleMaster,
+    highlightedEventId,
+    getEditingUsers,
+    handleCellClick,
+    commitMove,
+    cancelMoving,
+    openActionSheet,
+    startEditCellMemo,
+    onCardTouchStart,
+    onCardTouchEnd,
+}: MobileForemanRowProps) {
+    return (
+                            <div
+                                className={`flex border-b border-slate-200 ${isLandscape ? 'min-h-[52px]' : 'min-h-[80px]'}`}
+                            >
+                                {/* 職長名（左固定） */}
+                                <div
+                                    className="sticky left-0 z-10 bg-white border-r-2 border-slate-200 flex items-center justify-center px-1 flex-shrink-0 shadow-sm"
+                                    style={{ width: labelW }}
+                                >
+                                    <span className="text-[10px] font-semibold text-slate-700 text-center leading-tight break-all">
+                                        {row.employeeName}
+                                    </span>
+                                </div>
+
+                                {/* 各日セル */}
+                                {weekDays.map((day) => {
+                                    const dateKey = formatDateKey(day.date);
+                                    const isToday = dateKey === todayKey;
+                                    const isSat = day.dayOfWeek === 6;
+                                    const isSun = day.dayOfWeek === 0;
+                                    const cellEvents = getEventsForDate(row, day.date);
+                                    const isEmpty = cellEvents.length === 0;
+                                    const isMovingSource = movingEventId !== null
+                                        ? cellEvents.some(e => e.id === movingEventId)
+                                        : false;
+
+                                    return (
+                                        <div
+                                            key={dateKey}
+                                            onClick={() => {
+                                                if (touchMovedRef.current) return;
+                                                if (movingEventId !== null) {
+                                                    commitMove(row.employeeId, day.date);
+                                                    return;
+                                                }
+                                                if (!isReadOnly && isEmpty) {
+                                                    handleCellClick?.(row.employeeId, day.date);
+                                                }
+                                            }}
+                                            className={`grow flex-shrink-0 border-r border-slate-200 p-1 transition-colors ${
+                                                isMovingSource
+                                                    ? 'bg-slate-100/60 ring-2 ring-inset ring-slate-400'
+                                                    : movingEventId !== null
+                                                    ? 'cursor-pointer bg-slate-50/30 hover:bg-slate-100/50 active:bg-slate-200/50'
+                                                    : isToday ? 'bg-slate-50/20'
+                                                    : isSat ? 'bg-slate-50/10'
+                                                    : isSun ? 'bg-slate-50/10'
+                                                    : ''
+                                            } ${!isReadOnly && isEmpty && movingEventId === null ? 'cursor-pointer hover:bg-slate-50 active:bg-slate-100' : ''}`}
+                                            style={{ width: colW }}
+                                        >
+                                            {isEmpty ? (
+                                                <div className={`flex flex-col h-full ${isLandscape ? 'min-h-[44px]' : 'min-h-[72px]'}`}>
+                                                    <div className="flex-1 flex items-center justify-center pointer-events-none">
+                                                        {movingEventId !== null ? (
+                                                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-400 flex items-center justify-center">
+                                                                <Plus className="w-4 h-4 text-slate-400" />
+                                                            </div>
+                                                        ) : !isReadOnly ? (
+                                                            <Plus className="w-4 h-4 text-slate-200" />
+                                                        ) : null}
+                                                    </div>
+                                                    {/* 空セルのメモ */}
+                                                    {(() => {
+                                                        const memo = cellRemarks[`${row.employeeId}-${dateKey}`] || '';
+                                                        return memo ? (
+                                                            <div
+                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
+                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-amber-50 text-slate-700 border-l-2 border-amber-400 mt-auto whitespace-pre-wrap break-words leading-tight"
+                                                            >
+                                                                {memo}
+                                                            </div>
+                                                        ) : !isReadOnly && movingEventId === null ? (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
+                                                                className="w-full flex items-center justify-center py-0.5 text-slate-200 hover:text-slate-400 transition-colors mt-auto"
+                                                            >
+                                                                <Pencil className="w-2.5 h-2.5" />
+                                                            </button>
+                                                        ) : null;
+                                                    })()}
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-1 py-0.5">
+                                                    {cellEvents.map((event) => {
+                                                        const projectId = event.id.replace(/-assembly$|-demolition$/, '');
+                                                        const editingUsers = getEditingUsers(projectId);
+                                                        const project = projects.find(p => p.id === projectId);
+                                                        const isThisMoving = movingEventId === event.id;
+
+                                                        return (
+                                                            <button
+                                                                key={event.id}
+                                                                data-project-id={projectId}
+                                                                onTouchStart={() => onCardTouchStart(event, row.employeeId, day.date, cellEvents.length)}
+                                                                onTouchEnd={onCardTouchEnd}
+                                                                onTouchCancel={onCardTouchEnd}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (touchMovedRef.current) return;
+                                                                    if (movingEventId !== null) {
+                                                                        // 移動元と同じカードをタップ → キャンセル
+                                                                        if (isThisMoving) {
+                                                                            cancelMoving();
+                                                                        } else {
+                                                                            // 別カードのあるセルをタップ → そこに移動
+                                                                            commitMove(row.employeeId, day.date);
+                                                                        }
+                                                                        return;
+                                                                    }
+                                                                    openActionSheet(event);
+                                                                }}
+                                                                className={`w-full text-left rounded p-1 transition-all relative select-none ${
+                                                                    isThisMoving
+                                                                        ? 'ring-2 ring-white ring-offset-1 ring-offset-blue-400 opacity-70 scale-95'
+                                                                        : highlightedEventId !== null && (event.id === highlightedEventId || projectId === highlightedEventId)
+                                                                        ? 'ring-4 ring-amber-400 ring-offset-2 animate-pulse'
+                                                                        : 'active:brightness-90'
+                                                                }`}
+                                                                style={{
+                                                                    backgroundColor: event.color,
+                                                                    ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
+                                                                }}
+                                                            >
+                                                                {editingUsers.length > 0 && (
+                                                                    <Edit3 className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-slate-600 animate-pulse" />
+                                                                )}
+                                                                {!editingUsers.length && project?.isDispatchConfirmed && (
+                                                                    <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-slate-700" />
+                                                                )}
+                                                                <div className="text-[10px] font-bold text-slate-800 leading-tight truncate pr-3">
+                                                                    {event.dateStatus === 'tentative' && <TentativeBadge />}
+                                                                    {event.title}
+                                                                </div>
+                                                                {event.customer && (
+                                                                    <div className="text-[10px] text-slate-600 leading-tight truncate">
+                                                                        {event.customer}
+                                                                    </div>
+                                                                )}
+                                                                {((event.memberCount ?? 0) > 0 || event.estimatedHours != null) && (
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        {(event.memberCount ?? 0) > 0 && (
+                                                                            <span className="flex items-center gap-0.5">
+                                                                                <Users className="w-2.5 h-2.5 text-slate-500" />
+                                                                                <span className="text-[9px] text-slate-600">{event.memberCount ?? 0}人</span>
+                                                                            </span>
+                                                                        )}
+                                                                        {event.estimatedHours != null && (
+                                                                            <span className="text-[9px] text-slate-600">{event.estimatedHours}h</span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                {(() => {
+                                                                    const vehicleNames = resolveEventVehicleNames(project ?? event, vehicleMaster);
+                                                                    return vehicleNames.length > 0 ? (
+                                                                        <div className="flex items-start gap-0.5 mt-0.5 text-slate-700">
+                                                                            <Truck className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 text-slate-500" />
+                                                                            <span className="text-[9px] leading-tight truncate">{vehicleNames.join('・')}</span>
+                                                                        </div>
+                                                                    ) : null;
+                                                                })()}
+                                                                {event.remarks && (
+                                                                    <div className="flex items-start gap-0.5 mt-0.5 text-slate-700">
+                                                                        <MessageSquare className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 text-slate-500" />
+                                                                        <span className="text-[9px] leading-tight truncate">{event.remarks}</span>
+                                                                    </div>
+                                                                )}
+                                                            </button>
+                                                        );
+                                                    })}
+
+                                                    {/* 移動モード中: 既存イベントがあるセルにも追加できるよう点線ボタン */}
+                                                    {movingEventId !== null && !isMovingSource && (
+                                                        <div className="pointer-events-none flex items-center justify-center py-1 border border-dashed border-slate-400 text-slate-400 rounded">
+                                                            <Plus className="w-3 h-3" />
+                                                        </div>
+                                                    )}
+
+                                                    {/* 通常モード: 追加ボタン */}
+                                                    {!isReadOnly && movingEventId === null && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (!touchMovedRef.current) handleCellClick?.(row.employeeId, day.date);
+                                                            }}
+                                                            className="w-full flex items-center justify-center py-0.5 text-slate-300 hover:text-slate-400 hover:bg-slate-50 rounded transition-colors"
+                                                        >
+                                                            <Plus className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+
+                                                    {/* セルメモ */}
+                                                    {(() => {
+                                                        const memo = cellRemarks[`${row.employeeId}-${dateKey}`] || '';
+                                                        return memo ? (
+                                                            <div
+                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
+                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-amber-50 text-slate-700 border-l-2 border-amber-400 mt-0.5 whitespace-pre-wrap break-words leading-tight"
+                                                            >
+                                                                {memo}
+                                                            </div>
+                                                        ) : !isReadOnly && movingEventId === null ? (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
+                                                                className="w-full flex items-center justify-center py-0.5 text-slate-200 hover:text-slate-400 transition-colors"
+                                                            >
+                                                                <Pencil className="w-2.5 h-2.5" />
+                                                            </button>
+                                                        ) : null;
+                                                    })()}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+    );
+});
+
+function MobileCalendarView({
     weekDays,
     events,
     employeeRows,
@@ -560,221 +829,29 @@ export default function MobileCalendarView({
                         employeeRows.map((row, rowPos) => (
                             <React.Fragment key={`${row.employeeId}-${row.rowIndex}`}>
                             {rowPos === anchorIndex && floatingLane}
-                            <div
-                                className={`flex border-b border-slate-200 ${isLandscape ? 'min-h-[52px]' : 'min-h-[80px]'}`}
-                            >
-                                {/* 職長名（左固定） */}
-                                <div
-                                    className="sticky left-0 z-10 bg-white border-r-2 border-slate-200 flex items-center justify-center px-1 flex-shrink-0 shadow-sm"
-                                    style={{ width: LABEL_W }}
-                                >
-                                    <span className="text-[10px] font-semibold text-slate-700 text-center leading-tight break-all">
-                                        {row.employeeName}
-                                    </span>
-                                </div>
-
-                                {/* 各日セル */}
-                                {weekDays.map((day) => {
-                                    const dateKey = formatDateKey(day.date);
-                                    const isToday = dateKey === todayKey;
-                                    const isSat = day.dayOfWeek === 6;
-                                    const isSun = day.dayOfWeek === 0;
-                                    const cellEvents = getEventsForDate(row, day.date);
-                                    const isEmpty = cellEvents.length === 0;
-                                    const isMovingSource = movingEvent
-                                        ? cellEvents.some(e => e.id === movingEvent.id)
-                                        : false;
-
-                                    return (
-                                        <div
-                                            key={dateKey}
-                                            onClick={() => {
-                                                if (touchMoved.current) return;
-                                                if (movingEvent) {
-                                                    commitMove(row.employeeId, day.date);
-                                                    return;
-                                                }
-                                                if (!isReadOnly && isEmpty) {
-                                                    handleCellClick?.(row.employeeId, day.date);
-                                                }
-                                            }}
-                                            className={`grow flex-shrink-0 border-r border-slate-200 p-1 transition-colors ${
-                                                isMovingSource
-                                                    ? 'bg-slate-100/60 ring-2 ring-inset ring-slate-400'
-                                                    : movingEvent
-                                                    ? 'cursor-pointer bg-slate-50/30 hover:bg-slate-100/50 active:bg-slate-200/50'
-                                                    : isToday ? 'bg-slate-50/20'
-                                                    : isSat ? 'bg-slate-50/10'
-                                                    : isSun ? 'bg-slate-50/10'
-                                                    : ''
-                                            } ${!isReadOnly && isEmpty && !movingEvent ? 'cursor-pointer hover:bg-slate-50 active:bg-slate-100' : ''}`}
-                                            style={{ width: COL_W }}
-                                        >
-                                            {isEmpty ? (
-                                                <div className={`flex flex-col h-full ${isLandscape ? 'min-h-[44px]' : 'min-h-[72px]'}`}>
-                                                    <div className="flex-1 flex items-center justify-center pointer-events-none">
-                                                        {movingEvent ? (
-                                                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-400 flex items-center justify-center">
-                                                                <Plus className="w-4 h-4 text-slate-400" />
-                                                            </div>
-                                                        ) : !isReadOnly ? (
-                                                            <Plus className="w-4 h-4 text-slate-200" />
-                                                        ) : null}
-                                                    </div>
-                                                    {/* 空セルのメモ */}
-                                                    {(() => {
-                                                        const memo = cellRemarks[`${row.employeeId}-${dateKey}`] || '';
-                                                        return memo ? (
-                                                            <div
-                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
-                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-amber-50 text-slate-700 border-l-2 border-amber-400 mt-auto whitespace-pre-wrap break-words leading-tight"
-                                                            >
-                                                                {memo}
-                                                            </div>
-                                                        ) : !isReadOnly && !movingEvent ? (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
-                                                                className="w-full flex items-center justify-center py-0.5 text-slate-200 hover:text-slate-400 transition-colors mt-auto"
-                                                            >
-                                                                <Pencil className="w-2.5 h-2.5" />
-                                                            </button>
-                                                        ) : null;
-                                                    })()}
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-1 py-0.5">
-                                                    {cellEvents.map((event) => {
-                                                        const projectId = event.id.replace(/-assembly$|-demolition$/, '');
-                                                        const editingUsers = getEditingUsers(projectId);
-                                                        const project = projects.find(p => p.id === projectId);
-                                                        const isThisMoving = movingEvent?.id === event.id;
-
-                                                        return (
-                                                            <button
-                                                                key={event.id}
-                                                                data-project-id={projectId}
-                                                                onTouchStart={() => onCardTouchStart(event, row.employeeId, day.date, cellEvents.length)}
-                                                                onTouchEnd={onCardTouchEnd}
-                                                                onTouchCancel={onCardTouchEnd}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (touchMoved.current) return;
-                                                                    if (movingEvent) {
-                                                                        // 移動元と同じカードをタップ → キャンセル
-                                                                        if (isThisMoving) {
-                                                                            cancelMoving();
-                                                                        } else {
-                                                                            // 別カードのあるセルをタップ → そこに移動
-                                                                            commitMove(row.employeeId, day.date);
-                                                                        }
-                                                                        return;
-                                                                    }
-                                                                    openActionSheet(event);
-                                                                }}
-                                                                className={`w-full text-left rounded p-1 transition-all relative select-none ${
-                                                                    isThisMoving
-                                                                        ? 'ring-2 ring-white ring-offset-1 ring-offset-blue-400 opacity-70 scale-95'
-                                                                        : highlightedEventId !== null && (event.id === highlightedEventId || projectId === highlightedEventId)
-                                                                        ? 'ring-4 ring-amber-400 ring-offset-2 animate-pulse'
-                                                                        : 'active:brightness-90'
-                                                                }`}
-                                                                style={{
-                                                                    backgroundColor: event.color,
-                                                                    ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
-                                                                }}
-                                                            >
-                                                                {editingUsers.length > 0 && (
-                                                                    <Edit3 className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-slate-600 animate-pulse" />
-                                                                )}
-                                                                {!editingUsers.length && project?.isDispatchConfirmed && (
-                                                                    <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-slate-700" />
-                                                                )}
-                                                                <div className="text-[10px] font-bold text-slate-800 leading-tight truncate pr-3">
-                                                                    {event.dateStatus === 'tentative' && <TentativeBadge />}
-                                                                    {event.title}
-                                                                </div>
-                                                                {event.customer && (
-                                                                    <div className="text-[10px] text-slate-600 leading-tight truncate">
-                                                                        {event.customer}
-                                                                    </div>
-                                                                )}
-                                                                {((event.memberCount ?? 0) > 0 || event.estimatedHours != null) && (
-                                                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                                                        {(event.memberCount ?? 0) > 0 && (
-                                                                            <span className="flex items-center gap-0.5">
-                                                                                <Users className="w-2.5 h-2.5 text-slate-500" />
-                                                                                <span className="text-[9px] text-slate-600">{event.memberCount ?? 0}人</span>
-                                                                            </span>
-                                                                        )}
-                                                                        {event.estimatedHours != null && (
-                                                                            <span className="text-[9px] text-slate-600">{event.estimatedHours}h</span>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                                {(() => {
-                                                                    const vehicleNames = resolveEventVehicleNames(project ?? event, vehicleMaster);
-                                                                    return vehicleNames.length > 0 ? (
-                                                                        <div className="flex items-start gap-0.5 mt-0.5 text-slate-700">
-                                                                            <Truck className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 text-slate-500" />
-                                                                            <span className="text-[9px] leading-tight truncate">{vehicleNames.join('・')}</span>
-                                                                        </div>
-                                                                    ) : null;
-                                                                })()}
-                                                                {event.remarks && (
-                                                                    <div className="flex items-start gap-0.5 mt-0.5 text-slate-700">
-                                                                        <MessageSquare className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 text-slate-500" />
-                                                                        <span className="text-[9px] leading-tight truncate">{event.remarks}</span>
-                                                                    </div>
-                                                                )}
-                                                            </button>
-                                                        );
-                                                    })}
-
-                                                    {/* 移動モード中: 既存イベントがあるセルにも追加できるよう点線ボタン */}
-                                                    {movingEvent && !isMovingSource && (
-                                                        <div className="pointer-events-none flex items-center justify-center py-1 border border-dashed border-slate-400 text-slate-400 rounded">
-                                                            <Plus className="w-3 h-3" />
-                                                        </div>
-                                                    )}
-
-                                                    {/* 通常モード: 追加ボタン */}
-                                                    {!isReadOnly && !movingEvent && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (!touchMoved.current) handleCellClick?.(row.employeeId, day.date);
-                                                            }}
-                                                            className="w-full flex items-center justify-center py-0.5 text-slate-300 hover:text-slate-400 hover:bg-slate-50 rounded transition-colors"
-                                                        >
-                                                            <Plus className="w-3 h-3" />
-                                                        </button>
-                                                    )}
-
-                                                    {/* セルメモ */}
-                                                    {(() => {
-                                                        const memo = cellRemarks[`${row.employeeId}-${dateKey}`] || '';
-                                                        return memo ? (
-                                                            <div
-                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
-                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-amber-50 text-slate-700 border-l-2 border-amber-400 mt-0.5 whitespace-pre-wrap break-words leading-tight"
-                                                            >
-                                                                {memo}
-                                                            </div>
-                                                        ) : !isReadOnly && !movingEvent ? (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
-                                                                className="w-full flex items-center justify-center py-0.5 text-slate-200 hover:text-slate-400 transition-colors"
-                                                            >
-                                                                <Pencil className="w-2.5 h-2.5" />
-                                                            </button>
-                                                        ) : null;
-                                                    })()}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                            <MobileForemanRow
+                                row={row}
+                                weekDays={weekDays}
+                                todayKey={todayKey}
+                                isLandscape={isLandscape}
+                                colW={COL_W}
+                                labelW={LABEL_W}
+                                movingEventId={movingEvent?.id ?? null}
+                                touchMovedRef={touchMoved}
+                                isReadOnly={isReadOnly}
+                                cellRemarks={cellRemarks}
+                                projects={projects}
+                                vehicleMaster={vehicleMaster}
+                                highlightedEventId={highlightedEventId}
+                                getEditingUsers={getEditingUsers}
+                                handleCellClick={handleCellClick}
+                                commitMove={commitMove}
+                                cancelMoving={cancelMoving}
+                                openActionSheet={openActionSheet}
+                                startEditCellMemo={startEditCellMemo}
+                                onCardTouchStart={onCardTouchStart}
+                                onCardTouchEnd={onCardTouchEnd}
+                            />
                             </React.Fragment>
                         ))
                     )}
@@ -1123,3 +1200,7 @@ export default function MobileCalendarView({
         </div>
     );
 }
+
+// スマホ/タブレット常時表示時の発熱対策: 親state（アクションシート・備考編集・isSaving 等）
+// の変化でグリッド全体が再構築されるのを遮断する。props は WeeklyCalendar 側で参照安定化済み。
+export default React.memo(MobileCalendarView);

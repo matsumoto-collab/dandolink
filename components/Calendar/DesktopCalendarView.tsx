@@ -70,7 +70,7 @@ interface DesktopCalendarViewProps {
     canMoveFloatingLaneDown?: boolean;
 }
 
-export default function DesktopCalendarView({
+function DesktopCalendarView({
     weekDays,
     events,
     employeeRows,
@@ -404,3 +404,7 @@ export default function DesktopCalendarView({
         </DndContext>
     );
 }
+
+// スマホ/タブレット常時表示時の発熱対策: 親state（モーダル開閉・isSaving 等）の変化で
+// グリッド全体が再構築されるのを遮断する。props は WeeklyCalendar 側で参照安定化済み。
+export default React.memo(DesktopCalendarView);

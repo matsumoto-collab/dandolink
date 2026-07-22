@@ -31,7 +31,7 @@ interface EmployeeRowComponentProps {
     highlightedEventId?: string | null;
 }
 
-export default function EmployeeRowComponent({
+function EmployeeRowComponent({
     row,
     weekDays,
     showEmployeeName,
@@ -211,3 +211,7 @@ export default function EmployeeRowComponent({
         </div>
     );
 }
+
+// DesktopCalendarView が再レンダーされても、row/weekDays/コールバック群が不変な
+// 職長行の再構築をスキップする（スマホ/タブレット常時表示時の発熱対策）。
+export default React.memo(EmployeeRowComponent);
