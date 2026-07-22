@@ -90,7 +90,7 @@ export interface CrewAvailabilityResult {
 }
 
 /** JST日キー（YYYY-MM-DD）。toJstDateOnly 済みの Date は getUTC* が JST の年月日になる */
-function jstDateKey(d: Date): string {
+export function jstDateKey(d: Date): string {
     const j = toJstDateOnly(d);
     const y = j.getUTCFullYear();
     const m = String(j.getUTCMonth() + 1).padStart(2, '0');
@@ -98,14 +98,14 @@ function jstDateKey(d: Date): string {
     return `${y}-${m}-${day}`;
 }
 
-type PmLite = {
+export type PmLite = {
     name: string | null;
     title: string;
     honorific: string | null;
     createdBy: string | null;
 } | null;
 
-function siteName(pm: PmLite): string {
+export function siteName(pm: PmLite): string {
     if (!pm) return '不明な案件';
     return pm.name ? `${pm.name}${pm.honorific || ''}` : pm.title;
 }
@@ -141,7 +141,7 @@ async function loadForemen(): Promise<Array<{ id: string; name: string }>> {
 }
 
 /** createdBy 群から担当者IDを収集し、表示名マップを引く */
-async function resolveOwnerNames(createdByList: Array<string | null>): Promise<Map<string, string>> {
+export async function resolveOwnerNames(createdByList: Array<string | null>): Promise<Map<string, string>> {
     const idSet = new Set<string>();
     for (const cb of createdByList) {
         for (const id of extractAssigneeIds(cb ?? undefined)) idSet.add(id);
@@ -154,7 +154,7 @@ async function resolveOwnerNames(createdByList: Array<string | null>): Promise<M
     return new Map(users.map((u) => [u.id, u.displayName]));
 }
 
-function ownersOf(pm: PmLite, nameById: Map<string, string>): string[] {
+export function ownersOf(pm: PmLite, nameById: Map<string, string>): string[] {
     const ids = extractAssigneeIds(pm?.createdBy ?? undefined);
     return ids.map((id) => nameById.get(id)).filter((n): n is string => !!n);
 }

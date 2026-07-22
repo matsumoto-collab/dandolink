@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropic, SCHEDULE_AI_MODEL } from '@/lib/anthropic';
 import { getCrewAvailability, getCrewAvailabilitySummaryRange, getFloating } from '@/lib/crewAvailability';
 import { getFloatingMemo, appendFloatingMemo } from '@/lib/floatingMemo';
+import { findNearbyJobs } from '@/lib/nearbyJobs';
 import { logger } from '@/lib/logger';
 
 /**
@@ -64,6 +65,21 @@ const TOOLS: Anthropic.Tool[] = [
         },
     },
     {
+        name: 'find_nearby_jobs',
+        description:
+            '指定した地名の「近く」で予定が入っている現場を、近い順に取得する（現調でまとめて回るための照会）。各現場の distanceKm（基準点からの直線距離）・日付・班名（team=null は浮き＝班未定）・住所・人数・確定/仮・担当者を返す。resolved が null のときはその地名の場所を特定できていない。unknownLocation は住所（座標）が未登録で距離を判定できなかった案件。jobs の outsideRadius=true は半径内に1件も無かったときの「一番近い現場」。',
+        input_schema: {
+            type: 'object' as const,
+            properties: {
+                place: { type: 'string', description: '地名（質問文から抜き出す。例「北条」「新居浜」「松山市南吉田町」）' },
+                startDate: { type: 'string', description: '開始日 YYYY-MM-DD（省略時=今日）' },
+                endDate: { type: 'string', description: '終了日 YYYY-MM-DD（省略時=開始日から7日間・最大31日）' },
+                radiusKm: { type: 'number', description: '半径km（省略時=10・最大50）。質問で「◯km以内」と指定されたときだけ渡す' },
+            },
+            required: ['place'],
+        },
+    },
+    {
         name: 'get_floating_memo',
         description:
             '指定日の「浮きレーンのメモ」の現在値を取得する（週間カレンダー最下部の浮きレーンに人が手で書くのと同じメモ）。追記の前に現在値を確認したいときに使う。',
@@ -109,6 +125,7 @@ function buildSystemPrompt(): string {
 - 「仮予定」= 先方未確定のまま経験則で仮押さえした予定（dateStatus=tentative）。動かせる可能性があるが、動かすには先方への確認が必要な場合がある。
 - 「浮いている／浮き」= 班が決まっていない仕事（未充足の需要）。dateStatus=tentative の浮きは日付自体も仮。
 - 「浮いている現場はある？」「今浮いているのは？」のような期間指定のない浮きの質問は、get_floating を startDate/endDate 省略（=今日から30日間）で呼び、返ってきた全件を答える。
+- 「◯◯（地名）の近く」「◯◯周辺」「◯◯のあたり」= find_nearby_jobs で地名の周辺の予定を探す（既定は半径10km・現調で寄れる範囲）。「◯km以内」と指定されたときだけ radiusKm を渡す。期間の指定がなければ今日から7日間。
 - negotiableMembers = 仮予定が動けば浮かせられる「人数」。tentativeJobCount = 仮予定の「件数」。人数0の仮予定もあるため、negotiableMembers が0でも仮予定が存在することがある。「仮予定なし」と言ってよいのは tentativeJobCount が0のときだけで、negotiableMembers が0でも仮予定が1件でもあるなら「仮予定は◯件あるが、動かしても浮かせられる人数は0」と正確に言う。
 
 人数サマリの答え方の例（1日1行・remainingMembers を主役に）:
@@ -128,13 +145,18 @@ function buildSystemPrompt(): string {
 9. 出力はプレーンテキストのみ。Markdown記法（* や ** や # や \` など）は絶対に使わない。強調も記号で飾らず言葉で表現する。箇条書きの行頭は「・」を使う。音声で読み上げられることがあるため、記号の少ない読みやすい文にする。
 10. ツールが返したものは隠さない。班・浮いている現場・仮予定・案件は、班名や担当者名が何であれ、全て通常どおり回答に含める。「報告対象外」「対象ではない」と自己判断して省略することは、どんな理由でも禁止。質問に対して件数が多すぎる場合だけ、件数を明示したうえで主要なものに絞る（例:「全部で12件、うち近い5件は…」）。
 
+近くの現場を探すとき（現調でまとめて回るための照会）:
+11. 距離は必ず find_nearby_jobs の distanceKm を「約◯km」と言う。地図の知識で距離や位置関係を推測してはいけない。jobs は現場ごとにまとまっていて schedule にその現場の予定日が入っているので、1現場1行で「・約2km 松山市北条辻 山田様邸 7/24(金)・7/25(土) 玉ノ井班」のように、距離・住所・現場名・日付・班名を並べる。schedule の team が null の日は班名の代わりに「浮き（班未定）」、dateStatus が tentative の日は日付に「(仮)」を付ける。近い順に並んでいる順番を変えない。
+12. unknownLocation.count が1件以上なら、回答の最後に必ず「住所が未登録の案件が◯件あり、この中に近い現場が含まれている可能性があります」と添える。近い現場が見つかったときも省略しない。totalInRadius が jobs の件数より多いときは「半径◯km以内は全部で◯件、近い順に◯件を挙げます」と件数を明示する。
+13. resolved が null のときは、場所を推測せず「◯◯がどのあたりか分かりませんでした。市区町村名を付けて聞いてください」と答える。jobs の outsideRadius が true のときは「半径◯km以内には予定がありません。一番近いのは約◯km先の…」と、半径外であることを必ず言う。
+
 浮きレーンのメモへの書き込みについて（あなたが書けるのはこのメモだけ）:
-11. あなたが書き込めるのは浮きレーンのメモ欄だけです。予定・案件・確定枠・班の予定は一切変更・登録・削除できません（従来どおり）。求められても「メモには残せますが、予定の登録・変更はできません」と伝える。
-12. append_floating_memo を呼ぶのは、ユーザーが「メモして」「書いといて」「浮きに残して」など、明確に記録を指示したときだけ。空き状況や浮きを聞かれただけで勝手に書いてはいけない。
-13. 依頼があいまいで、書く日付や内容が特定できないときは、書かずに「◯月◯日の浮きメモに『…』と書きますか？」と一度だけ短く確認する。
-14. 書く前に必要なら get_floating_memo でその日の現在値を確認する。既存のメモは消さず追記する（append 関数が追記するので、あなたは上書きのつもりで呼んではいけない）。
-15. 書いたら必ず「◯月◯日の浮きメモに『…』と追記しました。取り消すにはスケジュールの浮きレーンのメモから削除してください」と報告する。
-16. append_floating_memo が「500文字の上限で入りきらない（tooLong）」と返したら、その旨を伝えて追記しない。`;
+14. あなたが書き込めるのは浮きレーンのメモ欄だけです。予定・案件・確定枠・班の予定は一切変更・登録・削除できません（従来どおり）。求められても「メモには残せますが、予定の登録・変更はできません」と伝える。
+15. append_floating_memo を呼ぶのは、ユーザーが「メモして」「書いといて」「浮きに残して」など、明確に記録を指示したときだけ。空き状況や浮きを聞かれただけで勝手に書いてはいけない。
+16. 依頼があいまいで、書く日付や内容が特定できないときは、書かずに「◯月◯日の浮きメモに『…』と書きますか？」と一度だけ短く確認する。
+17. 書く前に必要なら get_floating_memo でその日の現在値を確認する。既存のメモは消さず追記する（append 関数が追記するので、あなたは上書きのつもりで呼んではいけない）。
+18. 書いたら必ず「◯月◯日の浮きメモに『…』と追記しました。取り消すにはスケジュールの浮きレーンのメモから削除してください」と報告する。
+19. append_floating_memo が「500文字の上限で入りきらない（tooLong）」と返したら、その旨を伝えて追記しない。`;
 }
 
 /**
@@ -164,6 +186,16 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
         const startDate = input.startDate ? String(input.startDate) : undefined;
         const endDate = input.endDate ? String(input.endDate) : undefined;
         return JSON.stringify(await getFloating(startDate, endDate));
+    }
+    if (name === 'find_nearby_jobs') {
+        const place = typeof input.place === 'string' ? input.place : '';
+        if (!place.trim()) return JSON.stringify({ error: 'place（地名）を指定してください' });
+        const startDate = input.startDate ? String(input.startDate) : undefined;
+        const endDate = input.endDate ? String(input.endDate) : undefined;
+        if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return JSON.stringify({ error: 'startDate は YYYY-MM-DD 形式で指定してください' });
+        if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return JSON.stringify({ error: 'endDate は YYYY-MM-DD 形式で指定してください' });
+        const radiusKm = typeof input.radiusKm === 'number' ? input.radiusKm : undefined;
+        return JSON.stringify(await findNearbyJobs({ place, startDate, endDate, radiusKm }));
     }
     if (name === 'get_floating_memo') {
         const date = String(input.date ?? '');

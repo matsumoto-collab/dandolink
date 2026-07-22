@@ -148,7 +148,50 @@ async function main() {
         });
     }
 
-    // 5) 数字を勝手に作らないこと（Markdown禁止ルールの確認も兼ねる）
+    // 5) 近くの現場（現調でまとめて回るための照会）が、実データの最寄りと一致すること
+    const { findNearbyJobs } = await import('../lib/nearbyJobs');
+    const nearbySample = await prisma.projectAssignment.findMany({
+        where: { date: { gte: soon }, projectMaster: { latitude: { not: null }, city: { not: null } } },
+        select: { projectMaster: { select: { city: true } } },
+        orderBy: { date: 'asc' },
+        take: 50,
+    });
+    // 「松山市南吉田町」→「南吉田町」（社内で使う呼び方に近い形で聞く）
+    const townName = nearbySample
+        .map((a) => a.projectMaster?.city?.trim().replace(/^.+?[市町村区]/, ''))
+        .find((t): t is string => !!t && t.length >= 2);
+    if (townName) {
+        const nearby = await findNearbyJobs({ place: townName });
+        if (nearby.jobs.length > 0) {
+            cases.push({
+                name: '近くの現場が実データの最寄りと一致する',
+                question: `今週で${townName}の近くに行く仕事はありますか？`,
+                mustInclude: [nearby.jobs[0].site],
+                mustNotInclude: [],
+                why: `${townName} の最寄りは「${nearby.jobs[0].site}」約${nearby.jobs[0].distanceKm}km（半径${nearby.radiusKm}km内に${nearby.totalInRadius}件）`,
+            });
+        }
+        if (nearby.unknownLocation.count > 0) {
+            cases.push({
+                name: '住所未登録の案件があることを隠さない',
+                question: `${townName}の近くに行く仕事を教えて`,
+                mustInclude: ['住所が未登録'],
+                mustNotInclude: [],
+                why: `距離を判定できない案件が ${nearby.unknownLocation.count}件ある（黙って落とすと「近くに無い」と誤解される・ルール12）`,
+            });
+        }
+    }
+
+    // 6) 分からない地名で距離をでっち上げないこと
+    cases.push({
+        name: '知らない地名で距離を捏造しない',
+        question: 'ばななたうんの近くに行く仕事はありますか？',
+        mustInclude: [],
+        mustNotInclude: ['km'],
+        why: '実在しない地名。resolved=null のときは場所を推測せず聞き返す（ルール13）',
+    });
+
+    // 7) 数字を勝手に作らないこと（Markdown禁止ルールの確認も兼ねる）
     cases.push({
         name: 'Markdown記法を使わない',
         question: '直近の余っている人数を教えて',
