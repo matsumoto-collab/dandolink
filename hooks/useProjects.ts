@@ -77,9 +77,9 @@ async function flushAssignmentSync(): Promise<void> {
         if (ids.length > SYNC_IDS_LIMIT) {
             const store = useCalendarStore.getState();
             if (currentDateRange) {
-                await store.fetchAssignments(currentDateRange.start, currentDateRange.end);
+                await store.fetchAssignments(currentDateRange.start, currentDateRange.end, 0, { silent: true });
             } else {
-                await store.fetchAssignments();
+                await store.fetchAssignments(undefined, undefined, 0, { silent: true });
             }
             return;
         }
@@ -545,11 +545,13 @@ export function useProjects() {
         // 副次データもポーリングでは表示範囲のみ再取得（全件フェッチはテーブル成長とともに肥大するため）。
         // ストア側は範囲内キーだけ差し替えるので、範囲外の既存キャッシュは消えない。
         const sideRange = { from: startStr, to: endStr };
+        // silent: ポーリングでは loading フラグを立てない。データ不変でもトグルだけで
+        // 非memoのカレンダー全体が2回再レンダーされ、常時表示端末の発熱源になるため
         await Promise.all([
-            fetchAssignmentsStore(startStr, endStr),
+            fetchAssignmentsStore(startStr, endStr, 0, { silent: true }),
             fetchMemberAdjustmentsStore(sideRange),
-            fetchVacationsStore(sideRange),
-            fetchCellRemarksStore(sideRange),
+            fetchVacationsStore(sideRange, { silent: true }),
+            fetchCellRemarksStore(sideRange, { silent: true }),
         ]);
         currentDateRange = { start: startStr, end: endStr };
     }, [fetchAssignmentsStore, fetchMemberAdjustmentsStore, fetchVacationsStore, fetchCellRemarksStore]);

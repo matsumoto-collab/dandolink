@@ -16,8 +16,8 @@ export const createCellRemarkSlice: CalendarSlice<CellRemarkSlice> = (set, get) 
     cellRemarksLoading: false,
     cellRemarksInitialized: false,
 
-    fetchCellRemarks: async (range?: DateKeyRange) => {
-        set({ cellRemarksLoading: true });
+    fetchCellRemarks: async (range?: DateKeyRange, opts?: { silent?: boolean }) => {
+        if (!opts?.silent) set({ cellRemarksLoading: true });
         try {
             const url = range
                 ? `/api/calendar/cell-remarks?from=${range.from}&to=${range.to}`
@@ -47,7 +47,7 @@ export const createCellRemarkSlice: CalendarSlice<CellRemarkSlice> = (set, get) 
             logger.error('Failed to fetch cell remarks:', error);
             set({ cellRemarksInitialized: true });
         } finally {
-            set({ cellRemarksLoading: false });
+            if (!opts?.silent) set({ cellRemarksLoading: false });
         }
     },
 

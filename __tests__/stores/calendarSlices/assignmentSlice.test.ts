@@ -102,6 +102,60 @@ describe('assignmentSlice', () => {
       consoleSpy.mockRestore();
       jest.useRealTimers();
     });
+
+    it('silent指定時は projectsLoading を一切トグルしない（ポーリング用）', async () => {
+      const mockAssignments = [
+        {
+          id: '1',
+          projectMasterId: 'pm1',
+          date: '2026-03-12T00:00:00.000Z',
+          createdAt: '2026-03-10T00:00:00.000Z',
+          updatedAt: '2026-03-10T00:00:00.000Z',
+        },
+      ];
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockAssignments),
+      });
+
+      const loadingHistory: boolean[] = [];
+      const unsubscribe = useCalendarStore.subscribe((state) => {
+        loadingHistory.push(state.projectsLoading);
+      });
+
+      const { fetchAssignments } = useCalendarStore.getState();
+      await fetchAssignments('2026-03-10', '2026-03-16', 0, { silent: true });
+      unsubscribe();
+
+      // データは反映されるが、loading は一度も true にならない
+      expect(useCalendarStore.getState().assignments[0].id).toBe('1');
+      expect(useCalendarStore.getState().projectsInitialized).toBe(true);
+      expect(loadingHistory.every((v) => v === false)).toBe(true);
+    });
+
+    it('silentフェッチが非silentフェッチをabortした場合、立ちっぱなしの loading を下ろす', async () => {
+      (global.fetch as jest.Mock)
+        // 1本目（非silent）: abort されるまで応答しない
+        .mockImplementationOnce(
+          (_url: string, init: RequestInit) =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener('abort', () => {
+                reject(new DOMException('The user aborted a request.', 'AbortError'));
+              });
+            })
+        )
+        // 2本目（silent）: 正常応答
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) });
+
+      const { fetchAssignments } = useCalendarStore.getState();
+      const first = fetchAssignments('2026-03-10', '2026-03-16');
+      expect(useCalendarStore.getState().projectsLoading).toBe(true);
+
+      await fetchAssignments('2026-03-10', '2026-03-16', 0, { silent: true });
+      await first;
+
+      expect(useCalendarStore.getState().projectsLoading).toBe(false);
+    });
   });
 
   describe('addProject', () => {

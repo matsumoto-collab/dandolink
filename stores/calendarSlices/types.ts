@@ -228,7 +228,9 @@ export interface CalendarActions {
     deleteDailyReport: (id: string) => Promise<void>;
 
     // Projects (Assignments)
-    fetchAssignments: (startDate?: string, endDate?: string, _retryCount?: number) => Promise<void>;
+    // opts.silent: ポーリング等のバックグラウンド更新用。loading フラグを立てない
+    // （トグルだけで購読側のカレンダー全体が2回再レンダーされるため）
+    fetchAssignments: (startDate?: string, endDate?: string, _retryCount?: number, opts?: { silent?: boolean }) => Promise<void>;
     addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
     updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
     updateProjects: (updates: Array<{ id: string; data: Partial<Project> }>) => Promise<void>;
@@ -256,7 +258,7 @@ export interface CalendarActions {
     // Vacations
     // range 指定時はその期間のみ再取得し、ストアは期間内キーだけ差し替える（期間外は保持）。
     // 省略時は全件取得（従来挙動）。
-    fetchVacations: (range?: DateKeyRange) => Promise<void>;
+    fetchVacations: (range?: DateKeyRange, opts?: { silent?: boolean }) => Promise<void>;
     getVacationEmployees: (dateKey: string) => string[];
     setVacationEmployees: (dateKey: string, employeeIds: string[]) => Promise<void>;
     addVacationEmployee: (dateKey: string, employeeId: string) => Promise<void>;
@@ -270,7 +272,7 @@ export interface CalendarActions {
     setRemark: (dateKey: string, text: string) => Promise<void>;
 
     // Cell Remarks (Foreman x Date remarks)
-    fetchCellRemarks: (range?: DateKeyRange) => Promise<void>;
+    fetchCellRemarks: (range?: DateKeyRange, opts?: { silent?: boolean }) => Promise<void>;
     getCellRemark: (foremanId: string, dateKey: string) => string;
     setCellRemark: (foremanId: string, dateKey: string, text: string) => Promise<void>;
 

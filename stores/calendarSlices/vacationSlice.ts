@@ -14,10 +14,10 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
     vacationsLoading: false,
     vacationsInitialized: false,
 
-    fetchVacations: async (range?: DateKeyRange) => {
+    fetchVacations: async (range?: DateKeyRange, opts?: { silent?: boolean }) => {
         // 自身の保存操作中は再fetchをスキップ（楽観的更新を上書きしない）
         if (savingVacation) return;
-        set({ vacationsLoading: true });
+        if (!opts?.silent) set({ vacationsLoading: true });
         try {
             const url = range
                 ? `/api/calendar/vacations?from=${range.from}&to=${range.to}`
@@ -50,7 +50,7 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
             logger.error('Failed to fetch vacations:', error);
             if (!savingVacation) set({ vacationsInitialized: true });
         } finally {
-            set({ vacationsLoading: false });
+            if (!opts?.silent) set({ vacationsLoading: false });
         }
     },
 

@@ -57,13 +57,13 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
     projectsLoading: false,
     projectsInitialized: false,
 
-    fetchAssignments: async (startDate, endDate, _retryCount = 0) => {
+    fetchAssignments: async (startDate, endDate, _retryCount = 0, opts) => {
         if (_retryCount === 0) {
             if (currentAbortController) {
                 currentAbortController.abort();
             }
             currentAbortController = new AbortController();
-            set({ projectsLoading: true });
+            if (!opts?.silent) set({ projectsLoading: true });
         }
         const signal = currentAbortController?.signal;
         try {
@@ -103,7 +103,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 const delayMs = retryAfter ? Math.min(parseInt(retryAfter, 10) * 1000, 10000) : DEFAULT_RETRY_DELAY_MS;
                 logger.warn(`Rate limited (429). Retrying in ${delayMs}ms (attempt ${_retryCount + 1}/${MAX_RETRY_COUNT})`);
                 await new Promise(r => setTimeout(r, delayMs));
-                return get().fetchAssignments(startDate, endDate, _retryCount + 1);
+                return get().fetchAssignments(startDate, endDate, _retryCount + 1, opts);
             } else {
                 logger.error('Failed to fetch assignments: HTTP', response.status);
                 if (response.status === 429) {
@@ -123,7 +123,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             }
             set({ projectsInitialized: true });
         } finally {
-            if (_retryCount === 0 && !signal?.aborted) set({ projectsLoading: false });
+            if (_retryCount === 0 && !signal?.aborted) {
+                // silent時は原則ノータッチだが、非silentフェッチをabortして引き継いだ場合は
+                // loading が立ちっぱなしになるため、立っているときだけ下ろす
+                if (!opts?.silent || get().projectsLoading) set({ projectsLoading: false });
+            }
         }
     },
 
