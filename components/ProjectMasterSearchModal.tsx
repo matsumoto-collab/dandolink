@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useInvoices } from '@/hooks/useInvoices';
 import Loading from '@/components/ui/Loading';
@@ -8,6 +9,7 @@ import { ProjectMaster } from '@/types/calendar';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { Check } from 'lucide-react';
 import { matchesSearch } from '@/utils/searchNormalize';
+import { extractAssigneeIds } from '@/lib/projectAssignees';
 
 interface ProjectMasterSearchModalProps {
     isOpen: boolean;
@@ -24,6 +26,8 @@ export default function ProjectMasterSearchModal({
 }: ProjectMasterSearchModalProps) {
     const { projectMasters, isLoading, fetchProjectMasters } = useProjectMasters();
     const { ensureDataLoaded: ensureInvoicesLoaded, getInvoicesByProject } = useInvoices();
+    const { data: session } = useSession();
+    const currentUserId = session?.user?.id;
     const [searchQuery, setSearchQuery] = useState('');
     const modalRef = useModalKeyboard(isOpen, onClose);
 
@@ -53,11 +57,19 @@ export default function ProjectMasterSearchModal({
             );
         }
 
-        // 更新日でソート（新しい順）
-        return results.sort((a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
-    }, [searchQuery, projectMasters]);
+        // 自分の担当案件を先頭に、各グループ内は更新日の新しい順
+        const isMineById = new Map<string, boolean>();
+        if (currentUserId) {
+            results.forEach((pm) => {
+                isMineById.set(pm.id, extractAssigneeIds(pm.createdBy).includes(currentUserId));
+            });
+        }
+        return results.sort((a, b) => {
+            const mineDiff = Number(isMineById.get(b.id) ?? false) - Number(isMineById.get(a.id) ?? false);
+            if (mineDiff !== 0) return mineDiff;
+            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
+    }, [searchQuery, projectMasters, currentUserId]);
 
     const handleSelect = (projectMaster: ProjectMaster) => {
         onSelect(projectMaster);
@@ -142,6 +154,9 @@ export default function ProjectMasterSearchModal({
                             {filteredMasters.map((pm) => {
                                 const hasInv = hasInvoiceFor(pm);
                                 const isCompleted = pm.status === 'completed';
+                                // セッション未取得時は判定不能なので全件通常表示（誤グレー化を避ける）
+                                const dimmed = !!currentUserId &&
+                                    !extractAssigneeIds(pm.createdBy).includes(currentUserId);
                                 const doneBadge = 'bg-slate-800 text-white border border-slate-800 shadow-sm';
                                 const todoBadge = 'bg-white text-slate-400 border border-slate-200';
                                 return (
@@ -152,10 +167,10 @@ export default function ProjectMasterSearchModal({
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1">
-                                                <h3 className="text-lg font-bold text-slate-800">
+                                                <h3 className={`text-lg font-bold ${dimmed ? 'text-slate-400' : 'text-slate-800'}`}>
                                                     {pm.title}
                                                 </h3>
-                                                <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
+                                                <div className={`flex items-center gap-4 mt-1 text-sm ${dimmed ? 'text-slate-400' : 'text-slate-600'}`}>
                                                     {pm.customerName && (
                                                         <span>顧客: {pm.customerName}</span>
                                                     )}
