@@ -80,6 +80,30 @@ describe('/api/estimates/[id]', () => {
             expect(json.items).toEqual(updateBody.items);
         });
 
+        it('見積日(createdAt)を後から変更できる', async () => {
+            (prisma.estimate.findUnique as jest.Mock).mockResolvedValue(mockEstimate);
+            (prisma.estimate.update as jest.Mock).mockResolvedValue({
+                ...mockEstimate,
+                createdAt: new Date('2026-03-31'),
+            });
+
+            const res = await PATCH(createReq({ createdAt: '2026-03-31' }), context);
+
+            expect(res.status).toBe(200);
+            const updateArg = (prisma.estimate.update as jest.Mock).mock.calls[0][0];
+            expect(updateArg.data.createdAt).toEqual(new Date('2026-03-31'));
+        });
+
+        it('見積日を送らなければ createdAt は更新されない', async () => {
+            (prisma.estimate.findUnique as jest.Mock).mockResolvedValue(mockEstimate);
+            (prisma.estimate.update as jest.Mock).mockResolvedValue(mockEstimate);
+
+            await PATCH(createReq({ title: '日付は触らない' }), context);
+
+            const updateArg = (prisma.estimate.update as jest.Mock).mock.calls[0][0];
+            expect(updateArg.data.createdAt).toBeUndefined();
+        });
+
         it('should return 400 for invalid status', async () => {
             (prisma.estimate.findUnique as jest.Mock).mockResolvedValue(mockEstimate);
             const res = await PATCH(createReq({ status: 'invalid_status' }), context);

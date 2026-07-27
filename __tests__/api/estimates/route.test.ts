@@ -78,6 +78,41 @@ describe('/api/estimates', () => {
             expect(prisma.estimate.create).toHaveBeenCalled();
         });
 
+        it('見積日(createdAt)を指定するとその日付で作成される', async () => {
+            (prisma.estimate.create as jest.Mock).mockResolvedValue({
+                id: 'new-1', ...validBody, items: '[]',
+                createdAt: new Date('2026-03-31'), updatedAt: new Date(), validUntil: new Date(validBody.validUntil),
+            });
+
+            const req = new NextRequest('http://localhost:3000/api/estimates', {
+                method: 'POST',
+                body: JSON.stringify({ ...validBody, createdAt: '2026-03-31' }),
+            });
+
+            const res = await POST(req);
+
+            expect(res.status).toBe(200);
+            const createArg = (prisma.estimate.create as jest.Mock).mock.calls[0][0];
+            expect(createArg.data.createdAt).toEqual(new Date('2026-03-31'));
+        });
+
+        it('見積日を省略したら createdAt は渡さない（DBの既定値に任せる）', async () => {
+            (prisma.estimate.create as jest.Mock).mockResolvedValue({
+                id: 'new-1', ...validBody, items: '[]',
+                createdAt: new Date(), updatedAt: new Date(), validUntil: new Date(validBody.validUntil),
+            });
+
+            const req = new NextRequest('http://localhost:3000/api/estimates', {
+                method: 'POST',
+                body: JSON.stringify(validBody),
+            });
+
+            await POST(req);
+
+            const createArg = (prisma.estimate.create as jest.Mock).mock.calls[0][0];
+            expect(createArg.data.createdAt).toBeUndefined();
+        });
+
         it('should return 400 validation error for missing fields', async () => {
             // estimateNumber は自動採番対応で省略可になったため、必須の title 欠落で検証する
             const invalidBody = { ...validBody, title: undefined };

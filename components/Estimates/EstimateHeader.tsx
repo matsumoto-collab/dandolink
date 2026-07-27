@@ -287,6 +287,8 @@ interface EstimateHeaderProps {
     setLocation: (v: string) => void;
     customerId: string;
     setCustomerId: (v: string) => void;
+    estimateDate: string;
+    setEstimateDate: (v: string) => void;
     validUntil: string;
     setValidUntil: (v: string) => void;
     status: string;
@@ -305,6 +307,7 @@ export default function EstimateHeader({
     siteName, setSiteName,
     location, setLocation,
     customerId, setCustomerId,
+    estimateDate, setEstimateDate,
     validUntil, setValidUntil,
     status, setStatus,
     constructionPeriod, setConstructionPeriod,
@@ -372,6 +375,17 @@ export default function EstimateHeader({
                             + 新規顧客
                         </button>
                     </div>
+                </div>
+
+                <div>
+                    <label className={labelClass}>見積日</label>
+                    <input
+                        type="date"
+                        value={estimateDate}
+                        onChange={(e) => setEstimateDate(e.target.value)}
+                        className={inputClass}
+                    />
+                    <p className="text-xs text-slate-400 mt-1">見積書に印字される日付です</p>
                 </div>
 
                 <div>

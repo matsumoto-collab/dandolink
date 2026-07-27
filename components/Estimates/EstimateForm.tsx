@@ -66,6 +66,14 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     // 見積番号: 空の場合は保存時にサーバー側で自動採番
     const [estimateNumber, setEstimateNumber] = useState(initialData?.estimateNumber || '');
 
+    // 見積日: PDFに「見積日」として印字される値。決算の都合で任意の日付にできる（新規は今日）
+    const [estimateDate, setEstimateDate] = useState(() => {
+        if (initialData?.createdAt) return formatDateKey(new Date(initialData.createdAt));
+        return formatDateKey(new Date());
+    });
+    // 初回に表示した見積日。ここから変わっていなければ保存時に createdAt を送らない
+    const [initialEstimateDate] = useState(estimateDate);
+
     // 有効期限: デフォルト30日後
     const [validUntil, setValidUntil] = useState(() => {
         if (initialData?.validUntil) return formatDateKey(new Date(initialData.validUntil));
@@ -76,6 +84,25 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const [constructionPeriod, setConstructionPeriod] = useState(initialData?.constructionPeriod || '');
     const [items, setItems] = useState<EstimateItem[]>(initialData?.items || []);
     const [costTotal, setCostTotal] = useState<number | null>(initialData?.costTotal ?? null);
+
+    /**
+     * 見積日の変更。有効期限が「見積日＋30日」の自動値のままなら一緒にずらす。
+     * PDFの有効期限欄は見積日との差から「発行日よりNヶ月」を算出するため、
+     * 見積日だけ過去にずらすと月数表記が意図せず伸びてしまうのを防ぐ。
+     * 有効期限を手で決めた後は上書きしない。
+     */
+    const handleEstimateDateChange = (next: string) => {
+        const plus30 = (base: string): string => {
+            const [y, m, d] = base.split('-').map(Number);
+            if (!y || !m || !d) return '';
+            return formatDateKey(new Date(y, m - 1, d + 30));
+        };
+        if (validUntil === plus30(estimateDate)) {
+            const shifted = plus30(next);
+            if (shifted) setValidUntil(shifted);
+        }
+        setEstimateDate(next);
+    };
 
     // 項目別原価が1つでもあればcostTotalはロック（自動計算）
     const { costTotalLocked, itemsCostSum } = React.useMemo(() => {
@@ -398,7 +425,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             validUntil: new Date(validUntil),
             status,
             notes: notes || undefined,
-            createdAt: new Date(),
+            createdAt: new Date(estimateDate), // PDFの「見積日」
             updatedAt: new Date(),
         };
         const selectedProject = projectMasters.find(p => p.id === projectId);
@@ -420,7 +447,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             createdAt: new Date(), updatedAt: new Date(),
         };
         return { tempEstimate, tempProject, effectiveCompanyInfo };
-    }, [projectId, customerId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, location, projectMasters, customers, companyInfo]);
+    }, [projectId, customerId, estimateNumber, title, items, subtotal, tax, total, validUntil, estimateDate, status, notes, location, projectMasters, customers, companyInfo]);
 
     // PDFプレビュー生成（手動・フルスクリーン用）
     const handlePreview = async () => {
@@ -453,11 +480,11 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     /** プレビュー再生成のトリガー (seed) */
     const livePreviewSignature = useMemo(() => {
         return JSON.stringify({
-            projectId, customerId, estimateNumber, title, location, validUntil, status, notes, constructionPeriod,
+            projectId, customerId, estimateNumber, title, location, validUntil, estimateDate, status, notes, constructionPeriod,
             items, costTotal, creatorName,
             companyInfoId: companyInfo?.id ?? '',
         });
-    }, [projectId, customerId, estimateNumber, title, location, validUntil, status, notes, constructionPeriod, items, costTotal, creatorName, companyInfo?.id]);
+    }, [projectId, customerId, estimateNumber, title, location, validUntil, estimateDate, status, notes, constructionPeriod, items, costTotal, creatorName, companyInfo?.id]);
 
     // 小計金額調整（値引き）
     const handleAdjustSubtotal = (targetSubtotal: number) => {
@@ -509,6 +536,9 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 projectId: projectId || null, customerId: customerId || null, estimateNumber, title, items, subtotal, tax, total,
                 validUntil: new Date(validUntil), status, notes: notes || null, location: location || null, costTotal,
                 constructionPeriod: constructionPeriod || null,
+                // 見積日は触ったときだけ送る。新規は DB の now()、編集は既存レコードの時刻を保つ
+                // （毎回 0 時で上書きすると同日作成分の並び順が崩れるため）
+                ...(estimateDate !== initialEstimateDate ? { createdAt: new Date(estimateDate) } : {}),
             } as EstimateInput;
             await onSubmit(data);
         } finally {
@@ -534,6 +564,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                         title={title} setTitle={setTitle}
                         siteName={siteName} setSiteName={setSiteName}
                         customerId={customerId} setCustomerId={setCustomerId}
+                        estimateDate={estimateDate} setEstimateDate={handleEstimateDateChange}
                         validUntil={validUntil} setValidUntil={setValidUntil}
                         status={status} setStatus={(v) => setStatus(v as EstimateInput['status'])}
                         projects={projectOptions} customers={customers}

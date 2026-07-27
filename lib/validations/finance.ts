@@ -54,6 +54,7 @@ export const createEstimateSchema = z.object({
     location: z.string().max(500).nullable().optional(),
     costTotal: z.number().int().nullable().optional(),
     constructionPeriod: z.string().max(200).nullable().optional(),
+    createdAt: z.string().optional(), // 見積日（PDFに出る日付）
 });
 
 export const updateEstimateSchema = z.object({
@@ -71,6 +72,7 @@ export const updateEstimateSchema = z.object({
     location: z.string().max(500).nullable().optional(),
     costTotal: z.number().int().nullable().optional(),
     constructionPeriod: z.string().max(200).nullable().optional(),
+    createdAt: z.string().optional(), // 見積日（PDFに出る日付）
 });
 
 // ========== InvoicePayment（入金記録） ==========

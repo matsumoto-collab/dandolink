@@ -44,4 +44,8 @@ export interface Estimate {
 }
 
 // 見積書作成時の入力データ
-export type EstimateInput = Omit<Estimate, 'id' | 'createdAt' | 'updatedAt' | 'updatedBy'>;
+// createdAt は PDF の「見積日」として使う値。決算都合で任意の日付を指定できるよう入力を許す
+// （省略時は DB の @default(now())）。請求書の InvoiceInput と同じ方針。
+export type EstimateInput = Omit<Estimate, 'id' | 'createdAt' | 'updatedAt' | 'updatedBy'> & {
+    createdAt?: Date;
+};

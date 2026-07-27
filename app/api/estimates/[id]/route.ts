@@ -38,6 +38,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (data.location !== undefined) updateData.location = data.location || null;
         if (data.costTotal !== undefined) updateData.costTotal = data.costTotal;
         if (data.constructionPeriod !== undefined) updateData.constructionPeriod = data.constructionPeriod || null;
+        if (data.createdAt !== undefined) updateData.createdAt = new Date(data.createdAt); // 見積日
 
         const updatedEstimate = await prisma.$transaction(async (tx) => {
             const updated = await tx.estimate.update({ where: { id }, data: updateData });
