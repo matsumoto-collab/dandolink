@@ -19,7 +19,6 @@ export type PageType =
     | 'inventory'        // 在庫管理
     | 'loading-list'     // 積込リスト
     | 'material-returns' // 材料返却
-    | 'tool-checkout'    // 持出しリスト（共有工具が今どこにあるか）
     | 'attendance'       // 出勤簿
     | 'chat'             // チャット
     | 'payment-schedules'// 支払予定

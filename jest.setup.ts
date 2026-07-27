@@ -246,25 +246,6 @@ jest.mock('@/lib/prisma', () => ({
         expenseCategory: {
             findMany: jest.fn().mockResolvedValue([]),
         },
-        toolCategory: {
-            findMany: jest.fn().mockResolvedValue([]),
-            findUnique: jest.fn(),
-            aggregate: jest.fn().mockResolvedValue({ _max: { sortOrder: null } }),
-            create: jest.fn(),
-            update: jest.fn(),
-        },
-        tool: {
-            findMany: jest.fn().mockResolvedValue([]),
-            findUnique: jest.fn(),
-            aggregate: jest.fn().mockResolvedValue({ _max: { sortOrder: null } }),
-            count: jest.fn().mockResolvedValue(0),
-            create: jest.fn(),
-            update: jest.fn(),
-        },
-        toolCheckoutLog: {
-            findMany: jest.fn().mockResolvedValue([]),
-            create: jest.fn(),
-        },
         cardReceipt: {
             findMany: jest.fn().mockResolvedValue([]),
             findUnique: jest.fn(),
@@ -329,10 +310,8 @@ jest.mock('@/lib/prisma', () => ({
         $executeRaw: jest.fn().mockResolvedValue(0),
         $executeRawUnsafe: jest.fn().mockResolvedValue(0),
         $queryRaw: jest.fn().mockResolvedValue([]),
-        // Mock $transaction: コールバック形式は即実行、配列形式（[op1, op2]）はそのまま解決する
-        $transaction: jest.fn((arg) =>
-            Array.isArray(arg) ? Promise.all(arg) : arg(require('@/lib/prisma').prisma)
-        ),
+        // Mock $transaction to execute the callback immediately
+        $transaction: jest.fn((callback) => callback(require('@/lib/prisma').prisma)),
     },
 }));
 
