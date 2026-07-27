@@ -15,7 +15,7 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'tool-checkout' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
     /** true なら User.canAccessCashbook を持つユーザーにのみ表示（ロールでは表現できない個別許可制） */
@@ -59,6 +59,7 @@ const navigationSections: NavSection[] = [
             { name: '在庫管理', page: 'inventory' },
             { name: '出庫伝票', page: 'materials' },
             { name: '返却', page: 'material-returns' },
+            { name: '持出しリスト', page: 'tool-checkout' },
         ],
     },
     {
@@ -246,18 +247,19 @@ export default function Sidebar() {
                             );
                             const filteredSection = { ...section, items: allowedItems };
 
-                            // workerロール: スケジュール + チャット + 材料管理(在庫/返却)
+                            // workerロール: スケジュール + チャット + 材料管理(在庫/返却/持出しリスト)
                             if (role === 'worker') {
                                 if (filteredSection.title === '業務管理') {
                                     return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'chat') };
                                 }
                                 if (filteredSection.title === '材料管理') {
-                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'inventory' || item.page === 'material-returns') };
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'inventory' || item.page === 'material-returns' || item.page === 'tool-checkout') };
                                 }
                                 return null;
                             }
-                            // partner ロール: 業務管理(スケジュール+チャット) + 書類・経理(出来高表)
-                            // partner_member ロール: 業務管理(スケジュール+チャット) のみ (出来高表は不可)
+                            // partner ロール: 業務管理(スケジュール+チャット) + 書類・経理(出来高表) + 材料管理(持出しリスト)
+                            // partner_member ロール: 業務管理(スケジュール+チャット) + 材料管理(持出しリスト) (出来高表は不可)
+                            // 持出しリストは「工具が今どこにあるか」の共有が目的なので閲覧だけ許可する（操作は画面側で不可）
                             if (role === 'partner' || role === 'partner_member') {
                                 if (section.title === '業務管理') {
                                     const partnerItems = section.items
@@ -272,6 +274,11 @@ export default function Sidebar() {
                                     if (partnerItems.length === 0) return null;
                                     return { ...filteredSection, items: partnerItems };
                                 }
+                                if (section.title === '材料管理') {
+                                    const partnerItems = filteredSection.items.filter(item => item.page === 'tool-checkout');
+                                    if (partnerItems.length === 0) return null;
+                                    return { ...filteredSection, items: partnerItems };
+                                }
                                 return null;
                             }
                             // accountant(税理士): 書類・経理の閲覧対象のみ（見積書・利益ダッシュボードは見せない）
@@ -279,6 +286,11 @@ export default function Sidebar() {
                                 if (filteredSection.title === '書類・経理') {
                                     const accountantPages = ['invoices', 'billing-board', 'partner-work-volume', 'receipts', 'payment-schedules', 'cashbook', 'credit-card'];
                                     const items = filteredSection.items.filter(item => accountantPages.includes(item.page));
+                                    if (items.length === 0) return null;
+                                    return { ...filteredSection, items };
+                                }
+                                if (filteredSection.title === '材料管理') {
+                                    const items = filteredSection.items.filter(item => item.page === 'tool-checkout');
                                     if (items.length === 0) return null;
                                     return { ...filteredSection, items };
                                 }

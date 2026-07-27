@@ -1767,6 +1767,81 @@ model MaterialRequisitionItem {
   @@schema("public")
 }
 
+// ========================
+// 工具持出し管理モデル
+// ========================
+
+/// 工具の種類マスタ（設定画面から追加・削除。削除は isActive=false の論理削除）
+model ToolCategory {
+  id        String   @id @default(uuid())
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tools     Tool[]
+
+  @@index([name])
+  @@index([sortOrder])
+  @@schema("public")
+}
+
+/// 工具の個体（1台 = 1レコード）。現在の状態と持出し先を保持する
+model Tool {
+  id              String            @id @default(uuid())
+  categoryId      String
+  /// 管理番号・呼び名（例: #1、赤テープ）
+  name            String
+  /// in_stock（社内保管中） | checked_out（持出中） | repairing（修理中） | lost（紛失） | disposed（廃棄）
+  status          String            @default("in_stock")
+  /// 持出し先（案件から選択した場合。名前はライブ解決するのでスナップショットは持たない）
+  projectMasterId String?
+  /// 持出し先（自由入力。事務所・修理業者など案件以外）
+  destinationNote String?
+  /// 持出者（User.id。論理 FK = MaterialRequisition.foremanId と同方針）
+  holderId        String?
+  checkedOutAt    DateTime?
+  /// メモ（修理の入庫先・紛失の経緯など）
+  note            String?
+  sortOrder       Int               @default(0)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  category        ToolCategory      @relation(fields: [categoryId], references: [id])
+  logs            ToolCheckoutLog[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([projectMasterId])
+  @@index([holderId])
+  @@schema("public")
+}
+
+/// 持出し・返却・状態変更の履歴。案件名/氏名は当時の記録として残すためスナップショットで保持する
+model ToolCheckoutLog {
+  id              String   @id @default(uuid())
+  toolId          String
+  /// checkout（持出し） | return（返却） | status_change（状態変更）
+  action          String
+  /// 変更後の状態
+  status          String
+  projectMasterId String?
+  projectName     String?
+  destinationNote String?
+  holderId        String?
+  holderName      String?
+  note            String?
+  /// 操作者
+  createdBy       String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  tool            Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@index([toolId])
+  @@index([createdAt])
+  @@schema("public")
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Manager {
   id        String   @id
