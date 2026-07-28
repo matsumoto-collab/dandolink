@@ -193,13 +193,27 @@ function CoverPage({
 
     // 1枚に収まらない場合のみページ分割（各ページは独立した完結テーブル）。
     // *_NO_TOTALS = そのページが続く場合に載る行数 / *_WITH_TOTALS = そのページが最終（小計・備考あり）に載る行数。
-    // FIRST_* は表紙の大きなヘッダー（住所・御請求書・合計金額・件名・会社情報＝約290pt）ぶん容量が小さい。
+    // FIRST_* は表紙の大きなヘッダー（住所・御請求書・合計金額・件名・会社情報）ぶん容量が小さい。
     // CONT_* は続きページの小ヘッダー（「御請求書（続き）」1行）ぶん容量が大きい。
-    // 値は A4 実寸（使用域約777pt・1行minHeight17pt）から安全側に算出。大きすぎると1枚物が溢れて2枚化するので注意。
-    const FIRST_NO_TOTALS = 24;
-    const FIRST_WITH_TOTALS = 21;
+    //
+    // 基準値は実測（`npx tsx scripts/measure-invoice-page-capacity.tsx`）で決めている。
+    // 表紙は「振込先2件・備考なし」で 22 行がちょうど収まる上限（23 行にすると罫線が
+    // 用紙下端を超えて空の2ページ目が出る）。旧値 21 は 1 行ぶん保守的で、案件11件＝22行の
+    // 請求書が「下部を大きく空けたまま2ページ目送り」になっていた（2026-07-28 kei報告）。
+    //
+    // 上限ちょうどを使うため、ページ高さを動かす2要素は基準（振込先2件・備考2行まで）を
+    // 超えたぶんだけ容量から差し引く。
+    const bankAccountCount = (companyInfo.bankAccounts || []).length;
+    const extraBankRows = Math.max(0, bankAccountCount - 2);  // 振込先1件 ≒ 9.5pt（1行17ptの約0.6）→ 安全側に1行として引く
+    // 備考欄は全幅（内寸約527pt・9pt）。枠の minHeight 40 にラベル＋2行ぶんの高さがあるため、3行目以降が超過。
+    const notesLines = (invoice.notes || '')
+        .split('\n')
+        .reduce((s, line) => s + Math.max(1, Math.ceil(textUnits(line) / (527 / INV_FS))), 0);
+    const extraNotesRows = Math.max(0, notesLines - 2);
+    const FIRST_NO_TOTALS = Math.max(16, 24 - extraBankRows);
+    const FIRST_WITH_TOTALS = Math.max(14, 22 - extraBankRows - extraNotesRows);
     const CONT_NO_TOTALS = 38;
-    const CONT_WITH_TOTALS = 33;
+    const CONT_WITH_TOTALS = Math.max(20, 33 - extraNotesRows);
     // 各行の推定占有行数（折り返し考慮）。行数ではなくこの合計でページを分割する。
     // 案件（見出し header 〜 次の header 手前）を1セクションとして扱い、セクション単位でページに詰める
     // ＝1つの案件が見出しと明細でページ境界に割れないようにする。先頭に見出しの無い明細があれば
