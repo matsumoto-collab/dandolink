@@ -1,15 +1,32 @@
 import { StyleSheet, Font } from '@react-pdf/renderer';
 
-// Register Japanese font (Noto Sans JP from CDN)
+// 日本語フォント（Noto Sans JP）の登録
+//
+// ブラウザ側は同梱の全グリフ TTF を自オリジンから読み込む。
+// CDN の @fontsource "japanese" サブセット（8,352グリフ）は
+// 旧字・異体字（濵 U+6FF5 / 髙 / 﨑 など）や 丸数字①②③ / ※ / № / ★ / ㈱ / Ⅱ の
+// グリフを含まず、該当文字が PDF 上で空白になっていた（2026-07-28「濵田様邸」の報告）。
+// 同梱 TTF（17,000グリフ超）はこれらを全て収録している。
+//
+// サーバー側（renderToBuffer）では window が無く相対パスを fetch できないため
+// 従来どおり CDN を指す。サーバーで PDF を生成するルートは
+// lib/pdf/registerServerFonts.ts が process.cwd() 基準のローカル TTF で再登録する。
+const CDN_REGULAR =
+    'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@4.5.12/files/noto-sans-jp-japanese-400-normal.woff';
+const CDN_BOLD =
+    'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@4.5.12/files/noto-sans-jp-japanese-700-normal.woff';
+
+const isBrowser = typeof window !== 'undefined';
+
 Font.register({
     family: 'NotoSansJP',
     fonts: [
         {
-            src: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@4.5.12/files/noto-sans-jp-japanese-400-normal.woff',
+            src: isBrowser ? '/fonts/NotoSansJP-Regular.ttf' : CDN_REGULAR,
             fontWeight: 'normal',
         },
         {
-            src: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@4.5.12/files/noto-sans-jp-japanese-700-normal.woff',
+            src: isBrowser ? '/fonts/NotoSansJP-Bold.ttf' : CDN_BOLD,
             fontWeight: 'bold',
         },
     ],
@@ -137,11 +154,13 @@ export function sanitizePdfText(text: string): string {
         .replace(/㎜/g, 'mm')
         .replace(/㎞/g, 'km')
         .replace(/㏄/g, 'cc')
-        // フォントサブセット(noto-sans-jp japanese)にグリフが無い文字 → 描画可能な等価字へ
+        // 全グリフ TTF に切り替え済みで描画自体は可能だが、従来の見た目を保つため置換を維持
         .replace(/～/g, '〜')   // U+FF5E 全角チルダ → U+301C 波ダッシュ
         .replace(/－/g, '−')   // U+FF0D 全角ハイフンマイナス → U+2212 マイナス
         .replace(/‐/g, '−')   // U+2010 ハイフン → U+2212 マイナス
-        .replace(/―/g, '—');  // U+2015 水平バー → U+2014 emダッシュ
+        .replace(/―/g, '—')   // U+2015 水平バー → U+2014 emダッシュ
+        // Noto Sans JP にグリフが無い文字 → 描画可能な等価字へ
+        .replace(/ⅿ/g, 'm');   // U+217F 小文字ローマ数字1000 → 半角 m（見積明細の「ⅿ」誤入力）
 }
 
 /**

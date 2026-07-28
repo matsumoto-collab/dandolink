@@ -32,8 +32,14 @@ const nextConfig = {
         // （CDN フォント取得への依存を排除し、Vercel での生成失敗を防ぐ）。
         // 単票印刷とbulk一括印刷の両ルートが renderMaterialRequisitionPrintPDF を使う。
         outputFileTracingIncludes: {
-            '/api/materials/requisitions/[id]/print': ['./public/fonts/NotoSansJP-Regular.ttf'],
-            '/api/materials/requisitions/print/bulk': ['./public/fonts/NotoSansJP-Regular.ttf'],
+            '/api/materials/requisitions/[id]/print': [
+                './public/fonts/NotoSansJP-Regular.ttf',
+                './public/fonts/NotoSansJP-Bold.ttf',
+            ],
+            '/api/materials/requisitions/print/bulk': [
+                './public/fonts/NotoSansJP-Regular.ttf',
+                './public/fonts/NotoSansJP-Bold.ttf',
+            ],
         },
     },
     webpack: (config) => {
@@ -64,6 +70,15 @@ const nextConfig = {
                 source: '/pdf.worker.min.mjs',
                 headers: [
                     { key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' },
+                ],
+            },
+            // PDF用の日本語フォント(TTF・約5MB/ウェイト)は差し替えが極めて稀なので長期キャッシュ。
+            // 初回のPDFプレビュー時のみ取得し、以降は再検証なしで使い回す
+            // （差し替える場合はファイル名を変えること）。
+            {
+                source: '/fonts/:path*',
+                headers: [
+                    { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
                 ],
             },
         ];

@@ -19,10 +19,9 @@
  *   同梱ファイルが見つからない場合のみ CDN にフォールバックし、回帰を起こさない。
  *
  * 注意:
- *   同梱 TTF は Regular ウェイトのみのため bold 指定は Regular で描画される
- *   （材料伝票では「シート」見出しのみ bold・実用上の影響は軽微）。
  *   Vercel のサーバーレス関数へ TTF を確実に同梱するため、next.config.js の
- *   experimental.outputFileTracingIncludes で当該ルートに public/fonts を含める。
+ *   experimental.outputFileTracingIncludes で当該ルートに public/fonts を含める
+ *   （Regular / Bold の両方を列挙すること）。
  */
 import fs from 'fs';
 import path from 'path';
@@ -34,17 +33,21 @@ const CDN_400 =
 const CDN_700 =
     'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@4.5.12/files/noto-sans-jp-japanese-700-normal.woff';
 
-const ttfPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Regular.ttf');
-const hasLocalFont = (() => {
+const regularPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Regular.ttf');
+const boldPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Bold.ttf');
+const exists = (p: string) => {
     try {
-        return fs.existsSync(ttfPath);
+        return fs.existsSync(p);
     } catch {
         return false;
     }
-})();
+};
+const hasLocalFont = exists(regularPath);
+// Bold が無い場合のみ Regular で代替（従来動作）。
+const hasLocalBold = exists(boldPath);
 
-const src400 = hasLocalFont ? ttfPath : CDN_400;
-const src700 = hasLocalFont ? ttfPath : CDN_700;
+const src400 = hasLocalFont ? regularPath : CDN_400;
+const src700 = hasLocalBold ? boldPath : hasLocalFont ? regularPath : CDN_700;
 
 // 既存の NotoSansJP 登録（CDN）を破棄してローカル優先で再登録する。
 // Font.clear() は Helvetica 等の標準フォントまで消すため使わず、当該ファミリーのみ削除。
