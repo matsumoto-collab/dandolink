@@ -181,26 +181,26 @@ const COL = {
     branch: 65,
     type: 28,
     account: 60,
-    holder: 110,
+    holder: 190,
     check3: 22,
 };
-
-const ROWS_PER_PAGE = 22;
 
 // 口座名義セルの内寸（width − 左右padding 4+4 − 右罫線 0.5）。長い名義はこの幅で折り返す
 const HOLDER_CONTENT_WIDTH = COL.holder - 4 - 4 - 0.5;
 const HOLDER_FONT_SIZE = 8.5; // = styles.cellTextLeft.fontSize
 
-interface PageContentProps {
-    rows: PaymentSchedule[];
-    startIndex: number;
-}
-
-function TableContent({ rows, startIndex }: PageContentProps) {
+/**
+ * テーブルの見出し行。fixed により改ページ後の各ページ先頭でも繰り返し描画される。
+ *
+ * ※ 以前は ROWS_PER_PAGE（固定22行）で Page を分けていたが、口座名義などの折り返しで
+ *    行の高さが 26〜36pt と可変なため 1ページに 22 行は入らず、react-pdf の自動改ページで
+ *    「ヘッダーもページ番号も無い中途半端なページ」が挟まっていた（kei報告 2026-07-28・
+ *    39件で表示上は2ページなのに実際は4ページ）。行数ではなく実際の高さで折り返させ、
+ *    ヘッダーを fixed で繰り返す方式に変更した＝溢れが原理的に起きない。
+ */
+function TableHeaderRow() {
     return (
-        <View style={styles.container}>
-            {/* ヘッダー行 */}
-            <View style={styles.headerRow}>
+        <View style={styles.headerRow} fixed>
                 <View style={[styles.cell, { width: COL.po }]}>
                     <Text style={styles.headerText}>No.</Text>
                 </View>
@@ -237,20 +237,22 @@ function TableContent({ rows, startIndex }: PageContentProps) {
                 <View style={[styles.cell, { width: COL.check3, borderRightWidth: 0 }]}>
                     <View style={styles.checkbox} />
                 </View>
-            </View>
+        </View>
+    );
+}
 
-            {/* データ行 */}
-            {rows.map((item, idx) => {
-                const rowStyle = item.isPaid
-                    ? [styles.dataRow, styles.dataRowPaid]
-                    : idx % 2 === 1
-                    ? [styles.dataRow, styles.dataRowEven]
-                    : [styles.dataRow];
+/** データ1行。wrap={false} でページ境界に行が割れないようにする。 */
+function DataRow({ item, index }: { item: PaymentSchedule; index: number }) {
+    const rowStyle = item.isPaid
+        ? [styles.dataRow, styles.dataRowPaid]
+        : index % 2 === 1
+        ? [styles.dataRow, styles.dataRowEven]
+        : [styles.dataRow];
 
-                return (
-                    <View key={item.id} style={rowStyle} wrap={false}>
+    return (
+                    <View style={rowStyle} wrap={false}>
                         <View style={[styles.cell, { width: COL.po }]}>
-                            <Text style={styles.cellText}>{startIndex + idx + 1}</Text>
+                            <Text style={styles.cellText}>{index + 1}</Text>
                         </View>
                         <View
                             style={[
@@ -327,9 +329,6 @@ function TableContent({ rows, startIndex }: PageContentProps) {
                                 {item.isPaid && <Text style={styles.checkmark}>✓</Text>}
                             </View>
                         </View>
-                    </View>
-                );
-            })}
         </View>
     );
 }
@@ -339,48 +338,45 @@ export function PaymentSchedulePDF({ items, paymentDate }: PaymentSchedulePDFPro
     const count = items.length;
     const titleText = formatReiwaTitle(paymentDate);
 
-    // ページ分割
-    const pages: PaymentSchedule[][] = [];
-    for (let i = 0; i < items.length; i += ROWS_PER_PAGE) {
-        pages.push(items.slice(i, i + ROWS_PER_PAGE));
-    }
-    if (pages.length === 0) pages.push([]);
-
+    // ページ分割は react-pdf の自動改ページに任せる（行の高さが可変なため行数では正しく割れない）。
+    // ヘッダー・ページ番号・テーブル見出しは fixed で各ページの先頭に繰り返し描画される。
     return (
         <Document>
-            {pages.map((pageItems, pageIdx) => {
-                const startIndex = pageIdx * ROWS_PER_PAGE;
-                return (
-                    <Page key={pageIdx} size="A4" orientation="landscape" style={styles.page}>
-                        {/* 上部ヘッダー: タイトル + 合計サマリー */}
-                        <View style={styles.header}>
-                            <View style={styles.headerLeft}>
-                                <Text style={styles.docTitle}>支払予定表</Text>
-                                <Text style={styles.docSubtitle}>{titleText}</Text>
-                            </View>
-                            <View style={styles.headerRight}>
-                                <View style={styles.summaryBox}>
-                                    <Text style={styles.summaryLabel}>件数</Text>
-                                    <Text style={styles.summaryValueRed}>{count} 件</Text>
-                                </View>
-                                <View style={styles.summaryBox}>
-                                    <Text style={styles.summaryLabel}>合計金額</Text>
-                                    <Text style={styles.summaryValue}>¥{total.toLocaleString()}</Text>
-                                </View>
-                            </View>
+            <Page size="A4" orientation="landscape" style={styles.page}>
+                {/* 上部ヘッダー: タイトル + 合計サマリー */}
+                <View style={styles.header} fixed>
+                    <View style={styles.headerLeft}>
+                        <Text style={styles.docTitle}>支払予定表</Text>
+                        <Text style={styles.docSubtitle}>{titleText}</Text>
+                    </View>
+                    <View style={styles.headerRight}>
+                        <View style={styles.summaryBox}>
+                            <Text style={styles.summaryLabel}>件数</Text>
+                            <Text style={styles.summaryValueRed}>{count} 件</Text>
                         </View>
+                        <View style={styles.summaryBox}>
+                            <Text style={styles.summaryLabel}>合計金額</Text>
+                            <Text style={styles.summaryValue}>¥{total.toLocaleString()}</Text>
+                        </View>
+                    </View>
+                </View>
 
-                        {/* ページ番号（複数ページの場合のみ） */}
-                        {pages.length > 1 && (
-                            <Text style={styles.pageInfo}>
-                                {pageIdx + 1} / {pages.length} ページ
-                            </Text>
-                        )}
+                {/* ページ番号（複数ページの場合のみ。実ページ数は描画時に確定するので render で出す） */}
+                <Text
+                    style={styles.pageInfo}
+                    fixed
+                    render={({ pageNumber, totalPages }) =>
+                        totalPages > 1 ? `${pageNumber} / ${totalPages} ページ` : ''
+                    }
+                />
 
-                        <TableContent rows={pageItems} startIndex={startIndex} />
-                    </Page>
-                );
-            })}
+                <View style={styles.container}>
+                    <TableHeaderRow />
+                    {items.map((item, idx) => (
+                        <DataRow key={item.id} item={item} index={idx} />
+                    ))}
+                </View>
+            </Page>
         </Document>
     );
 }
