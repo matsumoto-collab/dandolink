@@ -118,9 +118,10 @@ function NumInput({
 
 /**
  * 「請求する」時に請求金額を指定するダイアログ（Phase 4 + 請求項目エディタ）。
- * - 金額・比率で指定（出来高）：¥ または 見積金額×% で金額を決め、摘要（着手金 等）を付ける → 1 行で請求対象。
- * - 残額すべて：見積金額 − 既請求 の残額を 1 行で請求対象。
+ * 表示順・既定は 見積どおり（既定）→ 請求項目 → 残額すべて → 金額・比率（見積が無い案件のみ金額・比率が既定）。
  * - 見積どおり：見積明細を展開（複数見積は呼び出し側でピッカー）。
+ * - 残額すべて：見積金額 − 既請求 の残額を 1 行で請求対象。
+ * - 金額・比率で指定（出来高）：¥ または 見積金額×% で金額を決め、摘要（着手金 等）を付ける → 1 行で請求対象。
  * - 請求項目で明細をつくる：見積と違う名称（請求項目一覧）で代表的な明細を組む。見積から引用して
  *   不要な行を削除・1 行にまとめることも可能。
  * 残額は発行（請求書化）後に自動で繰り越される（partial 表示）ため、出来高は複数回に分けられる。
@@ -159,10 +160,10 @@ export default function RequestBillingDialog({
     const [billingTitleMenuOpen, setBillingTitleMenuOpen] = useState(false);
     const canPreview = !!renderEstimatePdf && estimates.length > 0;
 
-    // 開くたびに初期化（既定＝残額を金額に prefill）
+    // 開くたびに初期化（既定＝見積どおり。見積が無い案件のみ金額指定。金額欄には残額を prefill）
     useEffect(() => {
         if (!open) return;
-        setChoice('amount');
+        setChoice(estimateCount > 0 ? 'estimate' : 'amount');
         setUnit('yen');
         setYenInput(remaining > 0 ? String(Math.round(remaining)) : '');
         setPctInput('');
@@ -371,101 +372,7 @@ export default function RequestBillingDialog({
                 )}
 
                 <div className="mt-4 space-y-3">
-                    {/* 金額・比率で指定 */}
-                    <label className="flex cursor-pointer items-start gap-2">
-                        <input
-                            type="radio"
-                            checked={choice === 'amount'}
-                            onChange={() => setChoice('amount')}
-                            className="mt-1"
-                        />
-                        <div className="flex-1">
-                            <div className="text-sm font-medium text-slate-800">金額・比率で指定（出来高）</div>
-                            <div className={`mt-2 space-y-2 ${choice === 'amount' ? '' : 'pointer-events-none opacity-50'}`}>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
-                                        <button
-                                            type="button"
-                                            onClick={() => setUnit('yen')}
-                                            className={`rounded px-2 py-0.5 text-xs ${unit === 'yen' ? 'bg-teal-600 text-white' : 'text-slate-600'}`}
-                                        >
-                                            金額
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setUnit('pct')}
-                                            disabled={!hasEstimate}
-                                            className={`rounded px-2 py-0.5 text-xs disabled:opacity-40 ${unit === 'pct' ? 'bg-teal-600 text-white' : 'text-slate-600'}`}
-                                            title={hasEstimate ? '' : '見積金額が未設定のため比率は使えません'}
-                                        >
-                                            比率
-                                        </button>
-                                    </div>
-                                    {unit === 'yen' ? (
-                                        <div className="flex items-center gap-1">
-                                            <span className="text-slate-400">¥</span>
-                                            <input
-                                                type="number"
-                                                inputMode="numeric"
-                                                value={yenInput}
-                                                onChange={(e) => setYenInput(e.target.value)}
-                                                placeholder="300000"
-                                                className="w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-1">
-                                            <input
-                                                type="number"
-                                                inputMode="numeric"
-                                                value={pctInput}
-                                                onChange={(e) => setPctInput(e.target.value)}
-                                                placeholder="30"
-                                                className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                            />
-                                            <span className="text-slate-400">%</span>
-                                            <span className="text-xs text-slate-500">→ {yen(amountFromInputs)}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div>
-                                    <input
-                                        type="text"
-                                        value={note}
-                                        onChange={(e) => setNote(e.target.value)}
-                                        placeholder="摘要（例: 着手金）"
-                                        className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                    />
-                                    <div className="mt-1 flex flex-wrap gap-1">
-                                        {NOTE_PRESETS.map((p) => (
-                                            <button
-                                                key={p}
-                                                type="button"
-                                                onClick={() => setNote(p)}
-                                                className="rounded-full border border-slate-200 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
-                                            >
-                                                {p}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </label>
-
-                    {/* 残額すべて */}
-                    {hasEstimate && (
-                        <label className="flex cursor-pointer items-center gap-2">
-                            <input
-                                type="radio"
-                                checked={choice === 'remaining'}
-                                onChange={() => setChoice('remaining')}
-                            />
-                            <span className="text-sm text-slate-800">残額すべて（{yen(remainingAmount)}）</span>
-                        </label>
-                    )}
-
-                    {/* 見積どおり */}
+                    {/* 見積どおり（既定） */}
                     {hasEstimates && (
                         <label className="flex cursor-pointer items-center gap-2">
                             <input
@@ -627,6 +534,100 @@ export default function RequestBillingDialog({
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    </label>
+
+                    {/* 残額すべて */}
+                    {hasEstimate && (
+                        <label className="flex cursor-pointer items-center gap-2">
+                            <input
+                                type="radio"
+                                checked={choice === 'remaining'}
+                                onChange={() => setChoice('remaining')}
+                            />
+                            <span className="text-sm text-slate-800">残額すべて（{yen(remainingAmount)}）</span>
+                        </label>
+                    )}
+
+                    {/* 金額・比率で指定 */}
+                    <label className="flex cursor-pointer items-start gap-2">
+                        <input
+                            type="radio"
+                            checked={choice === 'amount'}
+                            onChange={() => setChoice('amount')}
+                            className="mt-1"
+                        />
+                        <div className="flex-1">
+                            <div className="text-sm font-medium text-slate-800">金額・比率で指定（出来高）</div>
+                            <div className={`mt-2 space-y-2 ${choice === 'amount' ? '' : 'pointer-events-none opacity-50'}`}>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setUnit('yen')}
+                                            className={`rounded px-2 py-0.5 text-xs ${unit === 'yen' ? 'bg-teal-600 text-white' : 'text-slate-600'}`}
+                                        >
+                                            金額
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setUnit('pct')}
+                                            disabled={!hasEstimate}
+                                            className={`rounded px-2 py-0.5 text-xs disabled:opacity-40 ${unit === 'pct' ? 'bg-teal-600 text-white' : 'text-slate-600'}`}
+                                            title={hasEstimate ? '' : '見積金額が未設定のため比率は使えません'}
+                                        >
+                                            比率
+                                        </button>
+                                    </div>
+                                    {unit === 'yen' ? (
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-slate-400">¥</span>
+                                            <input
+                                                type="number"
+                                                inputMode="numeric"
+                                                value={yenInput}
+                                                onChange={(e) => setYenInput(e.target.value)}
+                                                placeholder="300000"
+                                                className="w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="number"
+                                                inputMode="numeric"
+                                                value={pctInput}
+                                                onChange={(e) => setPctInput(e.target.value)}
+                                                placeholder="30"
+                                                className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                            />
+                                            <span className="text-slate-400">%</span>
+                                            <span className="text-xs text-slate-500">→ {yen(amountFromInputs)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <input
+                                        type="text"
+                                        value={note}
+                                        onChange={(e) => setNote(e.target.value)}
+                                        placeholder="摘要（例: 着手金）"
+                                        className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    />
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                        {NOTE_PRESETS.map((p) => (
+                                            <button
+                                                key={p}
+                                                type="button"
+                                                onClick={() => setNote(p)}
+                                                className="rounded-full border border-slate-200 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
+                                            >
+                                                {p}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </label>
