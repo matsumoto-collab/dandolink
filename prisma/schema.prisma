@@ -97,6 +97,10 @@ model ProjectMaster {
   billingDecisionBy          String?
   billingDecisionAt          DateTime?
   billingStatusOverride      String?
+  /// 請求待ちボードの見積金額に使う見積書のID配列（string[]）。null/空 = 未選択。
+  /// 金額のスナップショットは持たない＝ボードの見積金額は常に見積書の現在値(subtotal)から計算する
+  /// （見積書を修正したらボードにも即追従させるため）。
+  billingEstimateIds         Json?
   assignments                ProjectAssignment[]
   calendarEvents             CalendarEvent[]
   files                      ProjectMasterFile[]
@@ -135,6 +139,25 @@ model ProjectBillingDecision {
 
   @@unique([projectMasterId, periodKey])
   @@index([periodKey])
+  @@schema("public")
+}
+
+/// 請求待ちボードで「請求する」した案件（請求対象＝staged）の保管。
+/// 以前はクライアントの useState だけで保持していたため、別メニューへ移動すると選択が消えていた。
+/// 案件1件につき1行（projectMasterId が一意）＝上書き（upsert）で最新の選択内容を保持する。
+/// 請求書を発行したら該当行を削除する。FK は張らない（ProjectBillingDecision に倣う軽量テーブル）。
+model BillingStagedLine {
+  id              String   @id @default(uuid())
+  projectMasterId String   @unique
+  customerId      String
+  items           Json // InvoiceItem[]（各明細に projectMasterId タグを持つ）
+  total           Float // items の税抜合計
+  label           String // 行表示用の摘要（見積どおり / 金額指定 等）
+  stagedBy        String? // 請求対象に追加した管理者のユーザーID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([customerId])
   @@schema("public")
 }
 

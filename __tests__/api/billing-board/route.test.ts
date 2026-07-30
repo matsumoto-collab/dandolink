@@ -26,6 +26,7 @@ describe('GET /api/billing-board（案件×締め月の請求判断の解決）'
                 customerName: 'A社',
                 status: 'active',
                 contractAmount: 100000,
+                billingEstimateIds: null,
                 createdBy: null,
             },
         ]);
@@ -92,6 +93,96 @@ describe('GET /api/billing-board（案件×締め月の請求判断の解決）'
         const json = await res.json();
         expect(json[0].monthlyInvoicedAmount).toBe(80000); // その月に発行した請求のみ
         expect(json[0].invoicedAmount).toBe(130000); // 案件トータル（全期間）は別途そのまま
+    });
+
+    /**
+     * 見積金額は「金額スナップショット(contractAmount)」ではなく見積書の現在値(subtotal)から解決する。
+     * 優先順: billingEstimateIds → 見積1件 → 見積複数(contractAmount互換) → 見積0件(contractAmount)。
+     */
+    describe('見積金額(estimateAmount)の解決', () => {
+        /** 案件 pm-1 の contractAmount と billingEstimateIds を差し替える。 */
+        function setProject(contractAmount: number | null, billingEstimateIds: unknown = null) {
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([
+                {
+                    id: 'pm-1',
+                    title: 'A社 現場',
+                    name: 'A現場',
+                    customerId: 'c-1',
+                    customerName: 'A社',
+                    status: 'active',
+                    contractAmount,
+                    billingEstimateIds,
+                    createdBy: null,
+                },
+            ]);
+        }
+
+        async function fetchRow() {
+            const res = await GET(new NextRequest('http://localhost:3000/api/billing-board?month=2026-06'));
+            expect(res.status).toBe(200);
+            return (await res.json())[0];
+        }
+
+        it('billingEstimateIds があれば、その見積の subtotal 合算（ライブ値）を使う', async () => {
+            setProject(100000, ['e-1', 'e-3']);
+            (prisma.estimate.findMany as jest.Mock).mockResolvedValue([
+                { id: 'e-1', projectMasterId: 'pm-1', status: 'approved', subtotal: 300000 },
+                { id: 'e-2', projectMasterId: 'pm-1', status: 'draft', subtotal: 999999 },
+                { id: 'e-3', projectMasterId: 'pm-1', status: 'draft', subtotal: 20000 },
+            ]);
+            const row = await fetchRow();
+            expect(row.estimateAmount).toBe(320000); // contractAmount(100000) には引きずられない
+            expect(row.needsEstimatePick).toBe(false);
+        });
+
+        it('billingEstimateIds の見積が全て存在しなければ未選択扱いでフォールバックする', async () => {
+            setProject(100000, ['deleted-1']);
+            (prisma.estimate.findMany as jest.Mock).mockResolvedValue([
+                { id: 'e-1', projectMasterId: 'pm-1', status: 'approved', subtotal: 300000 },
+            ]);
+            const row = await fetchRow();
+            expect(row.estimateAmount).toBe(300000); // 見積1件のライブ値へ
+        });
+
+        it('見積1件なら contractAmount より見積の現在値を優先する（見積修正への追従）', async () => {
+            setProject(100000, null);
+            (prisma.estimate.findMany as jest.Mock).mockResolvedValue([
+                { id: 'e-1', projectMasterId: 'pm-1', status: 'approved', subtotal: 250000 },
+            ]);
+            const row = await fetchRow();
+            expect(row.estimateAmount).toBe(250000);
+            expect(row.needsEstimatePick).toBe(false);
+        });
+
+        it('見積が複数で未選択なら contractAmount を使う（旧スナップショット互換）', async () => {
+            setProject(100000, null);
+            (prisma.estimate.findMany as jest.Mock).mockResolvedValue([
+                { id: 'e-1', projectMasterId: 'pm-1', status: 'draft', subtotal: 250000 },
+                { id: 'e-2', projectMasterId: 'pm-1', status: 'draft', subtotal: 70000 },
+            ]);
+            const row = await fetchRow();
+            expect(row.estimateAmount).toBe(100000);
+            expect(row.needsEstimatePick).toBe(false);
+        });
+
+        it('見積が複数で contractAmount も無ければ「見積を選択」を促す', async () => {
+            setProject(null, null);
+            (prisma.estimate.findMany as jest.Mock).mockResolvedValue([
+                { id: 'e-1', projectMasterId: 'pm-1', status: 'draft', subtotal: 250000 },
+                { id: 'e-2', projectMasterId: 'pm-1', status: 'draft', subtotal: 70000 },
+            ]);
+            const row = await fetchRow();
+            expect(row.estimateAmount).toBeNull();
+            expect(row.needsEstimatePick).toBe(true);
+        });
+
+        it('見積が0件なら contractAmount（手入力）を使う', async () => {
+            setProject(100000, null);
+            (prisma.estimate.findMany as jest.Mock).mockResolvedValue([]);
+            const row = await fetchRow();
+            expect(row.estimateAmount).toBe(100000);
+            expect(row.needsEstimatePick).toBe(false);
+        });
     });
 
     it('未認可なら 403', async () => {

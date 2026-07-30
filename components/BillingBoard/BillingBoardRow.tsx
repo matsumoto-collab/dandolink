@@ -143,6 +143,17 @@ export default function BillingBoardRow({
                                 >
                                     見積を選択
                                 </button>
+                            ) : row.estimateCount > 1 && onPickEstimate ? (
+                                // 見積が複数ある案件は金額自体を押して選び直せる（旧スナップショットから
+                                // 「見積書に追従」へ移行するため。選び直すと見積の現在値で再計算される）
+                                <button
+                                    type="button"
+                                    onClick={() => onPickEstimate(row)}
+                                    title="どの見積を見積金額にするか選び直す"
+                                    className="font-medium text-slate-700 underline decoration-dotted underline-offset-2 hover:text-teal-700"
+                                >
+                                    {yen(row.estimateAmount)}
+                                </button>
                             ) : (
                                 <span className="font-medium text-slate-700">{yen(row.estimateAmount)}</span>
                             )}

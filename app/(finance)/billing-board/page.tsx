@@ -15,16 +15,21 @@ import { flattenEstimateItems, newBillingItemId } from '@/lib/billing/estimateTo
 import { closingDayLabel, formatClosingInvoiceTitle, dueDateFromClosing } from '@/lib/closingDay';
 import BillingBoardRow from '@/components/BillingBoard/BillingBoardRow';
 import EstimatePickerDialog, { type EstimateChoice } from '@/components/Estimates/EstimatePickerDialog';
-import RequestBillingDialog, { type RequestBillingResult } from '@/components/BillingBoard/RequestBillingDialog';
+import RequestBillingDialog, {
+    type RequestBillingResult,
+    type RequestBillingProfit,
+} from '@/components/BillingBoard/RequestBillingDialog';
 import type { BillingBoardRow as Row, BillingDecision } from '@/types/billingBoard';
 import type { InvoiceItem, InvoiceInput, BillingTitle } from '@/types/invoice';
-import type { Estimate } from '@/types/estimate';
+import type { Estimate, EstimateInput } from '@/types/estimate';
 import type { Project } from '@/types/calendar';
 import { logger } from '@/lib/logger';
 import { useFinanceStore } from '@/stores/financeStore';
 
 // 請求書プレビュー（既存の請求書作成フォームを転用・重いので遅延読み込み）
 const InvoiceModal = dynamic(() => import('@/components/Invoices/InvoiceModal'), { ssr: false, loading: () => null });
+// 見積書の編集フォーム（見積書メニューと同じモーダル。請求金額の指定中にその場で見積を直せるように）
+const EstimateModal = dynamic(() => import('@/components/Estimates/EstimateModal'), { ssr: false, loading: () => null });
 
 type TabKey = 'pending' | 'hold' | 'excluded' | 'billed';
 type CtypeMap = Record<string, { name: string; color: string }>;
@@ -94,13 +99,16 @@ interface CustomerGroup {
     rows: Row[];
 }
 
-/** ボード上で「請求する」した案件を、請求書発行までクライアントに保持する選択行（請求予定は作らない）。 */
+/** ボード上で「請求する」した案件を、請求書発行まで保持する選択行（請求予定は作らない）。DB(BillingStagedLine)に永続化する。 */
 interface StagedLine {
     customerId: string;
     items: InvoiceItem[]; // 各 item に projectMasterId を持たせる（請求済み按分のため）
     total: number; // items の税抜合計
     label: string; // 摘要 / 見積どおり 等（行表示用）
 }
+
+/** GET /api/billing-staged の1行（StagedLine ＋ キーとなる案件ID）。 */
+type StagedLineResponse = StagedLine & { projectMasterId: string };
 
 export default function BillingBoardPage() {
     const { data: session, status: sessionStatus } = useSession();
@@ -110,7 +118,7 @@ export default function BillingBoardPage() {
     const canEdit = role === 'admin' || role === 'manager';
     const myId = session?.user?.id;
 
-    const { ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
+    const { ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject, updateEstimate } = useEstimates();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
@@ -143,11 +151,19 @@ export default function BillingBoardPage() {
     // 「請求する」金額指定ダイアログ（出来高対応）
     const [requestDialog, setRequestDialog] = useState<{ row: Row } | null>(null);
     const [requestSubmitting, setRequestSubmitting] = useState(false);
+    // 金額指定ダイアログに出す利益サマリー（案件詳細の利益タブと同じ API）
+    const [profit, setProfit] = useState<RequestBillingProfit | null>(null);
+    const [profitLoading, setProfitLoading] = useState(false);
+    // 見積を編集して保存したら利益サマリーも取り直す（この値を増やすと再取得）
+    const [profitReloadKey, setProfitReloadKey] = useState(0);
+    // 金額指定ダイアログから開く見積編集モーダル（請求ダイアログは開いたまま上に重ねる）
+    const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
     // 「見積を選択」＝複数見積から見積金額を決めるピッカー（選択合計を案件の見積金額に保存）
     const [estimatePicker, setEstimatePicker] = useState<{ row: Row; choices: EstimateChoice[] } | null>(null);
     const [estimatePickerSubmitting, setEstimatePickerSubmitting] = useState(false);
 
-    // 請求対象（請求書発行までクライアントに保持）。key = projectId。
+    // 請求対象（DBに永続化・請求書発行まで保持）。key = projectId。
+    // 別メニューへ移動しても消えず、端末をまたいで途中から再開できる。
     const [staged, setStaged] = useState<Record<string, StagedLine>>({});
 
     // 請求書プレビュー（顧客ごと）
@@ -164,8 +180,35 @@ export default function BillingBoardPage() {
     // 月送り連打などで並走した fetch のうち、最後に発行したものだけを画面に反映する
     // （遅れて届いた古い期間の応答が新しい表示を上書きしない）。
     const fetchSeq = useRef(0);
+
+    // 請求対象（staged）をDBから読み込む。ボード取得と同じタイミングで呼び、他端末での追加/取消も反映する。
+    // 並走した場合に古い応答が新しい state を上書きしないよう seq でガードする。
+    const stagedSeq = useRef(0);
+    const fetchStaged = useCallback(async () => {
+        const seq = ++stagedSeq.current;
+        try {
+            const res = await fetch('/api/billing-staged', { cache: 'no-store' });
+            if (!res.ok) throw new Error('請求対象の取得に失敗しました');
+            const list = (await res.json()) as StagedLineResponse[];
+            if (seq !== stagedSeq.current) return; // 古い応答は捨てる
+            const map: Record<string, StagedLine> = {};
+            for (const l of Array.isArray(list) ? list : []) {
+                map[l.projectMasterId] = {
+                    customerId: l.customerId,
+                    items: l.items ?? [],
+                    total: l.total,
+                    label: l.label,
+                };
+            }
+            setStaged(map);
+        } catch (e) {
+            logger.error('Failed to fetch billing staged lines:', e);
+        }
+    }, []);
+
     const fetchBoard = useCallback(async () => {
         const seq = ++fetchSeq.current;
+        void fetchStaged(); // 請求対象も一緒に最新化（「更新」ボタン・期間変更でも再取得される）
         try {
             setIsLoading(true);
             const qs = mode === 'closing' ? `month=${month}` : `from=${from}&to=${to}`;
@@ -182,7 +225,7 @@ export default function BillingBoardPage() {
         } finally {
             if (seq === fetchSeq.current) setIsLoading(false);
         }
-    }, [mode, month, from, to]);
+    }, [mode, month, from, to, fetchStaged]);
 
     // 当月まとめ判定のため、既存請求書を最新化して読み込んでおく。
     useEffect(() => {
@@ -377,23 +420,55 @@ export default function BillingBoardPage() {
         return m;
     }, [staged]);
 
-    // ── 請求対象に追加 / 取消（請求予定は作らずクライアントに保持）──────────
-    const stageProject = useCallback((row: Row, items: InvoiceItem[], label: string) => {
+    // ── 請求対象に追加 / 取消（請求予定は作らず BillingStagedLine に保存）──────────
+    // DB 保存が成功してから state を更新する（失敗時は state を触らない＝画面とDBがずれない）。
+    const stageProject = useCallback(async (row: Row, items: InvoiceItem[], label: string) => {
         if (!row.customerId) {
             toast.error('顧客が未設定の案件です。先に案件へ顧客を設定してください');
             return;
         }
+        const customerId = row.customerId;
         const total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
-        setStaged((prev) => ({ ...prev, [row.id]: { customerId: row.customerId as string, items, total, label } }));
-        toast.success('請求対象に追加しました');
+        try {
+            const res = await fetch('/api/billing-staged', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                cache: 'no-store',
+                body: JSON.stringify({ projectMasterId: row.id, customerId, items, total, label }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.error || '請求対象への追加に失敗しました');
+            }
+            setStaged((prev) => ({ ...prev, [row.id]: { customerId, items, total, label } }));
+            toast.success('請求対象に追加しました');
+        } catch (e) {
+            logger.error('Failed to stage project:', e);
+            toast.error(e instanceof Error ? e.message : '請求対象への追加に失敗しました');
+        }
     }, []);
 
-    const unstageProject = useCallback((row: Row) => {
-        setStaged((prev) => {
-            const next = { ...prev };
-            delete next[row.id];
-            return next;
-        });
+    const unstageProject = useCallback(async (row: Row) => {
+        try {
+            const res = await fetch('/api/billing-staged', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                cache: 'no-store',
+                body: JSON.stringify({ projectMasterIds: [row.id] }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.error || '請求対象の取消に失敗しました');
+            }
+            setStaged((prev) => {
+                const next = { ...prev };
+                delete next[row.id];
+                return next;
+            });
+        } catch (e) {
+            logger.error('Failed to unstage project:', e);
+            toast.error(e instanceof Error ? e.message : '請求対象の取消に失敗しました');
+        }
     }, []);
 
     const itemsFromEstimates = useCallback(
@@ -411,9 +486,75 @@ export default function BillingBoardPage() {
         [ensureEstimatesLoaded],
     );
 
+    // 金額指定ダイアログを開いている案件の利益サマリーを取得する。
+    // 取得失敗（税理士など権限が無い場合を含む）は非表示にするだけでトーストは出さない。
+    const requestRowId = requestDialog?.row.id ?? null;
+    useEffect(() => {
+        if (!requestRowId) {
+            setProfit(null);
+            setProfitLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setProfitLoading(true);
+        (async () => {
+            try {
+                const res = await fetch(`/api/project-masters/${requestRowId}/profit`, { cache: 'no-store' });
+                if (!res.ok) throw new Error('利益の取得に失敗しました');
+                const d = (await res.json()) as {
+                    revenue: number;
+                    costBreakdown?: { totalCost?: number };
+                    grossProfit: number;
+                    profitMargin: number;
+                };
+                if (cancelled) return;
+                setProfit({
+                    revenue: Number(d.revenue) || 0,
+                    totalCost: Number(d.costBreakdown?.totalCost) || 0,
+                    grossProfit: Number(d.grossProfit) || 0,
+                    profitMargin: Number(d.profitMargin) || 0,
+                });
+            } catch (e) {
+                if (cancelled) return;
+                logger.error('利益サマリーの取得に失敗:', e);
+                setProfit(null);
+            } finally {
+                if (!cancelled) setProfitLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [requestRowId, profitReloadKey]);
+
+    // ── 金額指定ダイアログからの見積編集 ────────────────────────
+    const handleEditEstimate = useCallback((estimate: Estimate) => {
+        setEditingEstimate(estimate);
+    }, []);
+
+    // 見積の保存（見積書メニューと同じ更新経路＝financeストアの updateEstimate）。
+    // 保存後はストアが更新される＝ダイアログの見積・PDFプレビューが追従し、
+    // 併せてボード金額（見積金額はライブ計算）と利益サマリーも取り直す。
+    const handleEstimateSubmit = useCallback(
+        async (data: EstimateInput) => {
+            if (!editingEstimate) return;
+            try {
+                await updateEstimate(editingEstimate.id, data);
+                toast.success('見積書を保存しました');
+                setEditingEstimate(null);
+                setProfitReloadKey((k) => k + 1);
+                await fetchBoard();
+            } catch (e) {
+                logger.error('Failed to update estimate from billing board:', e);
+                toast.error(e instanceof Error ? e.message : '見積書の保存に失敗しました');
+            }
+        },
+        [editingEstimate, updateEstimate, fetchBoard],
+    );
+
     // 見積から請求対象に追加（1件=自動 / 承認1件=自動 / 複数=ピッカー / 見積なし=契約1行）
     const stageFromEstimates = useCallback(
-        (row: Row) => {
+        async (row: Row) => {
             const ests = getEstimatesByProject(row.id) ?? [];
             if (ests.length === 0) {
                 const line: InvoiceItem = {
@@ -426,16 +567,16 @@ export default function BillingBoardPage() {
                     taxType: 'standard',
                     projectMasterId: row.id,
                 };
-                stageProject(row, [line], '契約金額');
+                await stageProject(row, [line], '契約金額');
                 return;
             }
             const approved = ests.filter((e) => e.status === 'approved');
             if (ests.length === 1) {
-                stageProject(row, itemsFromEstimates(row, [ests[0]]), '見積どおり');
+                await stageProject(row, itemsFromEstimates(row, [ests[0]]), '見積どおり');
                 return;
             }
             if (approved.length === 1) {
-                stageProject(row, itemsFromEstimates(row, [approved[0]]), '見積どおり');
+                await stageProject(row, itemsFromEstimates(row, [approved[0]]), '見積どおり');
                 return;
             }
             // 複数見積 → 選択ダイアログ
@@ -463,13 +604,13 @@ export default function BillingBoardPage() {
             try {
                 if (result.kind === 'estimate') {
                     setRequestDialog(null);
-                    stageFromEstimates(row);
+                    await stageFromEstimates(row);
                 } else if (result.kind === 'items') {
                     // 請求項目で明細をつくる：見積と違う名称の明細をそのまま請求対象へ（案件タグ付与）
                     const items = result.items.map((it) => ({ ...it, projectMasterId: row.id }));
                     const label =
                         items.length === 1 ? items[0].description?.trim() || '明細指定' : `${items.length}明細`;
-                    stageProject(row, items, label);
+                    await stageProject(row, items, label);
                     setRequestDialog(null);
                 } else {
                     const line: InvoiceItem = {
@@ -482,7 +623,7 @@ export default function BillingBoardPage() {
                         taxType: 'standard',
                         projectMasterId: row.id,
                     };
-                    stageProject(row, [line], result.note?.trim() || '金額指定');
+                    await stageProject(row, [line], result.note?.trim() || '金額指定');
                     setRequestDialog(null);
                 }
             } finally {
@@ -502,7 +643,7 @@ export default function BillingBoardPage() {
             }
             setPickerSubmitting(true);
             try {
-                stageProject(picker.row, itemsFromEstimates(picker.row, chosen), '見積どおり');
+                await stageProject(picker.row, itemsFromEstimates(picker.row, chosen), '見積どおり');
                 setPicker(null);
             } finally {
                 setPickerSubmitting(false);
@@ -542,13 +683,14 @@ export default function BillingBoardPage() {
                 toast.error('見積を選択してください');
                 return;
             }
-            const sum = Math.round(chosen.reduce((s, e) => s + (Number(e.subtotal) || 0), 0));
             setEstimatePickerSubmitting(true);
             try {
+                // 金額（スナップショット）ではなく「どの見積を使うか」だけを保存する。
+                // 金額はボード側で常に見積書の現在値から計算するため、見積書を修正すればボードも追従する。
                 const res = await fetch(`/api/project-masters/${estimatePicker.row.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contractAmount: sum }),
+                    body: JSON.stringify({ billingEstimateIds: selectedIds }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
@@ -754,8 +896,22 @@ export default function BillingBoardPage() {
                 if (financeState.invoicesInitialized) {
                     void financeState.fetchInvoices();
                 }
-                // 今回ステージした案件のみ請求対象から外す
+                // 今回ステージした案件のみ請求対象から外す（DB＋画面の両方）。
+                // DB 側の削除に失敗しても請求書の作成/更新自体は成功しているので、ログに留めてトーストは出さない。
                 const issued = issuingProjectIds;
+                if (issued.length > 0) {
+                    try {
+                        const delRes = await fetch('/api/billing-staged', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            cache: 'no-store',
+                            body: JSON.stringify({ projectMasterIds: issued }),
+                        });
+                        if (!delRes.ok) throw new Error('請求対象の削除に失敗しました');
+                    } catch (e) {
+                        logger.error('Failed to clear staged lines after issuing invoice:', e);
+                    }
+                }
                 setStaged((prev) => {
                     const next = { ...prev };
                     for (const pid of issued) delete next[pid];
@@ -1107,12 +1263,30 @@ export default function BillingBoardPage() {
                             estimates={ests}
                             billingTitles={billingTitles}
                             renderEstimatePdf={renderEstimatePdf}
+                            onEditEstimate={canEdit ? handleEditEstimate : undefined}
+                            profit={profit}
+                            profitLoading={profitLoading}
                             submitting={requestSubmitting}
                             onClose={() => setRequestDialog(null)}
                             onConfirm={handleRequestConfirm}
                         />
                     );
                 })()}
+
+            {/* 見積編集モーダル（見積書メニューと同じフォーム）。
+                EstimateModal は z-[70]・請求ダイアログは z-[80] なので、
+                position:relative + z-[90] のラッパーで新しい重ね合わせコンテキストを作り、
+                請求ダイアログを開いたまま確実にその上へ重ねる。 */}
+            {editingEstimate && (
+                <div className="relative z-[90]">
+                    <EstimateModal
+                        isOpen
+                        onClose={() => setEditingEstimate(null)}
+                        onSubmit={handleEstimateSubmit}
+                        initialData={editingEstimate}
+                    />
+                </div>
+            )}
         </div>
     );
 }

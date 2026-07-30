@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { FileText, Plus, Minus, List, FileDown, Trash2 } from 'lucide-react';
+import { FileText, Plus, Minus, List, FileDown, Trash2, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { newBillingItemId, flattenEstimateItems } from '@/lib/billing/estimateToBillingItems';
@@ -23,6 +23,14 @@ const LivePdfPreview = dynamic(
 const yen = (n: number | null) => (n == null ? '—' : `¥${Math.round(n).toLocaleString()}`);
 const yenSigned = (n: number) =>
     n < 0 ? `-¥${Math.abs(n).toLocaleString()}` : `¥${Math.round(n).toLocaleString()}`;
+
+/** 案件の利益サマリー（GET /api/project-masters/[id]/profit の抜粋。すべて税抜）。 */
+export interface RequestBillingProfit {
+    revenue: number; // 売上（請求 → 見積 → 足場工事金額 のフォールバック＋手動上書き）
+    totalCost: number; // 原価合計
+    grossProfit: number; // 粗利（売上 − 原価）
+    profitMargin: number; // 利益率（%）
+}
 
 /** 「請求する」ダイアログの確定結果。 */
 export type RequestBillingResult =
@@ -45,6 +53,12 @@ interface RequestBillingDialogProps {
     billingTitles?: BillingTitle[];
     /** 見積 1 件を PDF Blob にする（親が案件・自社情報を解決）。 */
     renderEstimatePdf?: (estimate: Estimate) => Promise<Blob | null>;
+    /** 見積書を編集する（親が見積編集モーダルを開く）。未指定なら編集ボタンを出さない。 */
+    onEditEstimate?: (estimate: Estimate) => void;
+    /** 案件の利益サマリー（税抜）。未取得は null、取得失敗も null（何も表示しない）。 */
+    profit?: RequestBillingProfit | null;
+    /** 利益サマリーの読込中フラグ。 */
+    profitLoading?: boolean;
     submitting?: boolean;
     onClose: () => void;
     onConfirm: (result: RequestBillingResult) => void;
@@ -122,6 +136,9 @@ export default function RequestBillingDialog({
     estimates = [],
     billingTitles = [],
     renderEstimatePdf,
+    onEditEstimate,
+    profit,
+    profitLoading,
     submitting,
     onClose,
     onConfirm,
@@ -233,6 +250,9 @@ export default function RequestBillingDialog({
     if (!open) return null;
 
     const selectedEstimate = estimates.find((e) => e.id === selectedEstimateId) ?? null;
+    // 編集対象の見積：プレビューで選択中 → 承認済み → 先頭。1件しか無い案件でも編集ボタンを出せるようにする。
+    const editTarget =
+        selectedEstimate ?? estimates.find((e) => e.status === 'approved') ?? estimates[0] ?? null;
     const hasItemContent = customItems.some((it) => it.description.trim() !== '' || (it.amount || 0) !== 0);
     const resolvedAmount =
         choice === 'remaining'
@@ -297,15 +317,57 @@ export default function RequestBillingDialog({
                     </span>
                 </div>
 
-                {canPreview && (
-                    <button
-                        type="button"
-                        onClick={() => setShowPreview((v) => !v)}
-                        className="mt-3 hidden w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 lg:inline-flex"
-                    >
-                        <FileText className="h-4 w-4" />
-                        {showPreview ? '見積書を隠す' : '見積書を確認'}
-                    </button>
+                {/* 利益サマリー（税抜）。取得失敗時は何も出さない（エラーは出さない）。 */}
+                {profitLoading ? (
+                    <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">利益を読込中…</div>
+                ) : profit ? (
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                        <span>
+                            売上 <span className="font-semibold text-slate-800">{yen(profit.revenue)}</span>
+                        </span>
+                        <span>
+                            原価 <span className="font-semibold text-slate-800">{yen(profit.totalCost)}</span>
+                        </span>
+                        <span>
+                            粗利{' '}
+                            <span className={`font-semibold ${profit.grossProfit < 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                                {yenSigned(profit.grossProfit)}
+                            </span>
+                        </span>
+                        <span>
+                            利益率{' '}
+                            <span className={`font-semibold ${profit.profitMargin < 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                                {profit.profitMargin}%
+                            </span>
+                        </span>
+                        <span className="w-full text-[10px] text-slate-400">すべて税抜（案件詳細の利益タブと同じ計算）</span>
+                    </div>
+                ) : null}
+
+                {(canPreview || (onEditEstimate && editTarget)) && (
+                    <div className="mt-3 flex gap-2">
+                        {canPreview && (
+                            <button
+                                type="button"
+                                onClick={() => setShowPreview((v) => !v)}
+                                className="hidden flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 lg:inline-flex"
+                            >
+                                <FileText className="h-4 w-4" />
+                                {showPreview ? '見積書を隠す' : '見積書を確認'}
+                            </button>
+                        )}
+                        {onEditEstimate && editTarget && (
+                            <button
+                                type="button"
+                                onClick={() => onEditEstimate(editTarget)}
+                                title={`${editTarget.estimateNumber} を編集`}
+                                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            >
+                                <Pencil className="h-4 w-4" />
+                                見積書を編集
+                            </button>
+                        )}
+                    </div>
                 )}
 
                 <div className="mt-4 space-y-3">
@@ -594,10 +656,11 @@ export default function RequestBillingDialog({
 
                 {showPreview && (
                     <div className="hidden min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white shadow-xl lg:flex">
-                        {estimates.length > 1 && (
+                        {(estimates.length > 1 || (onEditEstimate && selectedEstimate)) && (
                             <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 p-2">
                                 <span className="px-1 text-xs text-slate-500">見積:</span>
-                                {estimates.map((e) => (
+                                {estimates.length > 1 &&
+                                    estimates.map((e) => (
                                     <button
                                         key={e.id}
                                         type="button"
@@ -613,12 +676,22 @@ export default function RequestBillingDialog({
                                         {e.status === 'approved' ? ' ✓' : ''}
                                     </button>
                                 ))}
+                                {onEditEstimate && selectedEstimate && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onEditEstimate(selectedEstimate)}
+                                        className="ml-auto inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" /> この見積を編集
+                                    </button>
+                                )}
                             </div>
                         )}
                         <div className="min-h-0 flex-1">
                             {selectedEstimate && renderEstimatePdf ? (
                                 <LivePdfPreview
-                                    seed={selectedEstimate.id}
+                                    // 見積を編集して保存したらプレビューも作り直す（updatedAt を seed に含める）
+                                    seed={`${selectedEstimate.id}:${new Date(selectedEstimate.updatedAt).getTime()}`}
                                     renderPdf={() => renderEstimatePdf(selectedEstimate)}
                                     debounceMs={250}
                                     initialDelayMs={0}

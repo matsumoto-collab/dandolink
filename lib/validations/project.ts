@@ -41,6 +41,9 @@ export const createProjectMasterSchema = z.object({
         )
         .optional(),
     scaffoldingSpec: z.unknown().optional().nullable(),
+    // 請求待ちボードの見積金額に使う見積書のID配列（金額スナップショットは持たない）。
+    // 案件フォームには出さない項目なので ProjectMasterFormData には含めない。
+    billingEstimateIds: z.array(z.string().min(1)).optional().nullable(),
     description: z.string().optional().nullable(),
     remarks: z.string().max(2000).optional().nullable(),
     createdBy: z.array(z.string()).optional(),

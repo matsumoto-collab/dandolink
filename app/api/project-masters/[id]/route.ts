@@ -231,6 +231,15 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.description !== undefined) updateData.description = body.description;
         if (body.remarks !== undefined) updateData.remarks = body.remarks || null;
         if (body.createdBy !== undefined) updateData.createdBy = stringifyJsonField(body.createdBy);
+        // 請求待ちボードの見積金額に使う見積書のID配列。金額ではなく「どの見積を使うか」だけを保存し、
+        // 金額は常に見積書の現在値から計算する（見積修正への追従）。null / 空配列 = 未選択に戻す。
+        if (body.billingEstimateIds !== undefined) {
+            const v = body.billingEstimateIds;
+            if (v !== null && (!Array.isArray(v) || !v.every((x: unknown) => typeof x === 'string' && x !== ''))) {
+                return validationErrorResponse('billingEstimateIds は見積IDの文字列配列または null を指定してください');
+            }
+            updateData.billingEstimateIds = v === null || (Array.isArray(v) && v.length === 0) ? null : v;
+        }
         if (body.billingStatusOverride !== undefined) {
             const v = body.billingStatusOverride;
             if (v !== null && !['unbilled', 'partial', 'full'].includes(v)) {

@@ -113,6 +113,7 @@ export async function GET(req: NextRequest) {
                 customerName: true,
                 status: true,
                 contractAmount: true,
+                billingEstimateIds: true,
                 createdBy: true,
             },
         });
@@ -139,7 +140,7 @@ export async function GET(req: NextRequest) {
             }),
             prisma.estimate.findMany({
                 where: { projectMasterId: { in: projectIds } },
-                select: { projectMasterId: true, status: true, subtotal: true },
+                select: { id: true, projectMasterId: true, status: true, subtotal: true },
             }),
             prisma.billingDraft.findMany({
                 where: { projectId: { in: projectIds }, status: 'pending', deletedAt: null },
@@ -177,7 +178,9 @@ export async function GET(req: NextRequest) {
         const estimateCountByProject = new Map<string, number>();
         const approvedProjects = new Set<string>();
         const firstEstimateSubtotal = new Map<string, number>(); // 見積1件のときの基準額（税抜）
+        const subtotalByEstimateId = new Map<string, number>(); // 見積ID → 税抜小計（現在値）
         for (const e of estimates) {
+            subtotalByEstimateId.set(e.id, Number(e.subtotal) || 0);
             if (!e.projectMasterId) continue;
             estimateCountByProject.set(e.projectMasterId, (estimateCountByProject.get(e.projectMasterId) ?? 0) + 1);
             if (e.status === 'approved') approvedProjects.add(e.projectMasterId);
@@ -235,18 +238,42 @@ export async function GET(req: NextRequest) {
 
             const contract = p.contractAmount ?? null;
             const eCount = estimateCountByProject.get(p.id) ?? 0;
-            // 見積金額の基準：手入力(contractAmount)があればそれ／無く見積1件なら自動でその額／複数は要選択(null)
+
+            // 見積金額の解決（優先順）。金額のスナップショットは持たず、常に見積書の現在値（subtotal・税抜）から
+            // 計算する＝見積書を修正したらボードの見積金額も即追従する。
+            //   a. billingEstimateIds（選んだ見積のID配列）が非空 → その見積の subtotal 合算（存在しないIDは無視）。
+            //      全滅（1件も見つからない）なら未選択扱いで b 以降にフォールバックする。
+            //   b. 見積が1件 → その見積の subtotal（ライブ値）。※contractAmount より優先する（不具合修正の本体）。
+            //   c. 見積が複数 → contractAmount があればそれ（旧スナップショット互換・再選択すれば a に移行）、
+            //      無ければ null ＋ needsEstimatePick=true（画面で「見積を選択」を促す）。
+            //   d. 見積が0件 → contractAmount（手入力の足場工事金額。無ければ null）。
+            const pickedIds = Array.isArray(p.billingEstimateIds)
+                ? (p.billingEstimateIds as unknown[]).filter((v): v is string => typeof v === 'string')
+                : [];
+            let pickedSum: number | null = null;
+            if (pickedIds.length > 0) {
+                let sum = 0;
+                let found = 0;
+                for (const eid of pickedIds) {
+                    const s = subtotalByEstimateId.get(eid);
+                    if (s === undefined) continue; // 削除された見積は無視
+                    sum += s;
+                    found += 1;
+                }
+                if (found > 0) pickedSum = sum;
+            }
+
             let estimateAmount: number | null;
             let needsEstimatePick = false;
-            if (contract != null) {
-                estimateAmount = contract;
+            if (pickedSum != null) {
+                estimateAmount = pickedSum;
             } else if (eCount === 1) {
                 estimateAmount = firstEstimateSubtotal.get(p.id) ?? 0;
             } else if (eCount > 1) {
-                estimateAmount = null;
-                needsEstimatePick = true;
+                estimateAmount = contract;
+                needsEstimatePick = contract == null;
             } else {
-                estimateAmount = null;
+                estimateAmount = contract;
             }
             const billingStatus = getBillingStatus(estimateAmount, invoiced);
 
