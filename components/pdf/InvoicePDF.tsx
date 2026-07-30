@@ -339,9 +339,15 @@ function CoverPage({
                 const isFirst = pageIdx === 0;
                 const isLast = pageIdx === totalPages - 1;
                 const chunkSpan = chunk.reduce((s, row) => s + rowSpan(row), 0);
-                const fillRows = isLast
-                    ? Math.max(0, (isFirst ? FIRST_WITH_TOTALS : CONT_WITH_TOTALS) - chunkSpan)
-                    : 0;
+                // 空行埋めの行数：最終ページは集計欄あり容量、途中ページは集計欄なし容量との差。
+                // 途中ページも空行で埋めないと、外枠だけが用紙下端まで伸びて罫線の無い空白になる
+                // （2026-07-30 kei報告「項目17/44以下の余白がおかしい」）。行は flexGrow で均等に伸縮する。
+                const fillRows = Math.max(
+                    0,
+                    (isLast
+                        ? (isFirst ? FIRST_WITH_TOTALS : CONT_WITH_TOTALS)
+                        : (isFirst ? FIRST_NO_TOTALS : CONT_NO_TOTALS)) - chunkSpan,
+                );
                 return (
         <Page key={pageIdx} size="A4" orientation="portrait" style={styles.page}>
 
@@ -485,7 +491,7 @@ function CoverPage({
 
                 {chunk.map((row, i) => renderRow(row, i))}
 
-                {/* 余白を用紙下端まで空行で埋める（最終/単一ページのみ。flex 伸縮・グリッド線維持） */}
+                {/* 余白を用紙下端まで空行で埋める（全ページ。flex 伸縮・グリッド線維持） */}
                 {fillRows > 0 && (
                     <View style={{ flexGrow: 1, flexDirection: 'column' }}>
                         {Array.from({ length: fillRows }).map((_, i) => (
