@@ -1145,11 +1145,11 @@ export default function BillingBoardPage() {
                         const canInvoice = canEdit && tab !== 'billed' && !!g.customerId && stagedCount > 0;
                         return (
                             <div key={g.key} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                                {/* 顧客ヘッダー帯（この顧客の囲みの見出し） */}
-                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
+                                {/* 顧客ヘッダー帯（この顧客の囲みの見出し）。作業履歴のグレーと見分けがつくよう濃いめの背景にする */}
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-slate-200 px-4 py-2.5">
                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                         <span className="text-base font-bold text-slate-900">{g.customerName}</span>
-                                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                        <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
                                             {closingDayLabel(g.closingDay)}
                                         </span>
                                         {mode === 'closing' && (
