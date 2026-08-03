@@ -1051,24 +1051,24 @@ function DetailMonthTable({
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
                         <SummaryRow label="出勤" value={`${detailAggregate.days} 日`} />
                         <SummaryRow label="朝積" value={minutesToHm(detailAggregate.morningLoading) || '-'} />
-                        <SummaryRow label="夕積" value={minutesToHm(detailAggregate.eveningLoading) || '-'} />
-                        <SummaryRow label="欠勤" value={`${detailAggregate.absent} 日`} />
-                        <SummaryRow label="早出/残業" value={minutesToHm(detailAggregate.earlyStart + detailAggregate.overtime) || '-'} />
                         <SummaryRow
-                            label="早残合計"
+                            label="時間外合計"
                             value={(() => {
-                                const net = detailAggregate.overtime + detailAggregate.earlyStart - detailAggregate.earlyEnd;
-                                if (net === 0) return '0:00';
-                                return `${net > 0 ? '+' : '−'}${minutesToHmZero(Math.abs(net))}`;
+                                // 時間外合計 = 朝積 + 早出 + 残業 + 夕積
+                                const total = detailAggregate.morningLoading + detailAggregate.earlyStart + detailAggregate.overtime + detailAggregate.eveningLoading;
+                                return total > 0 ? minutesToHmZero(total) : '0:00';
                             })()}
                             highlight
                         />
-                        <SummaryRow label="有給" value={`${detailAggregate.paidLeave} 日`} />
+                        <SummaryRow label="欠勤" value={`${detailAggregate.absent} 日`} />
+                        <SummaryRow label="早出/残業" value={minutesToHm(detailAggregate.earlyStart + detailAggregate.overtime) || '-'} />
                         <SummaryRow label="早終" value={detailAggregate.earlyEnd > 0 ? `${minutesToHm(detailAggregate.earlyEnd)} (${detailAggregate.earlyEndCount}日)` : '-'} />
+                        <SummaryRow label="有給" value={`${detailAggregate.paidLeave} 日`} />
+                        <SummaryRow label="夕積" value={minutesToHm(detailAggregate.eveningLoading) || '-'} />
                         <SummaryRow
                             label="合計"
                             value={(() => {
-                                // 合計 = 朝積 + 早出 + 残業 + 夕積 − 早終
+                                // 合計 = 時間外合計 − 早終
                                 const total = detailAggregate.morningLoading + detailAggregate.earlyStart + detailAggregate.overtime + detailAggregate.eveningLoading - detailAggregate.earlyEnd;
                                 if (total === 0) return '-';
                                 return total > 0 ? minutesToHmZero(total) : `−${minutesToHmZero(Math.abs(total))}`;
@@ -1077,8 +1077,8 @@ function DetailMonthTable({
                         />
                     </div>
                     <div className="mt-3 space-y-1 text-xs text-slate-500">
-                        <div>※「合計」= 朝積 + 早出 + 残業 + 夕積 − 早終</div>
-                        <div>※「早残合計」= 早出 + 残業 − 早終時間。プラスは超過、マイナスは早終わり超過分を表します。</div>
+                        <div>※「時間外合計」= 朝積 + 早出 + 残業 + 夕積</div>
+                        <div>※「合計」= 時間外合計 − 早終</div>
                     </div>
                 </div>
             )}

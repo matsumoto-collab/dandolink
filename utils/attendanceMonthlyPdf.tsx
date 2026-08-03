@@ -185,10 +185,10 @@ export function buildAttendanceMonthlyPdfData(
         morningLoading: minutesToHmZero(morningLoading),
         eveningLoading: minutesToHmZero(eveningLoading),
         earlyStartOvertime: minutesToHmZero(earlyStart + overtime),
-        // 早残合計 = 早出 + 残業 − 早終
-        earlyOvertimeNet: minutesToSignedHm(overtime + earlyStart - earlyEnd),
+        // 時間外合計 = 朝積 + 早出 + 残業 + 夕積
+        overtimeTotal: minutesToHmZero(morningLoading + earlyStart + overtime + eveningLoading),
         earlyEnd: minutesToHmZero(earlyEnd),
-        // 合計 = 朝積 + 早出 + 残業 + 夕積 − 早終
+        // 合計 = 時間外合計 − 早終
         grandTotal: minutesToSignedHm(morningLoading + earlyStart + overtime + eveningLoading - earlyEnd),
     };
 

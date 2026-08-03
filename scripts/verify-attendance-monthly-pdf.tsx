@@ -105,7 +105,7 @@ async function main() {
         const problems: string[] = [];
         if (pages.length !== 1) problems.push(`ページ数=${pages.length}（1枚に収まっていない）`);
         const text = pages.map((p) => p.text).join('');
-        for (const needed of ['出勤簿', '氏名', '所定労働時間', '区分', '現場開始', '差時間', '合計時間', '早残合計']) {
+        for (const needed of ['出勤簿', '氏名', '所定労働時間', '区分', '現場開始', '差時間', '合計時間', '時間外合計']) {
             if (!text.includes(needed)) problems.push(`「${needed}」が見つからない`);
         }
         const seen = new Set(pages.flatMap((p) => p.dayNums));

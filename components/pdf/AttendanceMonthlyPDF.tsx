@@ -49,7 +49,8 @@ export interface AttendanceMonthlyPdfSummary {
     morningLoading: string;
     eveningLoading: string;
     earlyStartOvertime: string;
-    earlyOvertimeNet: string;
+    /** 時間外合計 = 朝積 + 早出 + 残業 + 夕積 */
+    overtimeTotal: string;
     earlyEnd: string;
     grandTotal: string;
 }
@@ -439,16 +440,16 @@ export function AttendanceMonthlyPDF({
                     <View style={styles.summaryRow}>
                         <SummaryPair label="出勤" value={`${summary.presentDays}`} />
                         <SummaryPair label="朝積" value={summary.morningLoading} />
-                        <SummaryPair label="夕積" value={summary.eveningLoading} last />
+                        <SummaryPair label="時間外合計" value={summary.overtimeTotal} last />
                     </View>
                     <View style={styles.summaryRow}>
                         <SummaryPair label="欠勤" value={`${summary.absentDays}`} />
                         <SummaryPair label="早出/残業" value={summary.earlyStartOvertime} />
-                        <SummaryPair label="早残合計" value={summary.earlyOvertimeNet} last />
+                        <SummaryPair label="早終" value={summary.earlyEnd} last />
                     </View>
                     <View style={styles.summaryRowLast}>
                         <SummaryPair label="有給" value={`${summary.paidLeaveDays}`} />
-                        <SummaryPair label="早終" value={summary.earlyEnd} />
+                        <SummaryPair label="夕積" value={summary.eveningLoading} />
                         <SummaryPair label="合計" value={summary.grandTotal} last />
                     </View>
                 </View>
