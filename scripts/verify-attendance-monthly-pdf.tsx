@@ -13,7 +13,7 @@
 import React from 'react';
 import { PrismaClient } from '@prisma/client';
 import { renderToBuffer } from '@react-pdf/renderer';
-import { AttendanceMonthlyPDF } from '../components/pdf/AttendanceMonthlyPDF';
+import { AttendanceMonthlyPDF, AttendanceMonthlyBulkPDF } from '../components/pdf/AttendanceMonthlyPDF';
 import { buildAttendanceMonthlyPdfData, type AttendancePdfRecord } from '../utils/attendanceMonthlyPdf';
 // styles.ts（CDNフォント）の後に評価させるため import は最後に置く
 import '../lib/pdf/registerServerFonts';
@@ -124,6 +124,67 @@ async function main() {
         }
     }
     console.log(`\n検証 ${targets.length} 件 / NG ${ng} 件`);
+
+    // ===== まとめPDF（複数人を1ファイルに結合）の検証 =====
+    // 同一年月で最も人数の多い月から3人ぶんを結合し、ページ数=人数・各ページに氏名が出ることを確認
+    const byYm = new Map<string, Set<string>>();
+    for (const r of records) {
+        const key = `${r.date.getUTCFullYear()}-${r.date.getUTCMonth() + 1}`;
+        const set = byYm.get(key) ?? new Set<string>();
+        set.add(r.userId);
+        byYm.set(key, set);
+    }
+    const bulkYm = Array.from(byYm.entries()).sort((a, b) => b[1].size - a[1].size)[0];
+    if (!bulkYm) {
+        console.log('まとめPDF検証: 対象月なし');
+        return;
+    }
+    const [bulkYear, bulkMonth] = bulkYm[0].split('-').map(Number);
+    const bulkUserIds = Array.from(bulkYm[1]).slice(0, 3);
+    const bulkRecords: AttendancePdfRecord[] = records
+        .filter(
+            (r) => r.date.getUTCFullYear() === bulkYear && r.date.getUTCMonth() + 1 === bulkMonth
+        )
+        .map((r) => ({
+            userId: r.userId,
+            date: r.date.toISOString(),
+            status: r.status,
+            earlyStartMinutes: r.earlyStartMinutes,
+            morningLoadingMinutes: r.morningLoadingMinutes,
+            overtimeMinutes: r.overtimeMinutes,
+            eveningLoadingMinutes: r.eveningLoadingMinutes,
+            earlyEndTime: r.earlyEndTime,
+            note: r.note,
+        }));
+
+    const people = bulkUserIds.map((id) => ({
+        userName: nameMap.get(id) ?? '(不明)',
+        ...buildAttendanceMonthlyPdfData(bulkYear, bulkMonth, id, bulkRecords),
+    }));
+    const bulkBuf = await renderToBuffer(
+        <AttendanceMonthlyBulkPDF year={bulkYear} month={bulkMonth} people={people} />
+    );
+    const bulkPages = await analyze(bulkBuf);
+
+    const bulkProblems: string[] = [];
+    if (bulkPages.length !== people.length) {
+        bulkProblems.push(`ページ数=${bulkPages.length}（期待 ${people.length}）`);
+    }
+    bulkPages.forEach((p, i) => {
+        const expectName = people[i]?.userName;
+        if (expectName && !p.text.includes(expectName)) {
+            bulkProblems.push(`${i + 1}ページ目に「${expectName}」がない`);
+        }
+        if (!p.text.includes('時間外合計')) bulkProblems.push(`${i + 1}ページ目に「時間外合計」がない`);
+        if (p.maxX > 595 - 28 + 1) bulkProblems.push(`${i + 1}ページ目 右端はみ出し maxX=${p.maxX}`);
+    });
+
+    const bulkLabel = `まとめPDF ${bulkYear}/${bulkMonth} ${people.map((p) => p.userName).join('・')}`;
+    if (bulkProblems.length === 0) {
+        console.log(`OK  ${bulkLabel} — ${bulkPages.length}ページ`);
+    } else {
+        console.log(`NG  ${bulkLabel} — ${bulkProblems.join(' / ')}`);
+    }
 }
 
 main()

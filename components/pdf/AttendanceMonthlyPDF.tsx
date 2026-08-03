@@ -290,7 +290,8 @@ const HEADER_CELLS: { label: string; width: number }[] = [
     { label: '差時間', width: COL.diff },
 ];
 
-export function AttendanceMonthlyPDF({
+/** 1人ぶんのページ（個人PDF・まとめPDFで共用） */
+export function AttendanceMonthlyPage({
     year,
     month,
     userName,
@@ -300,160 +301,187 @@ export function AttendanceMonthlyPDF({
     standardWorkLabel = '所定労働時間1日7ｈ',
 }: AttendanceMonthlyPDFProps) {
     return (
+        <Page size="A4" orientation="portrait" style={styles.page}>
+            {/* ヘッダー: 左=タイトル / 右=氏名＋所定労働時間の枠 */}
+            <View style={styles.header}>
+                <Text style={styles.docTitle}>
+                    {year} 年　{month} 月　出勤簿
+                </Text>
+                <View style={styles.nameBox}>
+                    <View style={styles.nameLabelCell}>
+                        <Text style={styles.nameLabelText}>氏名</Text>
+                    </View>
+                    <View style={styles.nameValueCell}>
+                        <Text style={styles.nameValueText}>{userName}</Text>
+                    </View>
+                    <View style={styles.standardCell}>
+                        <Text style={styles.standardText}>{standardWorkLabel}</Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* 本体テーブル */}
+            <View style={styles.table}>
+                <View style={styles.headerRow}>
+                    {/* 「日付」は日番号＋曜日の2列ぶん */}
+                    <View style={[styles.cell, { width: COL.day + COL.weekday }]}>
+                        <Text style={styles.headerText}>日付</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.status }]}>
+                        <Text style={styles.headerText}>区分</Text>
+                    </View>
+                    {HEADER_CELLS.map((h) => (
+                        <View key={h.label} style={[styles.cell, { width: h.width }]}>
+                            <Text style={styles.headerText}>{h.label}</Text>
+                        </View>
+                    ))}
+                    <View style={[styles.cellLast, { width: COL.note }]}>
+                        <Text style={styles.headerText}>備考</Text>
+                    </View>
+                </View>
+
+                {days.map((d) => {
+                    const bg = dateCellBg(d);
+                    const dateColor = dateCellColor(d.dow);
+                    const st = statusCellStyle(d.kind);
+                    return (
+                        <View key={d.day} style={styles.dataRow} wrap={false}>
+                            <View style={[styles.cell, { width: COL.day, backgroundColor: bg }]}>
+                                <Text style={[styles.cellText, { color: dateColor }]}>{d.day}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.weekday, backgroundColor: bg }]}>
+                                <Text style={[styles.cellText, { color: dateColor }]}>{d.weekday}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.status, backgroundColor: st.bg }]}>
+                                <Text
+                                    style={[
+                                        styles.cellText,
+                                        { color: st.color },
+                                        st.bold ? { fontWeight: 'bold' } : {},
+                                    ]}
+                                >
+                                    {d.statusLabel}
+                                </Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.earlyStart }]}>
+                                <Text style={styles.cellText}>{d.earlyStart}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.morningLoading }]}>
+                                <Text style={styles.cellText}>{d.morningLoading}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.start }]}>
+                                <Text style={styles.cellText}>{d.startTime}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.end }]}>
+                                <Text style={styles.cellText}>{d.endTime}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.overtime }]}>
+                                <Text style={styles.cellText}>{d.overtime}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.eveningLoading }]}>
+                                <Text style={styles.cellText}>{d.eveningLoading}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.break }]}>
+                                <Text style={styles.cellText}>{d.breakTime}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.actual }]}>
+                                <Text style={styles.cellText}>{d.actual}</Text>
+                            </View>
+                            <View style={[styles.cell, { width: COL.diff }]}>
+                                <Text style={styles.cellText}>{d.diff}</Text>
+                            </View>
+                            <View style={[styles.cellLast, { width: COL.note }]}>
+                                <Text style={styles.noteText}>{formatNote(d.note)}</Text>
+                            </View>
+                        </View>
+                    );
+                })}
+
+                {/* 合計時間行（日付〜区分を結合したラベル） */}
+                <View style={styles.totalRow} wrap={false}>
+                    <View style={[styles.cell, { width: COL.day + COL.weekday + COL.status }]}>
+                        <Text style={styles.totalLabel}>合計時間</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.earlyStart }]}>
+                        <Text style={styles.cellText}>{totals.earlyStart}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.morningLoading }]}>
+                        <Text style={styles.cellText}>{totals.morningLoading}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.start }]}>
+                        <Text style={styles.cellText}> </Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.end }]}>
+                        <Text style={styles.cellText}> </Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.overtime }]}>
+                        <Text style={styles.cellText}>{totals.overtime}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.eveningLoading }]}>
+                        <Text style={styles.cellText}>{totals.eveningLoading}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.break }]}>
+                        <Text style={styles.cellText}> </Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.actual }]}>
+                        <Text style={styles.cellText}> </Text>
+                    </View>
+                    <View style={[styles.cell, { width: COL.diff }]}>
+                        <Text style={styles.cellText}>{totals.diff}</Text>
+                    </View>
+                    <View style={[styles.cellLast, { width: COL.note }]}>
+                        <Text style={styles.cellText}> </Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* 下部サマリー（3行×3ボックス） */}
+            <View style={styles.summaryWrap}>
+                <View style={styles.summaryRow}>
+                    <SummaryPair label="出勤" value={`${summary.presentDays}`} />
+                    <SummaryPair label="朝積" value={summary.morningLoading} />
+                    <SummaryPair label="時間外合計" value={summary.overtimeTotal} last />
+                </View>
+                <View style={styles.summaryRow}>
+                    <SummaryPair label="欠勤" value={`${summary.absentDays}`} />
+                    <SummaryPair label="早出/残業" value={summary.earlyStartOvertime} />
+                    <SummaryPair label="早終" value={summary.earlyEnd} last />
+                </View>
+                <View style={styles.summaryRowLast}>
+                    <SummaryPair label="有給" value={`${summary.paidLeaveDays}`} />
+                    <SummaryPair label="夕積" value={summary.eveningLoading} />
+                    <SummaryPair label="合計" value={summary.grandTotal} last />
+                </View>
+            </View>
+        </Page>
+    );
+}
+
+export function AttendanceMonthlyPDF(props: AttendanceMonthlyPDFProps) {
+    return (
         <Document>
-            <Page size="A4" orientation="portrait" style={styles.page}>
-                {/* ヘッダー: 左=タイトル / 右=氏名＋所定労働時間の枠 */}
-                <View style={styles.header}>
-                    <Text style={styles.docTitle}>
-                        {year} 年　{month} 月　出勤簿
-                    </Text>
-                    <View style={styles.nameBox}>
-                        <View style={styles.nameLabelCell}>
-                            <Text style={styles.nameLabelText}>氏名</Text>
-                        </View>
-                        <View style={styles.nameValueCell}>
-                            <Text style={styles.nameValueText}>{userName}</Text>
-                        </View>
-                        <View style={styles.standardCell}>
-                            <Text style={styles.standardText}>{standardWorkLabel}</Text>
-                        </View>
-                    </View>
-                </View>
+            <AttendanceMonthlyPage {...props} />
+        </Document>
+    );
+}
 
-                {/* 本体テーブル */}
-                <View style={styles.table}>
-                    <View style={styles.headerRow}>
-                        {/* 「日付」は日番号＋曜日の2列ぶん */}
-                        <View style={[styles.cell, { width: COL.day + COL.weekday }]}>
-                            <Text style={styles.headerText}>日付</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.status }]}>
-                            <Text style={styles.headerText}>区分</Text>
-                        </View>
-                        {HEADER_CELLS.map((h) => (
-                            <View key={h.label} style={[styles.cell, { width: h.width }]}>
-                                <Text style={styles.headerText}>{h.label}</Text>
-                            </View>
-                        ))}
-                        <View style={[styles.cellLast, { width: COL.note }]}>
-                            <Text style={styles.headerText}>備考</Text>
-                        </View>
-                    </View>
+/** まとめPDF用の1人ぶんの入力（年月はDocument共通） */
+export type AttendanceMonthlyPerson = Omit<AttendanceMonthlyPDFProps, 'year' | 'month'>;
 
-                    {days.map((d) => {
-                        const bg = dateCellBg(d);
-                        const dateColor = dateCellColor(d.dow);
-                        const st = statusCellStyle(d.kind);
-                        return (
-                            <View key={d.day} style={styles.dataRow} wrap={false}>
-                                <View style={[styles.cell, { width: COL.day, backgroundColor: bg }]}>
-                                    <Text style={[styles.cellText, { color: dateColor }]}>{d.day}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.weekday, backgroundColor: bg }]}>
-                                    <Text style={[styles.cellText, { color: dateColor }]}>{d.weekday}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.status, backgroundColor: st.bg }]}>
-                                    <Text
-                                        style={[
-                                            styles.cellText,
-                                            { color: st.color },
-                                            st.bold ? { fontWeight: 'bold' } : {},
-                                        ]}
-                                    >
-                                        {d.statusLabel}
-                                    </Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.earlyStart }]}>
-                                    <Text style={styles.cellText}>{d.earlyStart}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.morningLoading }]}>
-                                    <Text style={styles.cellText}>{d.morningLoading}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.start }]}>
-                                    <Text style={styles.cellText}>{d.startTime}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.end }]}>
-                                    <Text style={styles.cellText}>{d.endTime}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.overtime }]}>
-                                    <Text style={styles.cellText}>{d.overtime}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.eveningLoading }]}>
-                                    <Text style={styles.cellText}>{d.eveningLoading}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.break }]}>
-                                    <Text style={styles.cellText}>{d.breakTime}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.actual }]}>
-                                    <Text style={styles.cellText}>{d.actual}</Text>
-                                </View>
-                                <View style={[styles.cell, { width: COL.diff }]}>
-                                    <Text style={styles.cellText}>{d.diff}</Text>
-                                </View>
-                                <View style={[styles.cellLast, { width: COL.note }]}>
-                                    <Text style={styles.noteText}>{formatNote(d.note)}</Text>
-                                </View>
-                            </View>
-                        );
-                    })}
+export interface AttendanceMonthlyBulkPDFProps {
+    year: number;
+    month: number;
+    /** 配列順にページを並べる（1人=1ページ） */
+    people: AttendanceMonthlyPerson[];
+}
 
-                    {/* 合計時間行（日付〜区分を結合したラベル） */}
-                    <View style={styles.totalRow} wrap={false}>
-                        <View style={[styles.cell, { width: COL.day + COL.weekday + COL.status }]}>
-                            <Text style={styles.totalLabel}>合計時間</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.earlyStart }]}>
-                            <Text style={styles.cellText}>{totals.earlyStart}</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.morningLoading }]}>
-                            <Text style={styles.cellText}>{totals.morningLoading}</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.start }]}>
-                            <Text style={styles.cellText}> </Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.end }]}>
-                            <Text style={styles.cellText}> </Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.overtime }]}>
-                            <Text style={styles.cellText}>{totals.overtime}</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.eveningLoading }]}>
-                            <Text style={styles.cellText}>{totals.eveningLoading}</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.break }]}>
-                            <Text style={styles.cellText}> </Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.actual }]}>
-                            <Text style={styles.cellText}> </Text>
-                        </View>
-                        <View style={[styles.cell, { width: COL.diff }]}>
-                            <Text style={styles.cellText}>{totals.diff}</Text>
-                        </View>
-                        <View style={[styles.cellLast, { width: COL.note }]}>
-                            <Text style={styles.cellText}> </Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* 下部サマリー（3行×3ボックス） */}
-                <View style={styles.summaryWrap}>
-                    <View style={styles.summaryRow}>
-                        <SummaryPair label="出勤" value={`${summary.presentDays}`} />
-                        <SummaryPair label="朝積" value={summary.morningLoading} />
-                        <SummaryPair label="時間外合計" value={summary.overtimeTotal} last />
-                    </View>
-                    <View style={styles.summaryRow}>
-                        <SummaryPair label="欠勤" value={`${summary.absentDays}`} />
-                        <SummaryPair label="早出/残業" value={summary.earlyStartOvertime} />
-                        <SummaryPair label="早終" value={summary.earlyEnd} last />
-                    </View>
-                    <View style={styles.summaryRowLast}>
-                        <SummaryPair label="有給" value={`${summary.paidLeaveDays}`} />
-                        <SummaryPair label="夕積" value={summary.eveningLoading} />
-                        <SummaryPair label="合計" value={summary.grandTotal} last />
-                    </View>
-                </View>
-            </Page>
+/** 複数人ぶんを1つのPDFに結合（各ページは個人PDFと同一レイアウト） */
+export function AttendanceMonthlyBulkPDF({ year, month, people }: AttendanceMonthlyBulkPDFProps) {
+    return (
+        <Document>
+            {people.map((p, i) => (
+                <AttendanceMonthlyPage key={`${p.userName}-${i}`} year={year} month={month} {...p} />
+            ))}
         </Document>
     );
 }

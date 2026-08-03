@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown, Trash2, Plus, Loader2, FileDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown, Trash2, Plus, Loader2, FileDown, X } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -109,6 +109,7 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
     const [sortKey, setSortKey] = useState<SortKey>('netOvertime');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
     const [pdfExporting, setPdfExporting] = useState(false);
+    const [bulkOpen, setBulkOpen] = useState(false);
 
     const ym = useMemo(() => parseYm(month), [month]);
 
@@ -227,6 +228,16 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
         });
         return arr;
     }, [records, sortKey, sortDir, getUserName]);
+
+    // 氏名セレクタ／まとめPDF選択モーダルで共有する並び順
+    // （レコードのある人を先頭、その後その他のアクティブユーザー）
+    const userOptions = useMemo(() => {
+        const withRecords = new Set(aggregates.map(a => a.userId));
+        return [
+            ...users.filter(u => withRecords.has(u.id)),
+            ...users.filter(u => !withRecords.has(u.id)),
+        ].map(u => ({ id: u.id, displayName: u.displayName, hasRecords: withRecords.has(u.id) }));
+    }, [aggregates, users]);
 
     // 詳細モード対象人物のレコード（日付→record）
     const detailRecordByDate = useMemo(() => {
@@ -390,20 +401,12 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
                         className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm sm:ml-2"
                     >
                         <option value="">氏名を選択</option>
-                        {/* レコードのある人を先頭、その後その他のアクティブユーザー */}
-                        {(() => {
-                            const withRecords = new Set(aggregates.map(a => a.userId));
-                            const ranked = [
-                                ...users.filter(u => withRecords.has(u.id)),
-                                ...users.filter(u => !withRecords.has(u.id)),
-                            ];
-                            return ranked.map(u => (
-                                <option key={u.id} value={u.id}>
-                                    {u.displayName}
-                                    {withRecords.has(u.id) ? '' : '（記録なし）'}
-                                </option>
-                            ));
-                        })()}
+                        {userOptions.map(u => (
+                            <option key={u.id} value={u.id}>
+                                {u.displayName}
+                                {u.hasRecords ? '' : '（記録なし）'}
+                            </option>
+                        ))}
                     </select>
                 )}
 
@@ -423,6 +426,14 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
                         PDF出力
                     </Button>
                 )}
+
+                <Button
+                    variant="outline"
+                    onClick={() => setBulkOpen(true)}
+                    leftIcon={<Users className="w-4 h-4" />}
+                >
+                    まとめてPDF
+                </Button>
             </div>
 
             {loading ? (
@@ -452,6 +463,146 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
                     onJumpToMonth={(y, m) => setMonth(`${y}-${pad2(m)}`)}
                 />
             )}
+
+            {bulkOpen && ym && (
+                <BulkPdfModal
+                    year={ym.year}
+                    month={ym.month}
+                    userOptions={userOptions}
+                    records={records}
+                    onClose={() => setBulkOpen(false)}
+                />
+            )}
+        </div>
+    );
+}
+
+/** ===== まとめPDF 出力対象の選択モーダル ===== */
+
+interface BulkPdfModalProps {
+    year: number;
+    month: number;
+    userOptions: { id: string; displayName: string; hasRecords: boolean }[];
+    records: AttendanceRecord[];
+    onClose: () => void;
+}
+
+function BulkPdfModal({ year, month, userOptions, records, onClose }: BulkPdfModalProps) {
+    /** 選択した順を保持する（この順にページが並ぶ） */
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [exporting, setExporting] = useState(false);
+
+    const toggle = (id: string) => {
+        setSelectedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+    };
+
+    const handleExport = async () => {
+        if (selectedIds.length === 0 || exporting) return;
+        const nameMap = new Map(userOptions.map(u => [u.id, u.displayName]));
+        try {
+            setExporting(true);
+            const { exportAttendanceMonthlyBulkPDF } = await import('@/utils/attendanceMonthlyPdf');
+            await exportAttendanceMonthlyBulkPDF({
+                year,
+                month,
+                people: selectedIds.map(id => ({ userId: id, userName: nameMap.get(id) ?? '(不明)' })),
+                records,
+            });
+            toast.success(`${selectedIds.length}名分のPDFを出力しました`);
+            onClose();
+        } catch (err) {
+            logger.error('出勤簿まとめPDF出力失敗:', err);
+            toast.error(err instanceof Error ? err.message : 'PDF出力に失敗しました');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-lg bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b px-6 py-4">
+                    <h2 className="text-lg font-semibold">
+                        まとめてPDF出力（{year}年{month}月）
+                    </h2>
+                    <button onClick={onClose} className="rounded p-1 hover:bg-slate-100" aria-label="閉じる">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="px-6 py-3 border-b flex items-center gap-2 flex-wrap">
+                    <button
+                        type="button"
+                        onClick={() => setSelectedIds(userOptions.map(u => u.id))}
+                        className="px-3 py-1.5 text-sm bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
+                    >
+                        全選択（リスト順）
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedIds([])}
+                        className="px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 rounded-xl"
+                    >
+                        全解除
+                    </button>
+                    <span className="text-xs text-slate-500 ml-auto">選択した順にページが並びます</span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-6 py-3">
+                    {userOptions.length === 0 ? (
+                        <p className="py-8 text-center text-sm text-slate-500">対象者がいません</p>
+                    ) : (
+                        <div className="space-y-1">
+                            {userOptions.map(u => {
+                                const order = selectedIds.indexOf(u.id);
+                                const checked = order >= 0;
+                                return (
+                                    <label
+                                        key={u.id}
+                                        className={`flex items-center gap-3 rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
+                                            checked
+                                                ? 'border-teal-300 bg-teal-50'
+                                                : 'border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggle(u.id)}
+                                        />
+                                        <span className="text-sm text-slate-800 flex-1 truncate">
+                                            {u.displayName}
+                                            {u.hasRecords ? '' : (
+                                                <span className="text-xs text-slate-400 ml-1">（記録なし）</span>
+                                            )}
+                                        </span>
+                                        {checked && (
+                                            <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center rounded-full bg-teal-600 text-white text-xs font-bold tabular-nums">
+                                                {order + 1}
+                                            </span>
+                                        )}
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-2 border-t px-6 py-4">
+                    <Button type="button" variant="ghost" onClick={onClose} disabled={exporting}>
+                        キャンセル
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="primary"
+                        isLoading={exporting}
+                        disabled={selectedIds.length === 0}
+                        onClick={handleExport}
+                    >
+                        PDF出力（{selectedIds.length}名）
+                    </Button>
+                </div>
+            </div>
         </div>
     );
 }

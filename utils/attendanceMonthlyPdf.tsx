@@ -3,6 +3,8 @@
 import { pdf } from '@react-pdf/renderer';
 import {
     AttendanceMonthlyPDF,
+    AttendanceMonthlyBulkPDF,
+    type AttendanceMonthlyPerson,
     type AttendanceCellKind,
     type AttendanceMonthlyPdfDay,
     type AttendanceMonthlyPdfSummary,
@@ -268,6 +270,44 @@ export async function exportAttendanceMonthlyPDF({
         await savePdfBlob(blob, fileName, '出勤簿をお送りします');
     } catch (error) {
         logger.error('出勤簿PDF生成エラー:', error);
+        throw error;
+    }
+}
+
+export interface ExportAttendanceMonthlyBulkPdfParams {
+    year: number;
+    month: number;
+    /** 出力対象。**この配列順どおり**にページを並べる（1人=1ページ） */
+    people: { userId: string; userName: string }[];
+    records: AttendancePdfRecord[];
+}
+
+/**
+ * 複数人ぶんの月次出勤簿を1つのPDFにまとめて出力してダウンロード。
+ * 各ページのレイアウトは個人出力（exportAttendanceMonthlyPDF）と同一。
+ */
+export async function exportAttendanceMonthlyBulkPDF({
+    year,
+    month,
+    people,
+    records,
+}: ExportAttendanceMonthlyBulkPdfParams): Promise<void> {
+    if (people.length === 0) {
+        throw new Error('出力する対象者が選択されていません');
+    }
+    try {
+        const pages: AttendanceMonthlyPerson[] = people.map((p) => ({
+            userName: p.userName,
+            ...buildAttendanceMonthlyPdfData(year, month, p.userId, records),
+        }));
+        const blob = await pdf(
+            <AttendanceMonthlyBulkPDF year={year} month={month} people={pages} />
+        ).toBlob();
+
+        const fileName = sanitizeFileName(`出勤簿_${year}年${month}月_${people.length}名.pdf`);
+        await savePdfBlob(blob, fileName, '出勤簿をお送りします');
+    } catch (error) {
+        logger.error('出勤簿まとめPDF生成エラー:', error);
         throw error;
     }
 }
