@@ -2,8 +2,9 @@
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown, Trash2, Plus, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown, Trash2, Plus, Loader2, FileDown } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
+import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import { sendBroadcast } from '@/lib/broadcastChannel';
@@ -107,6 +108,7 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
 
     const [sortKey, setSortKey] = useState<SortKey>('netOvertime');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
+    const [pdfExporting, setPdfExporting] = useState(false);
 
     const ym = useMemo(() => parseYm(month), [month]);
 
@@ -296,6 +298,31 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
         setMonth(formatYm(d));
     };
 
+    // 個人別月次表を紙の出勤簿と同じレイアウトでPDF出力
+    const handleExportPdf = async () => {
+        if (!ym || !selectedUserId) {
+            toast.error('氏名を選択してください');
+            return;
+        }
+        try {
+            setPdfExporting(true);
+            const { exportAttendanceMonthlyPDF } = await import('@/utils/attendanceMonthlyPdf');
+            await exportAttendanceMonthlyPDF({
+                year: ym.year,
+                month: ym.month,
+                userId: selectedUserId,
+                userName: getUserName(selectedUserId),
+                records,
+            });
+            toast.success('PDFを出力しました');
+        } catch (err) {
+            logger.error('出勤簿PDF出力失敗:', err);
+            toast.error(err instanceof Error ? err.message : 'PDF出力に失敗しました');
+        } finally {
+            setPdfExporting(false);
+        }
+    };
+
     if (!canView) {
         return (
             <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
@@ -378,6 +405,23 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
                             ));
                         })()}
                     </select>
+                )}
+
+                {mode === 'detail' && selectedUserId && (
+                    <Button
+                        variant="outline"
+                        onClick={handleExportPdf}
+                        disabled={pdfExporting}
+                        leftIcon={
+                            pdfExporting ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <FileDown className="w-4 h-4" />
+                            )
+                        }
+                    >
+                        PDF出力
+                    </Button>
                 )}
             </div>
 
