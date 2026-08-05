@@ -264,6 +264,14 @@ jest.mock('@/lib/prisma', () => ({
             delete: jest.fn(),
             count: jest.fn().mockResolvedValue(0),
         },
+        bankStatement: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            count: jest.fn().mockResolvedValue(0),
+        },
         cardStatement: {
             findMany: jest.fn().mockResolvedValue([]),
             findUnique: jest.fn(),

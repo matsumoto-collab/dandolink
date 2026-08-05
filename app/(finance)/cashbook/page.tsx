@@ -8,6 +8,13 @@ import { logger } from '@/lib/logger';
 import type { CashbookEntry, CashbookListResponse } from '@/types/cashbook';
 import type { ExpenseCategoryRef } from '@/types/receipt';
 import { sortCashbookEntries, cashbookDisplayDate, cashbookSortKey } from '@/lib/cashbookSort';
+import BankStatementsTab from '@/components/Cashbook/BankStatementsTab';
+
+const TABS = [
+    { id: 'ledger', label: '出納帳' },
+    { id: 'bank', label: '銀行入金明細' },
+] as const;
+type TabId = (typeof TABS)[number]['id'];
 
 // Vercel のリクエストボディ上限（約4.5MB）。圧縮後の画像・PDF がこれを超えたら送信前に弾く。
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
@@ -52,6 +59,8 @@ async function prepareFile(file: File): Promise<{ blob: Blob; name: string } | {
 }
 
 export default function CashbookPage() {
+    // 「銀行入金明細」はメニューを増やさずこのページ内のタブとして持つ（権限は canAccessCashbook を共用）
+    const [activeTab, setActiveTab] = useState<TabId>('ledger');
     const [entries, setEntries] = useState<CashbookEntry[]>([]);
     const [openingBalance, setOpeningBalance] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -379,9 +388,27 @@ export default function CashbookPage() {
         <div className="h-full flex flex-col max-w-[1500px] mx-auto w-full min-w-0">
             <div className="shrink-0 mb-4">
                 <h2 className="text-xl font-bold text-slate-900">現金出納帳</h2>
-                <p className="text-sm text-slate-500 mt-1">入金・出金を記帳して残高を管理します。出金は領収書（画像・PDF）の取り込みでも作成できます。</p>
+                <p className="text-sm text-slate-500 mt-1">
+                    {activeTab === 'ledger'
+                        ? '入金・出金を記帳して残高を管理します。出金は領収書（画像・PDF）の取り込みでも作成できます。'
+                        : '銀行の入金明細（画像・PDF・CSV）を対象年月ごとに保管します。'}
+                </p>
             </div>
 
+            {/* タブ */}
+            <div className="shrink-0 flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl w-full sm:w-fit">
+                {TABS.map((t) => (
+                    <button
+                        key={t.id}
+                        onClick={() => setActiveTab(t.id)}
+                        className={`flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                        {t.label}
+                    </button>
+                ))}
+            </div>
+
+            {activeTab === 'ledger' && (<>
             {/* アップロードゾーン（出金行の作成） */}
             <div
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -666,6 +693,9 @@ export default function CashbookPage() {
                     </div>
                 </div>
             )}
+            </>)}
+
+            {activeTab === 'bank' && <BankStatementsTab />}
 
             {/* 証憑画像のライトボックス */}
             {lightbox?.signedUrl && (

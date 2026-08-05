@@ -2632,6 +2632,37 @@ model CashbookEntry {
   @@schema("public")
 }
 
+/// 銀行入金明細のファイル保管庫（現金出納帳ページ内の「銀行入金明細」タブ）。
+/// AI読み取りやデータ化はせず、月別にファイル（画像/PDF/CSV）を貼るだけの置き場。
+/// 閲覧・編集は User.canAccessCashbook を持つユーザーのみ（現金出納帳と同じ個別許可制）。
+/// 原価計算・利益計算・入金消込とは完全に独立（連携しない）。
+model BankStatement {
+  id String @id @default(uuid())
+  /// 対象年月（'YYYY-MM'）。一覧はこの値で降順にグルーピングして表示する
+  targetMonth String
+  /// 任意メモ（銀行名・口座など。一覧でインライン編集）
+  memo        String?
+
+  // ファイル（CardReceipt と同じ持ち方・Supabase Storage。prefix は bank-statements/）
+  fileName                    String
+  storagePath                 String
+  thumbnailPath               String?
+  mimeType                    String
+  fileSize                    Int
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([targetMonth])
+  @@index([createdAt])
+  @@schema("public")
+}
+
 /// クレジットカード利用レシートの受け箱。アップロード→Claude APIで読み取り→明細行(CardStatementLine)と照合する。
 /// 領収書(Receipt)・現金出納帳・原価計算・利益計算とは完全に独立（連携しない）。閲覧・編集は User.canAccessCashbook 保持者のみ。
 /// 紐付け状態は status 列を持たず、CardStatementLine.cardReceiptId からの1:1逆参照(statementLine)で導出する。
