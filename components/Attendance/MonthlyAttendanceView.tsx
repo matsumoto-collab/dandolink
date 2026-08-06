@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown, Trash2, Plus, Loader2, FileDown, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown, Trash2, Plus, Loader2, FileDown, FileSpreadsheet, X } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -109,6 +109,7 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
     const [sortKey, setSortKey] = useState<SortKey>('netOvertime');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
     const [pdfExporting, setPdfExporting] = useState(false);
+    const [excelExporting, setExcelExporting] = useState(false);
     const [bulkOpen, setBulkOpen] = useState(false);
 
     const ym = useMemo(() => parseYm(month), [month]);
@@ -334,6 +335,31 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
         }
     };
 
+    // 個人別月次表をExcel（.xlsx）で出力（PDFと同じデータ）
+    const handleExportExcel = async () => {
+        if (!ym || !selectedUserId) {
+            toast.error('氏名を選択してください');
+            return;
+        }
+        try {
+            setExcelExporting(true);
+            const { exportAttendanceMonthlyExcel } = await import('@/utils/attendanceMonthlyExcel');
+            await exportAttendanceMonthlyExcel({
+                year: ym.year,
+                month: ym.month,
+                userId: selectedUserId,
+                userName: getUserName(selectedUserId),
+                records,
+            });
+            toast.success('Excelを出力しました');
+        } catch (err) {
+            logger.error('出勤簿Excel出力失敗:', err);
+            toast.error(err instanceof Error ? err.message : 'Excel出力に失敗しました');
+        } finally {
+            setExcelExporting(false);
+        }
+    };
+
     if (!canView) {
         return (
             <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
@@ -427,12 +453,29 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
                     </Button>
                 )}
 
+                {mode === 'detail' && selectedUserId && (
+                    <Button
+                        variant="outline"
+                        onClick={handleExportExcel}
+                        disabled={excelExporting}
+                        leftIcon={
+                            excelExporting ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <FileSpreadsheet className="w-4 h-4" />
+                            )
+                        }
+                    >
+                        Excel出力
+                    </Button>
+                )}
+
                 <Button
                     variant="outline"
                     onClick={() => setBulkOpen(true)}
                     leftIcon={<Users className="w-4 h-4" />}
                 >
-                    まとめてPDF
+                    まとめて出力
                 </Button>
             </div>
 
@@ -477,7 +520,7 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
     );
 }
 
-/** ===== まとめPDF 出力対象の選択モーダル ===== */
+/** ===== まとめ出力（PDF / Excel）対象の選択モーダル ===== */
 
 interface BulkPdfModalProps {
     year: number;
@@ -488,33 +531,37 @@ interface BulkPdfModalProps {
 }
 
 function BulkPdfModal({ year, month, userOptions, records, onClose }: BulkPdfModalProps) {
-    /** 選択した順を保持する（この順にページが並ぶ） */
+    /** 選択した順を保持する（この順にページ／シートが並ぶ） */
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [exporting, setExporting] = useState(false);
+    /** 出力中の形式（どちらか実行中は両方のボタンを止める） */
+    const [exportingFormat, setExportingFormat] = useState<'pdf' | 'excel' | null>(null);
+    const exporting = exportingFormat !== null;
 
     const toggle = (id: string) => {
         setSelectedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
     };
 
-    const handleExport = async () => {
+    const handleExport = async (format: 'pdf' | 'excel') => {
         if (selectedIds.length === 0 || exporting) return;
         const nameMap = new Map(userOptions.map(u => [u.id, u.displayName]));
+        const people = selectedIds.map(id => ({ userId: id, userName: nameMap.get(id) ?? '(不明)' }));
+        const label = format === 'pdf' ? 'PDF' : 'Excel';
         try {
-            setExporting(true);
-            const { exportAttendanceMonthlyBulkPDF } = await import('@/utils/attendanceMonthlyPdf');
-            await exportAttendanceMonthlyBulkPDF({
-                year,
-                month,
-                people: selectedIds.map(id => ({ userId: id, userName: nameMap.get(id) ?? '(不明)' })),
-                records,
-            });
-            toast.success(`${selectedIds.length}名分のPDFを出力しました`);
+            setExportingFormat(format);
+            if (format === 'pdf') {
+                const { exportAttendanceMonthlyBulkPDF } = await import('@/utils/attendanceMonthlyPdf');
+                await exportAttendanceMonthlyBulkPDF({ year, month, people, records });
+            } else {
+                const { exportAttendanceMonthlyBulkExcel } = await import('@/utils/attendanceMonthlyExcel');
+                await exportAttendanceMonthlyBulkExcel({ year, month, people, records });
+            }
+            toast.success(`${selectedIds.length}名分の${label}を出力しました`);
             onClose();
         } catch (err) {
-            logger.error('出勤簿まとめPDF出力失敗:', err);
-            toast.error(err instanceof Error ? err.message : 'PDF出力に失敗しました');
+            logger.error(`出勤簿まとめ${label}出力失敗:`, err);
+            toast.error(err instanceof Error ? err.message : `${label}出力に失敗しました`);
         } finally {
-            setExporting(false);
+            setExportingFormat(null);
         }
     };
 
@@ -523,7 +570,7 @@ function BulkPdfModal({ year, month, userOptions, records, onClose }: BulkPdfMod
             <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-lg bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b px-6 py-4">
                     <h2 className="text-lg font-semibold">
-                        まとめてPDF出力（{year}年{month}月）
+                        まとめて出力（{year}年{month}月）
                     </h2>
                     <button onClick={onClose} className="rounded p-1 hover:bg-slate-100" aria-label="閉じる">
                         <X size={20} />
@@ -545,7 +592,7 @@ function BulkPdfModal({ year, month, userOptions, records, onClose }: BulkPdfMod
                     >
                         全解除
                     </button>
-                    <span className="text-xs text-slate-500 ml-auto">選択した順にページが並びます</span>
+                    <span className="text-xs text-slate-500 ml-auto">選択した順にページ／シートが並びます</span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-6 py-3">
@@ -595,11 +642,20 @@ function BulkPdfModal({ year, month, userOptions, records, onClose }: BulkPdfMod
                     <Button
                         type="button"
                         variant="primary"
-                        isLoading={exporting}
-                        disabled={selectedIds.length === 0}
-                        onClick={handleExport}
+                        isLoading={exportingFormat === 'pdf'}
+                        disabled={selectedIds.length === 0 || exporting}
+                        onClick={() => handleExport('pdf')}
                     >
                         PDF出力（{selectedIds.length}名）
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        isLoading={exportingFormat === 'excel'}
+                        disabled={selectedIds.length === 0 || exporting}
+                        onClick={() => handleExport('excel')}
+                    >
+                        Excel出力（{selectedIds.length}名）
                     </Button>
                 </div>
             </div>
