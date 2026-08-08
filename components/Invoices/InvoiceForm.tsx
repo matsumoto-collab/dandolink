@@ -42,7 +42,7 @@ function isManualKey(key?: string | null): boolean {
  * - 案件セクション: キー = 案件ID（見出し未入力は表示側で案件マスタ名にフォールバック）
  * - 手入力セクション: キー = '_none' / '_none-<n>'。案件IDなしの明細を sectionTitle ごとに別セクションへ復元。
  */
-function buildInitialGroups(initialData?: Partial<InvoiceInput>): {
+export function buildInitialGroups(initialData?: Partial<InvoiceInput>): {
     itemsByProject: Record<string, InvoiceItem[]>;
     sectionTitles: Record<string, string>;
     manualKeys: string[];
@@ -53,8 +53,12 @@ function buildInitialGroups(initialData?: Partial<InvoiceInput>): {
     const items = initialData?.items;
     if (items && items.length > 0) {
         const titleToManualKey = new Map<string, string>();
+        // 代表案件へのフォールバックは「レガシー請求書」＝どの明細も projectMasterId を持たないものに限る。
+        // 1件でも案件IDを持つ請求書で代表案件へ寄せると、案件に紐付かない手入力明細が
+        // 先頭の案件グループへ吸収され、見出しの汚染＋保存で案件IDの焼き付きが起きる。
+        const hasAnyPmId = items.some(it => !!it.projectMasterId);
         for (const item of items) {
-            const pmId = item.projectMasterId || initialData?.projectId;
+            const pmId = item.projectMasterId || (hasAnyPmId ? undefined : initialData?.projectId);
             if (pmId) {
                 if (!itemsByProject[pmId]) itemsByProject[pmId] = [];
                 itemsByProject[pmId].push(item);
@@ -120,6 +124,8 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         if (initialData?.createdAt) return formatDateKey(new Date(initialData.createdAt));
         return formatDateKey(new Date());
     });
+    // 初回に表示した請求日。既存請求書ではここから変わっていなければ保存時に createdAt を送らない
+    const [initialIssueDate] = useState(issueDate);
     const [status, setStatus] = useState<InvoiceInput['status']>(initialData?.status || 'draft');
     const [paidDate, setPaidDate] = useState(() => {
         if (initialData?.paidDate) return formatDateKey(new Date(initialData.paidDate));
@@ -147,9 +153,22 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         () => buildInitialGroups(initialData).manualKeys,
     );
 
+    // 既存請求書の編集か（initialData が id を持つ＝保存済み Invoice）
+    const isExistingInvoice = !!(initialData as { id?: string } | undefined)?.id;
+    // 下の逆引き effect が customerId を自動セットしたことを示すフラグ。
+    // 自動セットは「顧客の変更」ではないので、案件選択のリセットを抑止するために使う。
+    const autoFilledCustomerRef = useRef(false);
+
     // 顧客変更時にcustomerIdから案件を自動特定
     useEffect(() => {
         if (!customerId || initialData?.customerId) return;
+        // 逆引きによる自動セットなら案件はそのまま（プリフィルされた案件が消えるのを防ぐ）
+        if (autoFilledCustomerRef.current) {
+            autoFilledCustomerRef.current = false;
+            return;
+        }
+        // 既存請求書の編集では顧客の紐付けをリセットしない（保存済みの案件が全消えになるため）
+        if (isExistingInvoice) return;
         // 顧客変更でprojectIdsをリセット
         setSelectedProjectIds([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,18 +179,21 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         if (customerId || selectedProjectIds.length === 0) return;
         const pm = projectMasters.find(p => selectedProjectIds.includes(p.id));
         if (pm?.customerId) {
+            autoFilledCustomerRef.current = true;
             setCustomerId(pm.customerId);
         } else if (pm?.customerName) {
             const c = customers.find(c => c.name === pm.customerName || c.shortName === pm.customerName);
-            if (c) setCustomerId(c.id);
+            if (c) {
+                autoFilledCustomerRef.current = true;
+                setCustomerId(c.id);
+            }
         }
     }, [customerId, selectedProjectIds, projectMasters, customers]);
 
     // 顧客を変更したら、その顧客の締め日から タイトル/請求日/支払期限 を自動補完する。
     // 請求待ちボードからの起動時は customerId が初期値のまま＝発火せず、ボードが渡した値（選択月の締め日）を優先。
     // 顧客一覧の遅延ロード等での再実行は customerId 不変なので無視（lastFilledCustomerRef で判定）。
-    // 既存請求書の編集時（initialData が id を持つ＝保存済み Invoice）は自動補完しない＝保存済みの値を尊重。
-    const isExistingInvoice = !!(initialData as { id?: string } | undefined)?.id;
+    // 既存請求書の編集時（isExistingInvoice＝保存済み Invoice）は自動補完しない＝保存済みの値を尊重。
     const lastFilledCustomerRef = useRef(initialData?.customerId ?? '');
     useEffect(() => {
         if (isExistingInvoice) return;
@@ -646,7 +668,13 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 status,
                 paidDate: paidDate ? new Date(paidDate) : null,
                 notes: notes || null,
-                createdAt: issueDate ? new Date(issueDate) : undefined,
+                // 新規は請求日を必ず送る（請求書の createdAt は利益ダッシュボードの月次売上の基準日で、
+                // 請求待ちボードから渡された締め日を反映する必要があるため）。
+                // 既存の編集では請求日を触ったときだけ送る＝毎回 0 時で上書きして
+                // 同日作成分の時刻・並び順が失われるのを防ぐ。
+                ...(!isExistingInvoice || issueDate !== initialIssueDate
+                    ? { createdAt: issueDate ? new Date(issueDate) : undefined }
+                    : {}),
             } as InvoiceInput;
             await onSubmit(data);
         } finally {
