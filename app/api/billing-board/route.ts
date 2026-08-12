@@ -9,7 +9,9 @@ import {
     computeInvoicedByProject,
     invoicedAmountForProject,
     getBillingStatus,
+    resolveBillingBasis,
     type InvoiceForBillingSummary,
+    type BillingStatus,
 } from '@/lib/billing/billingStatus';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { closingPeriod } from '@/lib/closingDay';
@@ -114,6 +116,7 @@ export async function GET(req: NextRequest) {
                 status: true,
                 contractAmount: true,
                 billingEstimateIds: true,
+                billingStatusOverride: true,
                 createdBy: true,
             },
         });
@@ -177,16 +180,16 @@ export async function GET(req: NextRequest) {
 
         const estimateCountByProject = new Map<string, number>();
         const approvedProjects = new Set<string>();
-        const firstEstimateSubtotal = new Map<string, number>(); // 見積1件のときの基準額（税抜）
-        const subtotalByEstimateId = new Map<string, number>(); // 見積ID → 税抜小計（現在値）
+        // 案件ID → その案件の見積（id + 税抜小計の現在値）。基準額の解決に使う。
+        const estimatesByProject = new Map<string, Array<{ id: string; subtotal: number }>>();
         for (const e of estimates) {
-            subtotalByEstimateId.set(e.id, Number(e.subtotal) || 0);
             if (!e.projectMasterId) continue;
             estimateCountByProject.set(e.projectMasterId, (estimateCountByProject.get(e.projectMasterId) ?? 0) + 1);
             if (e.status === 'approved') approvedProjects.add(e.projectMasterId);
-            if (!firstEstimateSubtotal.has(e.projectMasterId)) {
-                firstEstimateSubtotal.set(e.projectMasterId, Number(e.subtotal) || 0);
-            }
+            const arr = estimatesByProject.get(e.projectMasterId);
+            const entry = { id: e.id, subtotal: Number(e.subtotal) || 0 };
+            if (arr) arr.push(entry);
+            else estimatesByProject.set(e.projectMasterId, [entry]);
         }
 
         const draftProjectIds = new Set(pendingDrafts.map((d) => d.projectId));
@@ -237,45 +240,24 @@ export async function GET(req: NextRequest) {
             }
 
             const contract = p.contractAmount ?? null;
-            const eCount = estimateCountByProject.get(p.id) ?? 0;
 
-            // 見積金額の解決（優先順）。金額のスナップショットは持たず、常に見積書の現在値（subtotal・税抜）から
-            // 計算する＝見積書を修正したらボードの見積金額も即追従する。
-            //   a. billingEstimateIds（選んだ見積のID配列）が非空 → その見積の subtotal 合算（存在しないIDは無視）。
-            //      全滅（1件も見つからない）なら未選択扱いで b 以降にフォールバックする。
-            //   b. 見積が1件 → その見積の subtotal（ライブ値）。※contractAmount より優先する（不具合修正の本体）。
-            //   c. 見積が複数 → contractAmount があればそれ（旧スナップショット互換・再選択すれば a に移行）、
-            //      無ければ null ＋ needsEstimatePick=true（画面で「見積を選択」を促す）。
-            //   d. 見積が0件 → contractAmount（手入力の足場工事金額。無ければ null）。
-            const pickedIds = Array.isArray(p.billingEstimateIds)
-                ? (p.billingEstimateIds as unknown[]).filter((v): v is string => typeof v === 'string')
-                : [];
-            let pickedSum: number | null = null;
-            if (pickedIds.length > 0) {
-                let sum = 0;
-                let found = 0;
-                for (const eid of pickedIds) {
-                    const s = subtotalByEstimateId.get(eid);
-                    if (s === undefined) continue; // 削除された見積は無視
-                    sum += s;
-                    found += 1;
-                }
-                if (found > 0) pickedSum = sum;
-            }
-
-            let estimateAmount: number | null;
-            let needsEstimatePick = false;
-            if (pickedSum != null) {
-                estimateAmount = pickedSum;
-            } else if (eCount === 1) {
-                estimateAmount = firstEstimateSubtotal.get(p.id) ?? 0;
-            } else if (eCount > 1) {
-                estimateAmount = contract;
-                needsEstimatePick = contract == null;
-            } else {
-                estimateAmount = contract;
-            }
+            // 見積金額（判定の基準額）の解決は案件一覧と共通のヘルパー（lib/billing/billingStatus）に一本化。
+            // 金額のスナップショットは持たず常に見積書の現在値から計算する＝見積を直せばボードも即追従する。
+            const basis = resolveBillingBasis({
+                contractAmount: contract,
+                billingEstimateIds: p.billingEstimateIds,
+                estimates: estimatesByProject.get(p.id) ?? [],
+            });
+            const estimateAmount = basis.amount;
+            const needsEstimatePick = basis.needsEstimatePick;
             const billingStatus = getBillingStatus(estimateAmount, invoiced);
+            // 手動上書き（案件一覧・ボード行のメニュー）があればバッジはそれを優先する。
+            const override =
+                p.billingStatusOverride === 'unbilled' ||
+                p.billingStatusOverride === 'partial' ||
+                p.billingStatusOverride === 'full'
+                    ? (p.billingStatusOverride as BillingStatus)
+                    : null;
 
             rows.push({
                 id: p.id,
@@ -290,6 +272,7 @@ export async function GET(req: NextRequest) {
                 invoicedAmount: invoiced,
                 monthlyInvoicedAmount: monthlyInvoiced,
                 billingStatus,
+                billingStatusOverride: override,
                 remainingAmount: estimateAmount != null ? estimateAmount - invoiced : null,
                 assigneeIds: extractAssigneeIds(p.createdBy ?? undefined),
                 lastWorkDate,

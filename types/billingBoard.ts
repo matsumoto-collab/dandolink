@@ -49,8 +49,10 @@ export interface BillingBoardRow {
     invoicedAmount: number;
     /** この締め月（periodFrom〜periodTo）内に発行された請求書の、この案件ぶんの請求額（税抜）。「請求済み」タブの判定・表示に使う。 */
     monthlyInvoicedAmount: number;
-    /** 'none'|'unbilled'|'partial'|'full'（案件トータル）。行のバッジ表示用。タブ分類には monthlyInvoicedAmount を使う。 */
+    /** 'none'|'unbilled'|'partial'|'full'（案件トータル・自動判定）。行のバッジ表示用。タブ分類には monthlyInvoicedAmount を使う。 */
     billingStatus: BillingStatus;
+    /** 案件レベルの手動上書き（ProjectMaster.billingStatusOverride）。null=自動判定。バッジは override 優先。 */
+    billingStatusOverride: BillingStatus | null;
     /** 残額（見積金額−請求済、見積金額未設定なら null）。 */
     remainingAmount: number | null;
     /** 案件担当者の User ID 配列（createdBy 由来）。表示名は /api/users で解決。 */

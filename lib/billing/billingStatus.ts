@@ -99,3 +99,72 @@ export function getBillingStatus(
     if (invoicedAmount >= contractAmount) return 'full';
     return 'partial';
 }
+
+/** 判定の分母（基準額）がどこから来たか。 */
+export type BillingBasisSource = 'picked' | 'single' | 'contract' | 'none';
+
+/** resolveBillingBasis が受け取る見積の最小形状（税抜 subtotal）。 */
+export interface EstimateForBillingBasis {
+    id: string;
+    subtotal: number | string | null | undefined;
+}
+
+export interface BillingBasisResolution {
+    /** 判定の分母（税抜）。決められないときは null（＝'none' 表示）。 */
+    amount: number | null;
+    source: BillingBasisSource;
+    /** 見積が複数あるのにどれを基準にするか未選択で、金額が決められない状態。 */
+    needsEstimatePick: boolean;
+}
+
+/**
+ * 請求ステータス判定の分母（基準額・税抜）を解決する。
+ *
+ * `ProjectMaster.contractAmount` はほぼ全案件で未入力のため、見積金額にフォールバックする。
+ * 優先順は請求待ちボード（GET /api/billing-board）と同一で、そちらもこの関数を使う：
+ *
+ *   a. `billingEstimateIds`（基準にする見積として選んだID配列）が非空 → その見積の subtotal 合算（'picked'）。
+ *      削除済みID・重複IDは無視し、合計が 0 以下なら分母にならないので b 以降へ。
+ *   b. 見積がちょうど1件で subtotal > 0 → その subtotal（'single'）。※contractAmount より優先する。
+ *      0円の下書き見積などは分母にせず c へ（0円を分母にすると常に「請求済」になってしまう）。
+ *   c. それ以外 → contractAmount（'contract'。無ければ null＝'none'）。
+ *      見積が複数あって contractAmount も無い場合は needsEstimatePick=true。
+ *
+ * 金額のスナップショットは持たず常に見積書の現在値から計算する＝見積を直せば判定も追従する。
+ */
+export function resolveBillingBasis(params: {
+    contractAmount?: number | null;
+    /** ProjectMaster.billingEstimateIds（Json。string[] を想定・それ以外は未選択扱い）。 */
+    billingEstimateIds?: unknown;
+    /** その案件に紐づく見積（全件）。 */
+    estimates?: EstimateForBillingBasis[];
+}): BillingBasisResolution {
+    const contract = params.contractAmount ?? null;
+    const estimates = params.estimates ?? [];
+
+    // 同一IDが重複していても二重に合算しない
+    const pickedIds = Array.isArray(params.billingEstimateIds)
+        ? Array.from(
+              new Set((params.billingEstimateIds as unknown[]).filter((v): v is string => typeof v === 'string')),
+          )
+        : [];
+
+    if (pickedIds.length > 0) {
+        let sum = 0;
+        for (const id of pickedIds) {
+            const e = estimates.find((x) => x.id === id);
+            if (!e) continue; // 削除された見積は無視
+            sum += toNum(e.subtotal);
+        }
+        // 合計0（0円の下書きだけを選んでいる等）は分母にできないのでフォールバックする
+        if (sum > 0) return { amount: sum, source: 'picked', needsEstimatePick: false };
+    }
+
+    if (estimates.length === 1 && toNum(estimates[0].subtotal) > 0) {
+        return { amount: toNum(estimates[0].subtotal), source: 'single', needsEstimatePick: false };
+    }
+
+    if (contract != null) return { amount: contract, source: 'contract', needsEstimatePick: false };
+
+    return { amount: null, source: 'none', needsEstimatePick: estimates.length > 1 };
+}

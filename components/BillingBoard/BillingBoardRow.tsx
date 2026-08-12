@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { BILLING_STATUS_META, BILLING_OVERRIDE_CHOICES } from '@/lib/billing/billingStatusMeta';
+import type { BillingStatus } from '@/lib/billing/billingStatus';
 import type { BillingBoardRow as Row } from '@/types/billingBoard';
 
 const yen = (n: number | null) => (n == null ? '—' : `¥${Math.round(n).toLocaleString()}`);
@@ -13,13 +16,8 @@ const md = (iso: string | null) => {
     return `${d.getMonth() + 1}/${d.getDate()}`;
 };
 
-/** 請求状況バッジ（'full' はボードに出ないが念のため定義）。案件一覧の 3 段階表示に準拠。 */
-const BILLING_BADGE: Record<string, { text: string; cls: string }> = {
-    none: { text: '契約未設定', cls: 'bg-slate-100 text-slate-500' },
-    unbilled: { text: '未請求', cls: 'bg-slate-100 text-slate-600' },
-    partial: { text: '一部請求', cls: 'bg-amber-100 text-amber-700' },
-    full: { text: '請求済', cls: 'bg-emerald-100 text-emerald-700' },
-};
+/** 請求バッジの手動設定メニュー幅（px。ポータル配置で画面外にはみ出さないよう計算に使う）。 */
+const MENU_WIDTH = 160;
 
 /** マスタに無いレガシー工事種別値のフォールバック（マスタ既定色に合わせる）。 */
 const LEGACY_CTYPE: Record<string, { name: string; color: string }> = {
@@ -71,6 +69,10 @@ interface BillingBoardRowProps {
     onUnstage?: (row: Row) => void;
     /** 見積が複数で見積金額が未設定のとき「見積を選択」を押した。 */
     onPickEstimate?: (row: Row) => void;
+    /** 案件レベルの請求ステータスを手動指定できるか（admin/manager。期間モードに依らない）。 */
+    canSetBillingStatus?: boolean;
+    /** 案件レベルの請求ステータス手動上書き（null=自動判定に戻す）。 */
+    onSetBillingStatus?: (row: Row, value: 'unbilled' | 'partial' | 'full' | null) => void;
     onHold: (row: Row) => void;
     onExclude: (row: Row) => void;
     onRestore: (row: Row) => void;
@@ -91,13 +93,56 @@ export default function BillingBoardRow({
     onMarkBilled,
     onUnstage,
     onPickEstimate,
+    canSetBillingStatus,
+    onSetBillingStatus,
     onHold,
     onExclude,
     onRestore,
 }: BillingBoardRowProps) {
-    const badge = BILLING_BADGE[row.billingStatus] ?? BILLING_BADGE.unbilled;
+    // 案件レベルのバッジ：手動上書きがあればそれを優先し、無ければ自動判定。
+    const effectiveStatus: BillingStatus = row.billingStatusOverride ?? row.billingStatus;
+    const badge = BILLING_STATUS_META[effectiveStatus] ?? BILLING_STATUS_META.unbilled;
+    const isOverride = !!row.billingStatusOverride;
+    const canOpenStatusMenu = !!canSetBillingStatus && !!onSetBillingStatus;
+    // メニューは顧客グループカード（overflow-hidden）に切られるため body 直下へポータルし、画面座標で置く。
+    const [statusMenuPos, setStatusMenuPos] = useState<{ top: number; left: number } | null>(null);
+    const statusMenuOpen = statusMenuPos !== null;
+    const badgeRef = useRef<HTMLButtonElement>(null);
     const [expanded, setExpanded] = useState(false);
     const shown = expanded ? row.workHistory : row.workHistory.slice(0, COLLAPSED_COUNT);
+
+    const openStatusMenu = () => {
+        const r = badgeRef.current?.getBoundingClientRect();
+        if (!r) return;
+        const height = isOverride ? 150 : 116; // 見出し＋選択肢（＋自動判定に戻す）のおおよその高さ
+        const below = window.innerHeight - r.bottom;
+        setStatusMenuPos({
+            top: below < height ? Math.max(8, r.top - height - 4) : r.bottom + 4,
+            left: Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - MENU_WIDTH - 8)),
+        });
+    };
+
+    // メニュー外クリック / Esc / スクロールで閉じる（案件一覧の請求セルと同じ挙動）
+    useEffect(() => {
+        if (!statusMenuOpen) return;
+        const close = () => setStatusMenuPos(null);
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') close();
+        };
+        document.addEventListener('click', close);
+        document.addEventListener('keydown', onKey);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        return () => {
+            document.removeEventListener('click', close);
+            document.removeEventListener('keydown', onKey);
+            window.removeEventListener('scroll', close, true);
+            window.removeEventListener('resize', close);
+        };
+    }, [statusMenuOpen]);
+
+    const statusMenuItem =
+        'block w-full whitespace-nowrap px-3 py-1.5 text-left text-xs text-slate-700 transition-colors hover:bg-slate-100';
 
     return (
         <div className={`p-4 transition-colors ${staged ? 'bg-teal-50/50' : 'hover:bg-slate-50/60'}`}>
@@ -108,9 +153,73 @@ export default function BillingBoardRow({
                         <span className="truncate text-base font-semibold text-slate-900">
                             {row.title || row.name}
                         </span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.cls}`}>
-                            {badge.text}
-                        </span>
+                        {/* 案件レベルの請求バッジ（override 優先）。管理者はここから手動指定できる。 */}
+                        {canOpenStatusMenu ? (
+                            <>
+                                <button
+                                    ref={badgeRef}
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (statusMenuOpen) setStatusMenuPos(null);
+                                        else openStatusMenu();
+                                    }}
+                                    title={isOverride ? `${badge.title}（手動設定中）` : badge.title}
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-opacity hover:opacity-80 ${badge.badgeClassName}`}
+                                >
+                                    {badge.label}
+                                    {isOverride ? '*' : ''}
+                                </button>
+                                {statusMenuPos &&
+                                    typeof document !== 'undefined' &&
+                                    createPortal(
+                                        <div
+                                            onClick={(e) => e.stopPropagation()}
+                                            style={{ top: statusMenuPos.top, left: statusMenuPos.left, width: MENU_WIDTH }}
+                                            className="fixed z-[100] flex flex-col rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+                                        >
+                                            <div className="px-3 py-0.5 text-[10px] text-slate-400">手動で設定</div>
+                                            {BILLING_OVERRIDE_CHOICES.map((c) => (
+                                                <button
+                                                    key={c.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setStatusMenuPos(null);
+                                                        onSetBillingStatus?.(row, c.value);
+                                                    }}
+                                                    className={statusMenuItem}
+                                                >
+                                                    {c.label}
+                                                </button>
+                                            ))}
+                                            {isOverride && (
+                                                <>
+                                                    <div className="my-1 border-t border-slate-100" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setStatusMenuPos(null);
+                                                            onSetBillingStatus?.(row, null);
+                                                        }}
+                                                        className={`${statusMenuItem} text-slate-500`}
+                                                    >
+                                                        自動判定に戻す
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>,
+                                        document.body,
+                                    )}
+                            </>
+                        ) : (
+                            <span
+                                title={isOverride ? `${badge.title}（手動設定中）` : badge.title}
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.badgeClassName}`}
+                            >
+                                {badge.label}
+                                {isOverride ? '*' : ''}
+                            </span>
+                        )}
                         {row.status === 'completed' && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white">
                                 <CheckCircle2 className="h-3 w-3" /> 完了

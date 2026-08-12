@@ -154,7 +154,8 @@ export interface ProjectMaster {
     estimatedAssemblyWorkers?: number;   // 予定組立人工
     estimatedDemolitionWorkers?: number; // 予定解体人工
     contractAmount?: number;         // 足場工事金額（円、税抜）
-    billingStatusOverride?: string | null; // 請求列の手動上書き（'unbilled'|'partial'|'full'。null/未設定=契約金額ベースの自動判定）
+    billingStatusOverride?: string | null; // 請求列の手動上書き（'unbilled'|'partial'|'full'。null/未設定=自動判定）
+    billingEstimateIds?: string[] | null;  // 判定の基準額にする見積のID配列（未選択=null。契約金額より優先）
 
     // 原価（手入力）
     materialCost?: number | null;                 // 材料費

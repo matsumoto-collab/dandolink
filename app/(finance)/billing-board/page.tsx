@@ -19,6 +19,10 @@ import RequestBillingDialog, {
     type RequestBillingResult,
     type RequestBillingProfit,
 } from '@/components/BillingBoard/RequestBillingDialog';
+import BillingCompletionDialog, {
+    type BillingCompletion,
+    type BillingCompletionTarget,
+} from '@/components/BillingBoard/BillingCompletionDialog';
 import type { BillingBoardRow as Row, BillingDecision } from '@/types/billingBoard';
 import type { InvoiceItem, InvoiceInput, BillingTitle } from '@/types/invoice';
 import type { Estimate, EstimateInput } from '@/types/estimate';
@@ -121,7 +125,7 @@ export default function BillingBoardPage() {
     const { ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject, updateEstimate } = useEstimates();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
-    const { projectMasters, fetchProjectMasters } = useProjectMasters();
+    const { projectMasters, fetchProjectMasters, updateProjectMaster } = useProjectMasters();
 
     const [rows, setRows] = useState<Row[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -165,6 +169,13 @@ export default function BillingBoardPage() {
     // 請求対象（DBに永続化・請求書発行まで保持）。key = projectId。
     // 別メニューへ移動しても消えず、端末をまたいで途中から再開できる。
     const [staged, setStaged] = useState<Record<string, StagedLine>>({});
+
+    // 「請求書を作成」押下時に開く確認ダイアログ（案件ごとに請求完了／まだ続くを必ず選ばせる）。
+    const [completionDialog, setCompletionDialog] = useState<
+        { customerId: string; projects: BillingCompletionTarget[]; isAppend: boolean } | null
+    >(null);
+    // 確認ダイアログで選んだ値。請求書の発行/追記が成功した直後に billingStatusOverride へ書き込む。
+    const [pendingCompletion, setPendingCompletion] = useState<Record<string, BillingCompletion>>({});
 
     // 請求書プレビュー（顧客ごと）
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -406,6 +417,9 @@ export default function BillingBoardPage() {
                 : g.rows.reduce((s, r) => s + (r.remainingAmount ?? r.contractAmount ?? 0), 0),
         [tab],
     );
+
+    // 案件ID → 行（確認ダイアログの案件名解決などに使う）
+    const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
     // 顧客ごとの請求対象（staged を顧客単位に集約）
     const stagedByCustomer = useMemo(() => {
@@ -762,6 +776,56 @@ export default function BillingBoardPage() {
         [fetchBoard, mode, month],
     );
 
+    // ── 案件レベルの請求ステータス手動指定（案件一覧の請求バッジと同じ billingStatusOverride）──
+    // ボードのタブ分類（月次ワークフロー）には影響しない。表示中のバッジと案件一覧の表示だけが変わる。
+    const setBillingStatusOverride = useCallback(
+        async (row: Row, value: 'unbilled' | 'partial' | 'full' | null) => {
+            setBusyRowId(row.id);
+            try {
+                // 案件一覧ストア経由で更新する（案件一覧の表示も同時に最新化される）
+                await updateProjectMaster(row.id, { billingStatusOverride: value });
+                // 書いた値は既知なので、ボード全体を取り直さず該当行だけ更新する
+                setRows((prev) =>
+                    prev.map((r) => (r.id === row.id ? { ...r, billingStatusOverride: value } : r)),
+                );
+                toast.success(value ? '請求ステータスを手動で設定しました' : '自動判定に戻しました');
+            } catch (e) {
+                logger.error('Failed to update billing status override:', e);
+                toast.error(e instanceof Error ? e.message : '請求ステータスの更新に失敗しました');
+            } finally {
+                setBusyRowId(null);
+            }
+        },
+        [updateProjectMaster],
+    );
+
+    /**
+     * 請求書の発行/追記が成功したあとに、各案件の請求バッジ（billingStatusOverride）を書き込む。
+     * 失敗しても請求書自体は成功扱い（ロールバックしない）。トーストで知らせるだけ。
+     */
+    const applyBillingCompletion = useCallback(
+        async (completions: Record<string, BillingCompletion>) => {
+            const targets = Object.entries(completions);
+            if (targets.length === 0) return;
+            const oks = await Promise.all(
+                targets.map(async ([pid, value]) => {
+                    try {
+                        await updateProjectMaster(pid, { billingStatusOverride: value });
+                        return true;
+                    } catch (e) {
+                        logger.error('Failed to apply billing completion:', e);
+                        return false;
+                    }
+                }),
+            );
+            const failed = oks.filter((ok) => !ok).length;
+            if (failed > 0) {
+                toast.error(`案件の請求状態を更新できませんでした（${failed}件）。案件行のバッジから設定してください`);
+            }
+        },
+        [updateProjectMaster],
+    );
+
     const handleHold = useCallback((row: Row) => setDecision(row, 'hold', '保留にしました'), [setDecision]);
     const handleExclude = useCallback(
         (row: Row) => {
@@ -774,37 +838,43 @@ export default function BillingBoardPage() {
     // 手動で「請求済み」に（社外請求済み等、実請求を介さず請求済みタブへ送る）。判断に戻すで取り消せる。
     const handleMarkBilled = useCallback((row: Row) => setDecision(row, 'billed', '請求済みにしました'), [setDecision]);
 
+    // 当月まとめ: 締め分モードで、同じ顧客・同じ締め期間・編集可（下書き/担当確認済み）の既存請求書。
+    // あれば新規作成せずその請求書へ今回の明細を追記する（編集モードで開く）。
+    // 送付済/支払済/期限超過の請求書は対象外＝新規作成（顧客へ送った後の請求書は書き換えない）。
+    const findAppendableInvoice = useCallback(
+        (custId: string) => {
+            const sampleRow = rows.find((r) => r.customerId === custId);
+            const closingYmd = sampleRow?.periodTo;
+            const periodFrom = sampleRow?.periodFrom;
+            if (mode !== 'closing' || !periodFrom || !closingYmd) return { closingYmd, existing: undefined };
+            const EDITABLE = new Set(['draft', 'confirmed']);
+            const pad2 = (n: number) => String(n).padStart(2, '0');
+            const toLocalYmd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+            const existing = financeInvoices
+                .filter((inv) => inv.customerId === custId && EDITABLE.has(inv.status))
+                .filter((inv) => {
+                    const ymd = toLocalYmd(new Date(inv.createdAt));
+                    return ymd >= periodFrom && ymd <= closingYmd;
+                })
+                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+            return { closingYmd, existing };
+        },
+        [rows, mode, financeInvoices],
+    );
+
     // ── 顧客ごとに請求書を作成（請求予定を介さず /api/invoices に直接発行）──────
-    const handleCreateInvoiceForCustomer = useCallback(
+    // 確認ダイアログで案件ごとの請求完了指定を受け取ってから、この関数で請求書フォームを開く。
+    const openInvoiceFlow = useCallback(
         (custId: string) => {
             const sc = stagedByCustomer.get(custId);
             if (!sc || sc.items.length === 0) {
                 toast.error('請求対象がありません');
                 return;
             }
-            const sampleRow = rows.find((r) => r.customerId === custId);
-            const closingYmd = sampleRow?.periodTo;
-            const periodFrom = sampleRow?.periodFrom;
+            const { closingYmd, existing } = findAppendableInvoice(custId);
 
             setIssuingCustomerId(custId);
             setIssuingProjectIds(sc.projectIds);
-
-            // 当月まとめ: 締め分モードで、同じ顧客・同じ締め期間・編集可（下書き/担当確認済み）の
-            // 既存請求書があれば、新規作成せずにその請求書へ今回の明細を追記する（編集モードで開く）。
-            // 送付済/支払済/期限超過の請求書は対象外＝新規作成（顧客へ送った後の請求書は書き換えない）。
-            const EDITABLE = new Set(['draft', 'confirmed']);
-            const pad2 = (n: number) => String(n).padStart(2, '0');
-            const toLocalYmd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-            const existing =
-                mode === 'closing' && periodFrom && closingYmd
-                    ? financeInvoices
-                          .filter((inv) => inv.customerId === custId && EDITABLE.has(inv.status))
-                          .filter((inv) => {
-                              const ymd = toLocalYmd(new Date(inv.createdAt));
-                              return ymd >= periodFrom && ymd <= closingYmd;
-                          })
-                          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
-                    : undefined;
 
             if (existing) {
                 // 既存の当月請求書へ追記（編集モードで開く）。明細＝既存＋今回、合計はフォームが自動再計算する。
@@ -855,7 +925,38 @@ export default function BillingBoardPage() {
             });
             setIsInvoiceModalOpen(true);
         },
-        [stagedByCustomer, rows, mode, financeInvoices],
+        [stagedByCustomer, findAppendableInvoice, mode],
+    );
+
+    // 「請求書を作成」押下 → まず案件ごとの請求完了指定を必ず選ばせる（キャンセルで発行中止）。
+    const handleCreateInvoiceForCustomer = useCallback(
+        (custId: string) => {
+            const sc = stagedByCustomer.get(custId);
+            if (!sc || sc.items.length === 0) {
+                toast.error('請求対象がありません');
+                return;
+            }
+            setCompletionDialog({
+                customerId: custId,
+                projects: sc.projectIds.map((pid) => {
+                    const r = rowById.get(pid);
+                    return { id: pid, title: r?.title || r?.name || '案件' };
+                }),
+                isAppend: !!findAppendableInvoice(custId).existing,
+            });
+        },
+        [stagedByCustomer, rowById, findAppendableInvoice],
+    );
+
+    const handleCompletionConfirm = useCallback(
+        (completions: Record<string, BillingCompletion>) => {
+            const custId = completionDialog?.customerId;
+            if (!custId) return;
+            setPendingCompletion(completions);
+            setCompletionDialog(null);
+            openInvoiceFlow(custId);
+        },
+        [completionDialog, openInvoiceFlow],
     );
 
     const handleCloseInvoiceModal = useCallback(() => {
@@ -865,6 +966,7 @@ export default function BillingBoardPage() {
         setIssuingProjectIds([]);
         setEditingInvoiceId(null);
         setEditingExistingProjectIds([]);
+        setPendingCompletion({}); // 発行せずに閉じたら請求完了指定も破棄する
     }, []);
 
     const handleIssueInvoice = useCallback(
@@ -896,6 +998,9 @@ export default function BillingBoardPage() {
                 if (financeState.invoicesInitialized) {
                     void financeState.fetchInvoices();
                 }
+                // 確認ダイアログで指定した「請求完了／まだ続く」を案件の請求バッジへ反映（失敗しても発行は成功扱い）。
+                await applyBillingCompletion(pendingCompletion);
+                setPendingCompletion({});
                 // 今回ステージした案件のみ請求対象から外す（DB＋画面の両方）。
                 // DB 側の削除に失敗しても請求書の作成/更新自体は成功しているので、ログに留めてトーストは出さない。
                 const issued = issuingProjectIds;
@@ -929,7 +1034,15 @@ export default function BillingBoardPage() {
                 toast.error(e instanceof Error ? e.message : (isUpdate ? '請求書の更新に失敗しました' : '請求書の作成に失敗しました'));
             }
         },
-        [issuingCustomerId, issuingProjectIds, editingInvoiceId, editingExistingProjectIds, fetchBoard],
+        [
+            issuingCustomerId,
+            issuingProjectIds,
+            editingInvoiceId,
+            editingExistingProjectIds,
+            fetchBoard,
+            applyBillingCompletion,
+            pendingCompletion,
+        ],
     );
 
     if (sessionStatus === 'loading') return null;
@@ -1160,7 +1273,7 @@ export default function BillingBoardPage() {
                                         <span className="text-xs text-slate-400">{g.rows.length}件</span>
                                     </div>
                                     {canInvoice ? (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center justify-end gap-2">
                                             <span className="text-xs text-slate-500">
                                                 残(税抜){' '}
                                                 <span className="font-semibold text-slate-700">{yen(groupSubtotal(g))}</span>
@@ -1206,6 +1319,8 @@ export default function BillingBoardPage() {
                                             onMarkBilled={handleMarkBilled}
                                             onUnstage={unstageProject}
                                             onPickEstimate={handlePickEstimate}
+                                            canSetBillingStatus={canEdit}
+                                            onSetBillingStatus={setBillingStatusOverride}
                                             onHold={handleHold}
                                             onExclude={handleExclude}
                                             onRestore={handleRestore}
@@ -1236,6 +1351,15 @@ export default function BillingBoardPage() {
                 confirmLabel="見積金額に設定"
                 onClose={() => setEstimatePicker(null)}
                 onConfirm={handleEstimatePickerConfirm}
+            />
+
+            {/* 請求書を作成する直前の確認（案件ごとに請求完了／まだ続くを必須選択）。 */}
+            <BillingCompletionDialog
+                open={!!completionDialog}
+                projects={completionDialog?.projects ?? []}
+                isAppend={completionDialog?.isAppend}
+                onCancel={() => setCompletionDialog(null)}
+                onConfirm={handleCompletionConfirm}
             />
 
             {isInvoiceModalOpen && (

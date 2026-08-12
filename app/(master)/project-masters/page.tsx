@@ -20,9 +20,11 @@ import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCr
 import {
     computeInvoicedByProject,
     getBillingStatus,
+    resolveBillingBasis,
     type BillingStatus,
     type InvoiceForBillingSummary,
 } from '@/lib/billing/billingStatus';
+import { BILLING_STATUS_META } from '@/lib/billing/billingStatusMeta';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
@@ -46,39 +48,28 @@ const InvoiceDetailModal = dynamic(
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[70]"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
 
-/** Phase 4: 請求列の 3 段階表示。状態ごとの文言・色（灰/黄/緑）・ツールチップ（§14.2 / §14.5）。 */
-const BILLING_CELL_META: Record<BillingStatus, { text: string; className: string; showCheck: boolean; title: string }> = {
-    none: {
-        text: '—',
-        className: 'bg-white text-slate-300 border border-slate-200',
-        showCheck: false,
-        title: '契約金額が未設定です',
-    },
-    unbilled: {
-        text: '未',
-        className: 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600',
-        showCheck: false,
-        title: '未請求（クリックで請求書を作成）',
-    },
-    partial: {
-        text: '一部',
-        className: 'bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200',
-        showCheck: false,
-        title: '一部請求済（クリックで請求書を確認・追加）',
-    },
-    full: {
-        text: '済',
-        className: 'bg-emerald-600 text-white border border-emerald-600 hover:bg-emerald-700 shadow-sm',
-        showCheck: true,
-        title: '全額請求済（クリックで請求書を確認）',
-    },
-};
+/**
+ * Phase 4: 請求列の 3 段階表示。状態ごとの文言・色（灰/黄/緑）・ツールチップ（§14.2 / §14.5）。
+ * 文言・配色は請求待ちボードの案件行バッジと共有（lib/billing/billingStatusMeta）。
+ */
+const BILLING_CELL_META: Record<BillingStatus, { text: string; className: string; showCheck: boolean; title: string }> =
+    Object.fromEntries(
+        (Object.keys(BILLING_STATUS_META) as BillingStatus[]).map((k) => [
+            k,
+            {
+                text: BILLING_STATUS_META[k].short,
+                className: BILLING_STATUS_META[k].cellClassName,
+                showCheck: BILLING_STATUS_META[k].showCheck,
+                title: BILLING_STATUS_META[k].title,
+            },
+        ]),
+    ) as Record<BillingStatus, { text: string; className: string; showCheck: boolean; title: string }>;
 
 // useSearchParams() を含むため、ビルド時のプリレンダリングで Suspense 境界が必要
 // （Next.js App Router の制約: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout）
 function ProjectMasterListPageContent() {
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById, fetchProjectMasters } = useProjectMasters();
-    const { addEstimate, updateEstimate, deleteEstimate, ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
+    const { estimates, addEstimate, updateEstimate, deleteEstimate, ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
     const { invoices, addInvoice, updateInvoice, deleteInvoice, ensureDataLoaded: ensureInvoicesLoaded, getInvoicesByProject } = useInvoices();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
@@ -411,12 +402,38 @@ function ProjectMasterListPageContent() {
 
     // 請求列の手動上書き（未/一部/済）メニューの開閉対象
     const [billingMenuPmId, setBillingMenuPmId] = useState<string | null>(null);
-    // override があれば優先、無ければ契約金額ベースの自動判定
+
+    // 案件ID → その案件の見積（税抜 subtotal）。判定の分母を見積にフォールバックするため。
+    const estimatesByProject = useMemo(() => {
+        const m = new Map<string, Array<{ id: string; subtotal: number }>>();
+        for (const e of estimates) {
+            if (!e.projectId) continue;
+            const entry = { id: e.id, subtotal: Number(e.subtotal) || 0 };
+            const arr = m.get(e.projectId);
+            if (arr) arr.push(entry);
+            else m.set(e.projectId, [entry]);
+        }
+        return m;
+    }, [estimates]);
+
+    // 判定の分母（基準額）。契約金額はほぼ未入力のため見積にフォールバックする
+    // （請求待ちボードと同じ規則＝lib/billing/billingStatus の resolveBillingBasis に一本化）。
+    const resolveBillingBasisFor = useCallback(
+        (pm: ProjectMaster) =>
+            resolveBillingBasis({
+                contractAmount: pm.contractAmount ?? null,
+                billingEstimateIds: pm.billingEstimateIds,
+                estimates: estimatesByProject.get(pm.id) ?? [],
+            }),
+        [estimatesByProject],
+    );
+
+    // override があれば優先、無ければ基準額（契約金額 or 見積）ベースの自動判定
     const resolveBillingStatus = useCallback(
         (pm: ProjectMaster): BillingStatus =>
             (pm.billingStatusOverride as BillingStatus | undefined) ||
-            getBillingStatus(pm.contractAmount, invoicedByProject[pm.id] ?? 0),
-        [invoicedByProject],
+            getBillingStatus(resolveBillingBasisFor(pm).amount, invoicedByProject[pm.id] ?? 0),
+        [invoicedByProject, resolveBillingBasisFor],
     );
     const setBillingOverride = useCallback(
         async (pm: ProjectMaster, value: 'unbilled' | 'partial' | 'full' | null) => {
@@ -457,13 +474,21 @@ function ProjectMasterListPageContent() {
     const renderBillingButton = (pm: ProjectMaster) => {
         const billMeta = BILLING_CELL_META[resolveBillingStatus(pm)];
         const isOverride = !!pm.billingStatusOverride;
+        const basis = resolveBillingBasisFor(pm);
+        // 分母が見積由来のときはツールチップで分かるようにする（契約金額は未入力の案件が大半のため）
+        const basisNote =
+            isOverride || basis.amount == null
+                ? ''
+                : basis.source === 'contract'
+                  ? '・契約金額基準'
+                  : '・見積金額基準';
         const base = 'inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed';
         const menuItem = 'block w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 transition-colors whitespace-nowrap';
         return (
             <div className="relative inline-block">
                 <button
                     onClick={(e) => { e.stopPropagation(); setBillingMenuPmId(billingMenuPmId === pm.id ? null : pm.id); }}
-                    title={isOverride ? `${billMeta.title}（手動設定中）` : billMeta.title}
+                    title={isOverride ? `${billMeta.title}（手動設定中）` : `${billMeta.title}${basisNote}`}
                     className={`${base} ${billMeta.className}`}
                 >
                     {billMeta.showCheck && <Check className="w-3 h-3" strokeWidth={3} />}
