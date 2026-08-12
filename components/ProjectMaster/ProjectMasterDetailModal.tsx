@@ -5,6 +5,9 @@ import { X, Edit, ArrowLeft, FileText, FileSearch } from 'lucide-react';
 
 const LentOutSection = lazy(() => import('@/components/ProjectMasters/sections/LentOutSection'));
 const ProjectChatTab = lazy(() => import('@/components/Chat/ProjectChatTab'));
+const EstimateQuickViewModal = lazy(() => import('@/components/Estimates/EstimateQuickViewModal'));
+import { useSession } from 'next-auth/react';
+import { isManagerOrAbove } from '@/utils/permissions';
 import { ProjectMaster } from '@/types/calendar';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import ProjectMasterDetailPanel from './ProjectMasterDetailPanel';
@@ -93,7 +96,13 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
     const [formData, setFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
     const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [showEstimates, setShowEstimates] = useState(false);
     const constructionTypes = useMasterStore(selectConstructionTypes);
+
+    // 親が onViewEstimate を渡さない画面(請求待ち/出来高等)向けの内蔵見積ビューア。
+    // 見積APIは admin/manager のみのためボタンも同条件で表示
+    const { data: session } = useSession();
+    const showBuiltinEstimateView = !onViewEstimate && isManagerOrAbove(session?.user);
 
     // pm.id が変わった時（別の案件を開いた時）のみモード・タブをリセット
     useEffect(() => {
@@ -102,6 +111,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
             setActiveTab('detail');
             setFormData(initFormDataFromPm(pm, constructionTypes));
             setShowUnsavedConfirm(false);
+            setShowEstimates(false);
             setErrors({});
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,7 +148,10 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
         }
     };
 
-    const modalRef = useModalKeyboard(isOpen, handleClose);
+    // 見積ビューアを開いている間は Esc で親モーダルまで閉じない（子側だけ閉じる）
+    const modalRef = useModalKeyboard(isOpen, () => {
+        if (!showEstimates) handleClose();
+    });
 
     if (!pm) return null;
 
@@ -257,6 +270,16 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                                 <span className="hidden md:inline">見積書を確認</span>
                             </button>
                         )}
+                        {!isEditMode && showBuiltinEstimateView && (
+                            <button
+                                onClick={() => setShowEstimates(true)}
+                                title="見積書を確認"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-teal-300 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
+                            >
+                                <FileSearch className="w-4 h-4" />
+                                <span className="hidden md:inline">見積書を確認</span>
+                            </button>
+                        )}
                         <button
                             onClick={handleClose}
                             className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
@@ -310,6 +333,18 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                     )}
                 </div>
             </div>
+
+            {/* 見積書のPDF閲覧（内蔵ビューア・body直下にポータルされる） */}
+            {showEstimates && (
+                <Suspense fallback={null}>
+                    <EstimateQuickViewModal
+                        isOpen={showEstimates}
+                        onClose={() => setShowEstimates(false)}
+                        projectMasterId={pm.id}
+                        projectTitle={pm.title}
+                    />
+                </Suspense>
+            )}
 
             {/* 未保存変更確認ダイアログ */}
             {showUnsavedConfirm && (
