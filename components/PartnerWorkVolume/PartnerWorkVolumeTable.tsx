@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Loader2, Plus, Check, Undo2, RotateCcw } from 'lucide-react';
+import { Trash2, Loader2, Plus, Check, Undo2, RotateCcw, ExternalLink } from 'lucide-react';
 import type { PartnerWorkVolumeRow, PartnerTaxMode } from '@/types/partnerWorkVolume';
 import { PARTNER_TAX_RATE } from '@/types/partnerWorkVolume';
 
@@ -19,6 +19,14 @@ interface Props {
     onInsert: (row: PartnerWorkVolumeRow, position: 'above' | 'below') => void;
     /** 行ごとの完了/編集トグル */
     onToggleStatus: (row: PartnerWorkVolumeRow) => void;
+    /**
+     * 現場名セルの詳細ボタンから案件詳細モーダルを開く。
+     * 未指定なら詳細ボタンを出さない（協力業者ロールには渡さない）。
+     * 案件に紐づかない行（常用行・手動追加行）は projectMasterId が null なのでボタンは出ない。
+     */
+    onOpenProjectDetail?: (projectMasterId: string) => void;
+    /** 案件詳細を取得中の projectMasterId（該当行のボタンをスピナーにする） */
+    detailLoadingId?: string | null;
 }
 
 function rowKey(row: PartnerWorkVolumeRow): string {
@@ -52,6 +60,8 @@ export default function PartnerWorkVolumeTable({
     onRestore,
     onInsert,
     onToggleStatus,
+    onOpenProjectDetail,
+    detailLoadingId,
 }: Props) {
     // 小計（税抜）は削除済み行を除外。金額セルは常に税抜の保存値を表示する。
     const subtotal = rows
@@ -164,6 +174,28 @@ export default function PartnerWorkVolumeTable({
                                     align="left"
                                     required
                                     onCommit={(v) => onSave(row, { projectTitle: v })}
+                                    extra={
+                                        onOpenProjectDetail && row.projectMasterId ? (
+                                            <button
+                                                type="button"
+                                                title="案件の詳細を開く"
+                                                aria-label="案件の詳細を開く"
+                                                disabled={detailLoadingId === row.projectMasterId}
+                                                // セル全体の onClick（編集開始）と衝突させない
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onOpenProjectDetail(row.projectMasterId!);
+                                                }}
+                                                className="ml-1.5 inline-flex shrink-0 items-center align-middle text-slate-400 no-underline transition-colors hover:text-teal-700 disabled:opacity-60"
+                                            >
+                                                {detailLoadingId === row.projectMasterId ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <ExternalLink className="w-3.5 h-3.5" />
+                                                )}
+                                            </button>
+                                        ) : null
+                                    }
                                 />
                                 <TextCell
                                     value={row.managerName ?? ''}
@@ -398,11 +430,14 @@ function TextCell({
     saving,
     align,
     required,
+    extra,
     onCommit,
 }: CellProps & {
     value: string;
     align: 'left' | 'center' | 'right';
     required?: boolean;
+    /** 表示時のみ値の右に並べる補助要素（詳細ボタンなど）。編集中は出さない。 */
+    extra?: React.ReactNode;
     onCommit: (next: string) => void;
 }) {
     const [editing, setEditing] = useState(false);
@@ -444,6 +479,7 @@ function TextCell({
                 ) : (
                     <span className="text-slate-300">—</span>
                 )}
+                {extra}
             </td>
         );
     }

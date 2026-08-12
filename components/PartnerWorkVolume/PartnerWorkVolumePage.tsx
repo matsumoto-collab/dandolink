@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { ChevronLeft, ChevronRight, Plus, FileDown, Loader2, Check, Lock, Users, Eye, EyeOff, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -14,8 +15,20 @@ import type {
     PartnerWorkVolumeMonthStatus,
     PartnerTaxMode,
 } from '@/types/partnerWorkVolume';
+import type { ProjectMaster } from '@/types/calendar';
+import type { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
+import { useProjectMasters } from '@/hooks/useProjectMasters';
+import { useMasterData } from '@/hooks/useMasterData';
+import { buildProjectMasterUpdatePayload } from '@/lib/projectMasterUpdate';
+import { createAssignmentsFromWorkDates } from '@/lib/projectMasterCreate';
 import PartnerWorkVolumeTable from './PartnerWorkVolumeTable';
 import { exportPartnerWorkVolumePDF } from '@/utils/partnerWorkVolumePdf';
+
+// 案件詳細モーダル（案件一覧・請求待ちボードと同じもの。現場名の詳細ボタンで開く）
+const ProjectMasterDetailModal = dynamic(() => import('@/components/ProjectMaster/ProjectMasterDetailModal'), {
+    ssr: false,
+    loading: () => null,
+});
 
 const MANAGER_FILTER_ALL = '__all__';
 const MANAGER_FILTER_BLANK = '__blank__';
@@ -62,6 +75,12 @@ export default function PartnerWorkVolumePage() {
     // 税理士(accountant)は全社の出来高を閲覧のみ（行編集・公開などの操作は不可）
     const isAccountant = role === 'accountant';
     const canViewAllCompanies = isAdminOrManager || isAccountant;
+    // 案件詳細モーダルは社内情報（材料・チャット等）を含むため協力業者には出さない
+    const canOpenProjectDetail = isAdminOrManager || isAccountant;
+
+    const { updateProjectMaster } = useProjectMasters();
+    // 案件詳細モーダルの編集モードは工事種別マスタを参照するためロードしておく
+    useMasterData();
 
     const initial = todayJstYm();
     const [year, setYear] = useState<number>(initial.year);
@@ -86,6 +105,9 @@ export default function PartnerWorkVolumePage() {
     const [completedCount, setCompletedCount] = useState(0);
     const [managerFilter, setManagerFilter] = useState<string>(MANAGER_FILTER_ALL);
     const [showDeleted, setShowDeleted] = useState<boolean>(false);
+    // 案件詳細モーダル（現場名の詳細ボタンで開く）
+    const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
+    const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
 
     // admin / manager / accountant: 協力会社一覧を取得
     useEffect(() => {
@@ -510,6 +532,33 @@ export default function PartnerWorkVolumePage() {
         }
     }, [rows, companyName, year, month, taxMode]);
 
+    // ── 案件詳細モーダル（現場名の詳細ボタン）────────────────────
+    const handleOpenProjectDetail = useCallback(async (projectMasterId: string) => {
+        setDetailLoadingId(projectMasterId);
+        try {
+            const res = await fetch(`/api/project-masters/${projectMasterId}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error('案件情報の取得に失敗しました');
+            const pm: ProjectMaster = await res.json();
+            setDetailPm(pm);
+        } catch (e) {
+            logger.error('案件詳細の取得失敗:', e);
+            toast.error(e instanceof Error ? e.message : '案件情報の取得に失敗しました');
+        } finally {
+            setDetailLoadingId(null);
+        }
+    }, []);
+
+    // 案件詳細モーダルからの保存（案件一覧と同じ変換ロジック＋作業日程からの配置生成）
+    const handleDetailUpdate = useCallback(
+        async (id: string, data: ProjectMasterFormData) => {
+            const updated = await updateProjectMaster(id, buildProjectMasterUpdatePayload(data));
+            await createAssignmentsFromWorkDates(id, data.workDates);
+            if (updated) setDetailPm(updated);
+            await fetchRows();
+        },
+        [updateProjectMaster, fetchRows]
+    );
+
     const monthLabel = useMemo(() => ymLabel(year, month), [year, month]);
 
     // 担当者フィルタ: 表の行から抽出。'__blank__' = 担当者未設定の行
@@ -775,10 +824,22 @@ export default function PartnerWorkVolumePage() {
                             onRestore={handleRestore}
                             onInsert={handleInsert}
                             onToggleStatus={handleToggleStatus}
+                            onOpenProjectDetail={canOpenProjectDetail ? handleOpenProjectDetail : undefined}
+                            detailLoadingId={detailLoadingId}
                         />
                     </div>
                 )}
             </div>
+
+            {/* 案件詳細（案件一覧と同じモーダル）。税理士は閲覧のみ。 */}
+            {detailPm && (
+                <ProjectMasterDetailModal
+                    pm={detailPm}
+                    onClose={() => setDetailPm(null)}
+                    onUpdate={handleDetailUpdate}
+                    readOnly={!isAdminOrManager}
+                />
+            )}
         </div>
     );
 }
