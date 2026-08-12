@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, Download } from 'lucide-react';
 
@@ -56,7 +57,11 @@ export function ImageLightbox({ images, initialIndex, onClose, onDownload, getDo
     const current = images[currentIndex];
     const hasMultiple = images.length > 1;
 
-    return (
+    // 親モーダルのスタッキングコンテキストに閉じ込められるとサイドバー(z-50)の裏に隠れるため、
+    // body直下にポータルして常に最前面に表示する
+    if (typeof document === 'undefined') return null;
+
+    return createPortal(
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 select-none pwa-modal-safe">
             {/* ヘッダー */}
             <div className="flex items-center justify-between px-4 py-3 shrink-0">
@@ -224,6 +229,7 @@ export function ImageLightbox({ images, initialIndex, onClose, onDownload, getDo
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
