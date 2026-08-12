@@ -7,10 +7,17 @@ import ProjectDetailView from './ProjectDetailView';
 import EditingIndicator from '../Calendar/EditingIndicator';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
-import { FileText, Pencil, Trash2, MessageSquare, ExternalLink } from 'lucide-react';
+import { FileText, FileSearch, Pencil, Trash2, MessageSquare, ExternalLink } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { useSession } from 'next-auth/react';
+import { isManagerOrAbove } from '@/utils/permissions';
 
 const ProjectChatTab = dynamic(() => import('@/components/Chat/ProjectChatTab'), { ssr: false });
+// 見積書のPDF閲覧モーダル（react-pdf を含み重いので遅延読み込み）
+const EstimateQuickViewModal = dynamic(() => import('@/components/Estimates/EstimateQuickViewModal'), {
+    ssr: false,
+    loading: () => null,
+});
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 
@@ -52,12 +59,23 @@ export default function ProjectModal({
     const [isEditMode, setIsEditMode] = useState(!initialData?.id);
     const [isSaving, setIsSaving] = useState(false);
     const [showChat, setShowChat] = useState(false);
+    const [showEstimates, setShowEstimates] = useState(false);
+
+    // 見積書の閲覧は admin / manager のみ（API 側も requireManagerOrAbove）
+    const { data: session } = useSession();
+    const canViewEstimates = isManagerOrAbove(session?.user);
 
     // モーダル開時 / 別案件切替時は常に「詳細表示」へリセット
     useEffect(() => {
-        if (isOpen) setShowChat(false);
+        if (isOpen) {
+            setShowChat(false);
+            setShowEstimates(false);
+        }
     }, [isOpen, initialData?.id]);
-    const modalRef = useModalKeyboard(isOpen, onClose);
+    // 見積プレビューを開いている間は Esc で親モーダルまで閉じない（子側だけ閉じる）
+    const modalRef = useModalKeyboard(isOpen, () => {
+        if (!showEstimates) onClose();
+    });
 
     // Presence機能: 編集中ユーザーの追跡
     const { startEditing, stopEditing, getEditingUsers } = useAssignmentPresence();
@@ -171,6 +189,16 @@ export default function ProjectModal({
                             >
                                 <Trash2 className="w-4 h-4" />
                                 <span className="hidden md:inline">削除</span>
+                            </button>
+                        )}
+                        {!isEditMode && !showChat && initialData?.projectMasterId && canViewEstimates && (
+                            <button
+                                onClick={() => setShowEstimates(true)}
+                                title="見積書"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                <FileSearch className="w-4 h-4" />
+                                <span className="hidden md:inline">見積書</span>
                             </button>
                         )}
                         {!readOnly && !isEditMode && onCreateEstimate && (
@@ -288,6 +316,16 @@ export default function ProjectModal({
                     </div>
                 )}
             </div>
+
+            {/* 見積書のPDF閲覧（この案件に紐づく見積） */}
+            {showEstimates && initialData?.projectMasterId && (
+                <EstimateQuickViewModal
+                    isOpen={showEstimates}
+                    onClose={() => setShowEstimates(false)}
+                    projectMasterId={initialData.projectMasterId}
+                    projectTitle={initialData.title}
+                />
+            )}
         </div>
     );
 }
