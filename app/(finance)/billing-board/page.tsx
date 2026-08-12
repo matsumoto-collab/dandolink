@@ -10,7 +10,10 @@ import { useEstimates } from '@/hooks/useEstimates';
 import { useCompany } from '@/hooks/useCompany';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
+import { useMasterData } from '@/hooks/useMasterData';
 import { useDebounce } from '@/hooks/useDebounce';
+import { buildProjectMasterUpdatePayload } from '@/lib/projectMasterUpdate';
+import { createAssignmentsFromWorkDates } from '@/lib/projectMasterCreate';
 import { flattenEstimateItems, newBillingItemId } from '@/lib/billing/estimateToBillingItems';
 import { closingDayLabel, formatClosingInvoiceTitle, dueDateFromClosing } from '@/lib/closingDay';
 import BillingBoardRow from '@/components/BillingBoard/BillingBoardRow';
@@ -26,7 +29,8 @@ import BillingCompletionDialog, {
 import type { BillingBoardRow as Row, BillingDecision } from '@/types/billingBoard';
 import type { InvoiceItem, InvoiceInput, BillingTitle } from '@/types/invoice';
 import type { Estimate, EstimateInput } from '@/types/estimate';
-import type { Project } from '@/types/calendar';
+import type { Project, ProjectMaster } from '@/types/calendar';
+import type { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import { logger } from '@/lib/logger';
 import { useFinanceStore } from '@/stores/financeStore';
 
@@ -34,6 +38,11 @@ import { useFinanceStore } from '@/stores/financeStore';
 const InvoiceModal = dynamic(() => import('@/components/Invoices/InvoiceModal'), { ssr: false, loading: () => null });
 // 見積書の編集フォーム（見積書メニューと同じモーダル。請求金額の指定中にその場で見積を直せるように）
 const EstimateModal = dynamic(() => import('@/components/Estimates/EstimateModal'), { ssr: false, loading: () => null });
+// 案件詳細モーダル（案件一覧と同じもの。案件名クリックで開く）
+const ProjectMasterDetailModal = dynamic(() => import('@/components/ProjectMaster/ProjectMasterDetailModal'), {
+    ssr: false,
+    loading: () => null,
+});
 
 type TabKey = 'pending' | 'hold' | 'excluded' | 'billed';
 type CtypeMap = Record<string, { name: string; color: string }>;
@@ -126,6 +135,8 @@ export default function BillingBoardPage() {
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
     const { projectMasters, fetchProjectMasters, updateProjectMaster } = useProjectMasters();
+    // 案件詳細モーダルの編集モードは工事種別マスタを参照するため、ここでロードしておく
+    useMasterData();
 
     const [rows, setRows] = useState<Row[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -176,6 +187,10 @@ export default function BillingBoardPage() {
     >(null);
     // 確認ダイアログで選んだ値。請求書の発行/追記が成功した直後に billingStatusOverride へ書き込む。
     const [pendingCompletion, setPendingCompletion] = useState<Record<string, BillingCompletion>>({});
+
+    // 案件詳細モーダル（案件名クリックで開く。案件一覧と同じ ProjectMasterDetailModal）
+    const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
+    const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
 
     // 請求書プレビュー（顧客ごと）
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -799,6 +814,33 @@ export default function BillingBoardPage() {
         [updateProjectMaster],
     );
 
+    // ── 案件詳細モーダル（案件名クリック）────────────────────────
+    const handleOpenProjectDetail = useCallback(async (projectMasterId: string) => {
+        setDetailLoadingId(projectMasterId);
+        try {
+            const res = await fetch(`/api/project-masters/${projectMasterId}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error('案件情報の取得に失敗しました');
+            const pm: ProjectMaster = await res.json();
+            setDetailPm(pm);
+        } catch (e) {
+            logger.error('Failed to fetch project master for detail modal:', e);
+            toast.error(e instanceof Error ? e.message : '案件情報の取得に失敗しました');
+        } finally {
+            setDetailLoadingId(null);
+        }
+    }, []);
+
+    // 案件詳細モーダルからの保存（案件一覧と同じ変換ロジック＋作業日程からの配置生成）
+    const handleDetailUpdate = useCallback(
+        async (id: string, data: ProjectMasterFormData) => {
+            const updated = await updateProjectMaster(id, buildProjectMasterUpdatePayload(data));
+            await createAssignmentsFromWorkDates(id, data.workDates);
+            if (updated) setDetailPm(updated);
+            await fetchBoard();
+        },
+        [updateProjectMaster, fetchBoard],
+    );
+
     /**
      * 請求書の発行/追記が成功したあとに、各案件の請求バッジ（billingStatusOverride）を書き込む。
      * 失敗しても請求書自体は成功扱い（ロールバックしない）。トーストで知らせるだけ。
@@ -1324,6 +1366,8 @@ export default function BillingBoardPage() {
                                             onHold={handleHold}
                                             onExclude={handleExclude}
                                             onRestore={handleRestore}
+                                            onOpenProjectDetail={handleOpenProjectDetail}
+                                            detailLoading={detailLoadingId === row.id}
                                         />
                                     ))}
                                 </div>
@@ -1361,6 +1405,16 @@ export default function BillingBoardPage() {
                 onCancel={() => setCompletionDialog(null)}
                 onConfirm={handleCompletionConfirm}
             />
+
+            {/* 案件詳細（案件一覧と同じモーダル）。税理士は閲覧のみ（金額はモーダル側で非表示・PATCHも403）。 */}
+            {detailPm && (
+                <ProjectMasterDetailModal
+                    pm={detailPm}
+                    onClose={() => setDetailPm(null)}
+                    onUpdate={handleDetailUpdate}
+                    readOnly={!canEdit}
+                />
+            )}
 
             {isInvoiceModalOpen && (
                 <InvoiceModal

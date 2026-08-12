@@ -8,13 +8,14 @@ import { useEstimates } from '@/hooks/useEstimates';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useCompany } from '@/hooks/useCompany';
 import { useCustomers } from '@/hooks/useCustomers';
-import { ProjectMaster, ScaffoldingSpec, Project } from '@/types/calendar';
+import { ProjectMaster, Project } from '@/types/calendar';
 import { Estimate, EstimateInput, EstimateItem } from '@/types/estimate';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, User, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import { buildProjectMasterCreatePayload, createAssignmentsFromWorkDates } from '@/lib/projectMasterCreate';
+import { buildProjectMasterUpdatePayload } from '@/lib/projectMasterUpdate';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
 import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
 import {
@@ -259,47 +260,7 @@ function ProjectMasterListPageContent() {
     };
 
     const handleUpdate = async (id: string, data: ProjectMasterFormData) => {
-        const subcontractorCosts = data.subcontractorCosts
-            .filter(r => r.constructionTypeId && r.amount !== '')
-            .map(r => {
-                const amount = Number(r.amount);
-                const tc = r.transportCost === '' ? null : Number(r.transportCost);
-                return {
-                    constructionTypeId: r.constructionTypeId,
-                    amount,
-                    transportCost: tc != null && Number.isFinite(tc) && tc >= 0 ? tc : null,
-                };
-            })
-            .filter(r => Number.isFinite(r.amount) && r.amount >= 0);
-
-        // null を送ることで API 側でフィールドをクリアできる（undefined だと更新対象外になる）
-        const updatePayload: Record<string, unknown> = {
-            title: data.title,
-            name: data.name || null,
-            honorific: data.honorific ?? null,
-            constructionSuffixId: data.constructionSuffixId || null,
-            siteShortName: data.siteShortName || null,
-            customerId: data.customerId || null,
-            customerName: data.customerName || null,
-            constructionContent: (data.constructionContent as string) || null,
-            postalCode: data.postalCode || null,
-            prefecture: data.prefecture || null,
-            city: data.city || null,
-            location: data.location || null,
-            plusCode: data.plusCode || null,
-            latitude: data.latitude ?? null,
-            longitude: data.longitude ?? null,
-            area: data.area ? parseFloat(data.area) : null,
-            areaRemarks: data.areaRemarks || null,
-            estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : null,
-            estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : null,
-            contractAmount: data.contractAmount ? parseInt(data.contractAmount) : null,
-            scaffoldingSpec: data.scaffoldingSpec as ScaffoldingSpec,
-            remarks: data.remarks ?? '',
-            createdBy: data.createdBy.length > 0 ? data.createdBy : [],
-            subcontractorCosts,
-        };
-        await updateProjectMaster(id, updatePayload as Partial<ProjectMaster>);
+        await updateProjectMaster(id, buildProjectMasterUpdatePayload(data));
         // 作業日程から新規アサインを自動生成（職長未選択の行はスキップ）
         await createAssignmentsFromWorkDates(id, data.workDates);
 

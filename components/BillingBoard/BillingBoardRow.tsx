@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, FileText } from 'lucide-react';
+import { CheckCircle2, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { BILLING_STATUS_META, BILLING_OVERRIDE_CHOICES } from '@/lib/billing/billingStatusMeta';
 import type { BillingStatus } from '@/lib/billing/billingStatus';
@@ -76,6 +76,10 @@ interface BillingBoardRowProps {
     onHold: (row: Row) => void;
     onExclude: (row: Row) => void;
     onRestore: (row: Row) => void;
+    /** 案件名クリックで案件詳細モーダルを開く（案件一覧と同じモーダル）。 */
+    onOpenProjectDetail?: (projectMasterId: string) => void;
+    /** 案件詳細の取得中（案件名にスピナーを出す）。 */
+    detailLoading?: boolean;
 }
 
 const COLLAPSED_COUNT = 3;
@@ -98,6 +102,8 @@ export default function BillingBoardRow({
     onHold,
     onExclude,
     onRestore,
+    onOpenProjectDetail,
+    detailLoading,
 }: BillingBoardRowProps) {
     // 案件レベルのバッジ：手動上書きがあればそれを優先し、無ければ自動判定。
     const effectiveStatus: BillingStatus = row.billingStatusOverride ?? row.billingStatus;
@@ -150,9 +156,22 @@ export default function BillingBoardRow({
                 {/* 左：案件情報 */}
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-base font-semibold text-slate-900">
-                            {row.title || row.name}
-                        </span>
+                        {onOpenProjectDetail ? (
+                            <button
+                                type="button"
+                                onClick={() => onOpenProjectDetail(row.id)}
+                                disabled={detailLoading}
+                                title="案件の詳細を開く"
+                                className="inline-flex min-w-0 items-center gap-1.5 truncate text-base font-semibold text-slate-900 underline decoration-slate-300 decoration-dotted underline-offset-4 transition-colors hover:text-teal-700 hover:decoration-teal-500 disabled:opacity-60"
+                            >
+                                <span className="truncate">{row.title || row.name}</span>
+                                {detailLoading && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-slate-400" />}
+                            </button>
+                        ) : (
+                            <span className="truncate text-base font-semibold text-slate-900">
+                                {row.title || row.name}
+                            </span>
+                        )}
                         {/* 案件レベルの請求バッジ（override 優先）。管理者はここから手動指定できる。 */}
                         {canOpenStatusMenu ? (
                             <>
