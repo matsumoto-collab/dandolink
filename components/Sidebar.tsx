@@ -7,6 +7,7 @@ import {
     ChevronRight,
     ChevronLeft,
     X,
+    ExternalLink,
 } from 'lucide-react';
 import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
 import { useChatStore } from '@/stores/chatStore';
@@ -334,6 +335,18 @@ export default function Sidebar() {
 
                 {/* Utility Area */}
                 <div className="flex-shrink-0 border-t border-slate-800/50 p-3 space-y-1">
+                    {/* 人事システム(yushin-hr)への外部リンク: admin かつ URL 設定時のみ表示 */}
+                    {session?.user?.role === 'admin' && process.env.NEXT_PUBLIC_YUSHIN_HR_URL && (
+                        <a
+                            href={process.env.NEXT_PUBLIC_YUSHIN_HR_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-amber-300/90 hover:bg-slate-800/60 hover:text-amber-200"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                            <span>人事システムを開く</span>
+                        </a>
+                    )}
                     <NotificationsInbox variant="row" />
                     <button className="nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200">
                         <span>ヘルプ</span>
