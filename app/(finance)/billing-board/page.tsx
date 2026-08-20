@@ -156,6 +156,8 @@ export default function BillingBoardPage() {
     const [tab, setTab] = useState<TabKey>('pending');
     const [assigneeId, setAssigneeId] = useState<string>(''); // '' = 全員
     const [customerId, setCustomerId] = useState<string>('');
+    // 締め日フィルタ（'' = すべて。値は closingDay の数値を文字列化したもの。'0' = 末締め）
+    const [closingDayFilter, setClosingDayFilter] = useState<string>('');
     const [search, setSearch] = useState('');
     const debouncedSearch = useDebounce(search, 250);
     const [completedOnly, setCompletedOnly] = useState(false);
@@ -373,11 +375,25 @@ export default function BillingBoardPage() {
             .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
     }, [rows]);
 
-    // タブ非依存のフィルタ（担当者・顧客・完了・検索）
+    // 締め日のフィルタ候補（取得済みの行から導出。末締め(0)を先頭に昇順）
+    const closingDayOptions = useMemo(() => {
+        const seen = new Set<number>();
+        for (const r of rows) {
+            const d = !r.customerClosingDay || r.customerClosingDay <= 0 ? 0 : r.customerClosingDay;
+            seen.add(d);
+        }
+        return Array.from(seen).sort((a, b) => a - b);
+    }, [rows]);
+
+    // タブ非依存のフィルタ（担当者・顧客・締め日・完了・検索）
     const passesFilters = useCallback(
         (r: Row) => {
             if (assigneeId && !r.assigneeIds.includes(assigneeId)) return false;
             if (customerId && r.customerId !== customerId) return false;
+            if (closingDayFilter) {
+                const d = !r.customerClosingDay || r.customerClosingDay <= 0 ? 0 : r.customerClosingDay;
+                if (String(d) !== closingDayFilter) return false;
+            }
             if (completedOnly && r.status !== 'completed') return false;
             const q = debouncedSearch.trim().toLowerCase();
             if (q) {
@@ -386,7 +402,7 @@ export default function BillingBoardPage() {
             }
             return true;
         },
-        [assigneeId, customerId, completedOnly, debouncedSearch],
+        [assigneeId, customerId, closingDayFilter, completedOnly, debouncedSearch],
     );
 
     const counts = useMemo(() => {
@@ -1261,6 +1277,18 @@ export default function BillingBoardPage() {
                     {customerOptions.map((c) => (
                         <option key={c.id} value={c.id}>
                             {c.name}
+                        </option>
+                    ))}
+                </select>
+                <select
+                    value={closingDayFilter}
+                    onChange={(e) => setClosingDayFilter(e.target.value)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                >
+                    <option value="">締め日: すべて</option>
+                    {closingDayOptions.map((d) => (
+                        <option key={d} value={String(d)}>
+                            {closingDayLabel(d)}
                         </option>
                     ))}
                 </select>
