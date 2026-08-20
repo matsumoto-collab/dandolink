@@ -20,6 +20,7 @@ const ONOFF_ONLY_TYPES = [
     { type: 'vehicle-handover', label: '車両引き継ぎ' },
     { type: 'work-report-reply', label: '作業メモへの返信' },
     { type: 'schedule-watch', label: '朝の見張りまとめ（仮予定・浮き）' },
+    { type: 'billing-pending', label: '請求漏れの見張り（判断待ち）' },
 ] as const;
 const SCOPED_TYPE_SET = new Set<string>(SCOPED_TYPES.map((t) => t.type));
 
