@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
@@ -26,12 +26,17 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate, in
     const [formData, setFormData] = useState<ProjectMasterFormData>(buildInitialFormData);
     const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isSaving, setIsSaving] = useState(false);
+    // stateはコミットまで反映されないため、同一ティック内の連打はrefで同期的に弾く
+    const isSavingRef = useRef(false);
 
     useEffect(() => {
         if (isOpen) {
             setFormData(buildInitialFormData());
             setShowUnsavedConfirm(false);
             setErrors({});
+            setIsSaving(false);
+            isSavingRef.current = false;
         }
     }, [isOpen, buildInitialFormData]);
 
@@ -65,6 +70,7 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate, in
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
+        if (isSavingRef.current) return;
         const newErrors: Record<string, string> = {};
         if (formData.createdBy.length === 0) newErrors.createdBy = '案件責任者を1名以上選択してください';
         if (!formData.constructionContent) newErrors.constructionContent = '工事内容を選択してください';
@@ -94,11 +100,15 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate, in
             return;
         }
         setErrors({});
+        isSavingRef.current = true;
+        setIsSaving(true);
         try {
             await onCreate(formData);
             onClose();
         } catch {
             toast.error('案件マスターの作成に失敗しました');
+            isSavingRef.current = false;
+            setIsSaving(false);
         }
     };
 
@@ -142,6 +152,7 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate, in
                         onCancel={handleClose}
                         isEdit={false}
                         errors={errors}
+                        isSaving={isSaving}
                     />
                 </div>
             </div>

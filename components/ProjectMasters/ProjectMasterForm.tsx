@@ -100,9 +100,10 @@ interface ProjectMasterFormProps {
     isEdit?: boolean;
     projectMasterId?: string;
     errors?: Record<string, string>;
+    isSaving?: boolean;
 }
 
-export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, isEdit = false, projectMasterId, errors }: ProjectMasterFormProps) {
+export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, isEdit = false, projectMasterId, errors, isSaving = false }: ProjectMasterFormProps) {
     const [expandedSections, setExpandedSections] = useState({
         basic: true,
         address: true,
@@ -217,9 +218,10 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 <button
                     type="button"
                     onClick={onSubmit}
-                    className="px-6 py-2 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors"
+                    disabled={isSaving}
+                    className="px-6 py-2 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isEdit ? '更新' : '作成'}
+                    {isSaving ? '保存中...' : isEdit ? '更新' : '作成'}
                 </button>
             </div>
         </div>

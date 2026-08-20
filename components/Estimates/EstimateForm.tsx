@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCustomers } from '@/hooks/useCustomers';
@@ -403,6 +403,8 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     };
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // stateはコミットまで反映されないため、同一ティック内の連打はrefで同期的に弾く
+    const isSubmittingRef = useRef(false);
 
     // lg+ で左右分割レイアウトを有効化
     const isLgScreen = useMediaQuery('(min-width: 1024px)');
@@ -529,7 +531,8 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title) { toast.error('タイトルは必須です'); return; }
-        if (isSubmitting) return;
+        if (isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
         setIsSubmitting(true);
         try {
             const data = {
@@ -542,6 +545,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             } as EstimateInput;
             await onSubmit(data);
         } finally {
+            isSubmittingRef.current = false;
             setIsSubmitting(false);
         }
     };

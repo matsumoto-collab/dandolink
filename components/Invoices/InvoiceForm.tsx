@@ -522,6 +522,8 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const total = subtotal + tax;
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // stateはコミットまで反映されないため、同一ティック内の連打はrefで同期的に弾く
+    const isSubmittingRef = useRef(false);
 
     // lg+ で左右分割レイアウトを有効化
     const isLgScreen = useMediaQuery('(min-width: 1024px)');
@@ -651,7 +653,8 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         e.preventDefault();
         if (!title) { toast.error('タイトルは必須です'); return; }
         if (allItems.length === 0) { toast.error('明細を1つ以上入力してください'); return; }
-        if (isSubmitting) return;
+        if (isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
         setIsSubmitting(true);
         try {
             const data = {
@@ -678,6 +681,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             } as InvoiceInput;
             await onSubmit(data);
         } finally {
+            isSubmittingRef.current = false;
             setIsSubmitting(false);
         }
     };
