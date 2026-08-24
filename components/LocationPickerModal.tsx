@@ -147,6 +147,9 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
     const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number } | null>(null);
     const [addressLabel, setAddressLabel] = useState('');
     const [parsedAddress, setParsedAddress] = useState<{ prefecture: string; city: string; location: string }>({ prefecture: '', city: '', location: '' });
+    // parsedAddress がどの座標に対する結果かを保持（ピン移動直後の古い住所での確定を防ぐ）
+    const addressPositionRef = useRef<{ lat: number; lng: number } | null>(null);
+    const [isConfirming, setIsConfirming] = useState(false);
     const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
     const [isGettingGps, setIsGettingGps] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -162,33 +165,42 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
         setPanTarget(pos);
         setAddressLabel('');
         setParsedAddress({ prefecture: '', city: '', location: '' });
+        addressPositionRef.current = null;
+        setIsConfirming(false);
         if (searchInputRef.current) searchInputRef.current.value = '';
         setMapType('hybrid');
     }, [isOpen, initialPosition]);
+
+    // 逆ジオコーディング実行。成功時は state に反映して結果を返し、失敗時は null
+    const reverseGeocode = useCallback(async (pos: { lat: number; lng: number }) => {
+        if (!window.google?.maps?.Geocoder) return null;
+        setIsReverseGeocoding(true);
+        try {
+            const geocoder = new google.maps.Geocoder();
+            const res = await geocoder.geocode({ location: pos, language: 'ja' });
+            if (res.results?.length > 0) {
+                const top = res.results[0];
+                const parsed = parseFormattedAddress(top);
+                setAddressLabel(top.formatted_address ?? '');
+                setParsedAddress(parsed);
+                addressPositionRef.current = pos;
+                return parsed;
+            }
+            return null;
+        } catch {
+            return null;
+        } finally {
+            setIsReverseGeocoding(false);
+        }
+    }, []);
 
     // ピン移動 → 逆ジオコーディング（デバウンス）
     useEffect(() => {
         if (!isOpen) return;
         if (reverseDebounceRef.current) clearTimeout(reverseDebounceRef.current);
-        reverseDebounceRef.current = setTimeout(async () => {
-            if (!window.google?.maps?.Geocoder) return;
-            setIsReverseGeocoding(true);
-            try {
-                const geocoder = new google.maps.Geocoder();
-                const res = await geocoder.geocode({ location: selected, language: 'ja' });
-                if (res.results?.length > 0) {
-                    const top = res.results[0];
-                    setAddressLabel(top.formatted_address ?? '');
-                    setParsedAddress(parseFormattedAddress(top));
-                }
-            } catch {
-                // ignore
-            } finally {
-                setIsReverseGeocoding(false);
-            }
-        }, 400);
+        reverseDebounceRef.current = setTimeout(() => { void reverseGeocode(selected); }, 400);
         return () => { if (reverseDebounceRef.current) clearTimeout(reverseDebounceRef.current); };
-    }, [selected, isOpen]);
+    }, [selected, isOpen, reverseGeocode]);
 
     const getCurrentLocation = useCallback((opts?: { silent?: boolean }) => {
         const silent = opts?.silent ?? false;
@@ -252,13 +264,32 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
         }
     }, []);
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
+        if (isConfirming) return;
+        // 現在のピン位置に対応する住所が取得済みならそのまま確定
+        const fresh = addressPositionRef.current
+            && addressPositionRef.current.lat === selected.lat
+            && addressPositionRef.current.lng === selected.lng;
+        let address = fresh ? parsedAddress : null;
+        if (!address) {
+            // 未取得（デバウンス待ち・取得中・失敗）なら、その場で取得して結果を待つ
+            setIsConfirming(true);
+            try {
+                address = await reverseGeocode(selected);
+            } finally {
+                setIsConfirming(false);
+            }
+            if (!address) {
+                toast.error('住所を取得できませんでした。電波状況を確認してもう一度「追加」を押してください');
+                return;
+            }
+        }
         onConfirm({
             lat: selected.lat,
             lng: selected.lng,
-            prefecture: parsedAddress.prefecture,
-            city: parsedAddress.city,
-            location: parsedAddress.location,
+            prefecture: address.prefecture,
+            city: address.city,
+            location: address.location,
         });
     };
 
@@ -286,8 +317,10 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
                 <button
                     type="button"
                     onClick={handleConfirm}
-                    className="px-4 h-9 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-full"
+                    disabled={isConfirming}
+                    className="px-4 h-9 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 rounded-full flex items-center gap-1.5"
                 >
+                    {isConfirming && <Loader2 className="w-4 h-4 animate-spin" />}
                     追加
                 </button>
             </div>
