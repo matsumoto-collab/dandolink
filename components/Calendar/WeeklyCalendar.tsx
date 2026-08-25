@@ -905,7 +905,6 @@ useEffect(() => { setIsMounted(true); }, []);
                     canDispatch={canDispatch}
                     isSaving={isSaving}
                     getTotalMembersForDate={getTotalMembersForDate}
-                    getVacationEmployees={getVacationEmployees}
                     getEditingUsers={getEditingUsers}
                     handleDragStart={handleDragStart}
                     handleDragOver={handleDragOver}

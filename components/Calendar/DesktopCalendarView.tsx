@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { DndContext, DragOverlay, closestCenter, DragStartEvent, DragOverEvent, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { MoveRight, X, Search } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
+import { useCalendarStore } from '@/stores/calendarStore';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import EmployeeRowComponent from './EmployeeRowComponent';
@@ -22,7 +23,6 @@ interface DesktopCalendarViewProps {
     canDispatch: boolean;
     isSaving: boolean;
     getTotalMembersForDate: (dateStr: string) => number;
-    getVacationEmployees: (dateKey: string) => string[];
     getEditingUsers: (assignmentId: string) => EditingUser[];
     // DnD
     handleDragStart: (event: DragStartEvent) => void;
@@ -83,7 +83,6 @@ function DesktopCalendarView({
     canDispatch,
     isSaving,
     getTotalMembersForDate,
-    getVacationEmployees,
     getEditingUsers,
     handleDragStart,
     handleDragOver,
@@ -119,6 +118,11 @@ function DesktopCalendarView({
     canMoveFloatingLaneUp = true,
     canMoveFloatingLaneDown = true,
 }: DesktopCalendarViewProps) {
+    // 休暇はstoreを直接購読する。本体がReact.memoのため、参照安定なゲッターprop経由だと
+    // 休暇の追加・削除で再レンダーされず「残り人数」が古いまま固着する。
+    // 内容不変時はfetch側が既存参照を維持する（recordEquals）ので、ポーリングでの無駄な再レンダーは起きない。
+    const vacations = useCalendarStore((state) => state.vacations);
+
     // PointerSensor を距離アクティベーション化（長押しと共存させる）
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -307,7 +311,7 @@ function DesktopCalendarView({
                                     });
                                     let assignedCount = unassignedCount;
                                     byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
-                                    const vacationCount = getVacationEmployees(dateKey).length;
+                                    const vacationCount = vacations[dateKey]?.employeeIds.length ?? 0;
                                     const adjustment = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
                                     const totalCount = getTotalMembersForDate(dateKey) + adjustment;
                                     const remainingCount = totalCount - assignedCount - vacationCount;
