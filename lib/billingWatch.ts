@@ -23,6 +23,14 @@ export const BILLING_WATCH_TYPE = 'billing-pending';
 
 /** 何ヶ月ぶんの締め期間まで遡って未処理を探すか（これより古い締め分は放置データとみなす）。 */
 const LOOKBACK_MONTHS = 3;
+/**
+ * これより古い締め期間は通知しない（"YYYY-MM"）。
+ *
+ * middleware の matcher 漏れで Cron が長期間 401 に阻まれており、有効化した瞬間に
+ * 溜まっていた過去分が一斉に鳴るのを防ぐための下限。2026-06 以前は通知しない（kei 判断）。
+ * 通常運用では LOOKBACK_MONTHS の方が先に効くので、以降は実質無害な定数になる。
+ */
+const MIN_PERIOD_KEY = '2026-07';
 /** ダイジェスト本文に載せる最大件数（超過分は「ほかN件」）。 */
 const MAX_BODY_ITEMS = 6;
 
@@ -81,11 +89,13 @@ export async function collectBillingWatchItems(): Promise<WatchItem[]> {
             const m0 = ref.getUTCMonth();
             const { from, to } = closingPeriod(y, m0, cd);
             if (to > todayYmd) continue; // まだ締まっていない期間は対象外（締め日当日から鳴らす）
+            const periodKey = `${y}-${pad(m0 + 1)}`;
+            if (periodKey < MIN_PERIOD_KEY) continue; // 過去分の一斉通知を避けるための下限
             windows.push({
                 customerId: c.id,
                 customerName: c.name,
                 closingDay: cd,
-                periodKey: `${y}-${pad(m0 + 1)}`,
+                periodKey,
                 from,
                 to,
             });
