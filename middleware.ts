@@ -137,11 +137,14 @@ export const config = {
         // - api/init-db: DB初期化専用（ユーザーゼロ状態で使用するため除外。本番はroute.ts内でNODE_ENV===productionチェック+INIT_DB_SECRET+レートリミットで保護済み）
         // - api/health: 外部Uptime監視サービス用 (情報を返さず status:ok のみ)
         // - api/line/webhook: LINE Messaging API の Webhook (NextAuthトークン無し・署名検証で保護)
+        // - api/external: 人事システム(yushin-hr)とのサーバー間API
+        //   (NextAuthトークン無し・x-api-key の EXTERNAL_API_KEY で保護。
+        //    未設定の環境では route 側が 503 を返して閉じる)
         // - login: ログインページ
         // - robots.txt: クローラー向けの公開ファイル
         // - _next/static, _next/image, favicon.ico: 静的ファイル群
         // - manifest.json, 各種画像ファイル: PWAやアセット用
         // - .*\\.mjs: PDF Worker などの静的スクリプト
-        '/((?!api/auth|api/init-db|api/health|api/line/webhook|login|robots\\.txt|_next/static|_next/image|favicon.ico|manifest\\.json|.*\\.png|.*\\.jpg|.*\\.svg|.*\\.ico|.*\\.mjs).*)',
+        '/((?!api/auth|api/init-db|api/health|api/line/webhook|api/external|login|robots\\.txt|_next/static|_next/image|favicon.ico|manifest\\.json|.*\\.png|.*\\.jpg|.*\\.svg|.*\\.ico|.*\\.mjs).*)',
     ],
 };
