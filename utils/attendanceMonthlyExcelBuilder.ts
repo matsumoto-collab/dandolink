@@ -10,7 +10,8 @@
  * （テンプレのバイト列は呼び出し側が用意する）
  */
 import JSZip from 'jszip';
-import type { AttendanceMonthlyPdfData } from '@/utils/attendanceMonthlyPdf';
+// 集計の型は react-pdf 非依存のモジュールから取る（サーバーからも使うため）
+import type { AttendanceMonthlyPdfData } from '@/utils/attendanceMonthlyData';
 
 /** テンプレのシート（元ブックの先頭シート）のパス */
 const BASE_SHEET_PATH = 'xl/worksheets/sheet1.xml';
