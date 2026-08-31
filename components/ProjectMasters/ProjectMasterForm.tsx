@@ -174,7 +174,7 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 isExpanded={expandedSections.scaffolding}
                 onToggle={() => toggleSection('scaffolding')}
             >
-                <ScaffoldingSection formData={formData} setFormData={setFormData} />
+                <ScaffoldingSection formData={formData} setFormData={setFormData} isNew={!isEdit} />
             </CollapsibleSection>
 
             {/* 備考セクション */}

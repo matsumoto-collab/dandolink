@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { scaffoldingSpecItemSchema, validateRequest } from '@/lib/validations';
+import { normalizeItemDefaultValue } from '@/lib/scaffoldingSpec';
 
 export async function GET() {
     try {
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
         if (!validation.success) {
             return validationErrorResponse(validation.error, validation.details);
         }
-        const { groupId, name, type, options, hasText } = validation.data;
+        const { groupId, name, type, options, hasText, defaultValue } = validation.data;
 
         if (type === 'segment' && (!Array.isArray(options) || options.length === 0)) {
             return validationErrorResponse('segmentタイプは選択肢が必要です');
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
                 type,
                 options: type === 'segment' && options ? options : undefined,
                 hasText: type !== 'text' ? !!hasText : false,
+                defaultValue: normalizeItemDefaultValue(type, defaultValue, options) ?? Prisma.JsonNull,
                 sortOrder: nextSortOrder,
             },
         });

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, validationErrorResponse, serverErrorResponse, errorResponse } from '@/lib/api/utils';
 import { isManagerOrAbove } from '@/utils/permissions';
+import { normalizeItemDefaultValue } from '@/lib/scaffoldingSpec';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 const VALID_TYPES = ['toggle', 'segment', 'text'] as const;
@@ -15,7 +16,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         const { id } = await context.params;
         const body = await request.json();
-        const { name, type, options, sortOrder, groupId, hasText } = body;
+        const { name, type, options, sortOrder, groupId, hasText, defaultValue } = body;
+
+        const existing = await prisma.scaffoldingSpecItem.findUnique({ where: { id } });
+        if (!existing) return errorResponse('足場仕様項目が見つかりません', 404);
 
         const updateData: Prisma.ScaffoldingSpecItemUpdateInput = {};
 
@@ -44,6 +48,24 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         }
         if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
         if (groupId !== undefined) updateData.group = { connect: { id: groupId } };
+
+        // 既定値は項目タイプに合わせて正規化する。
+        // タイプや選択肢を変更したときは、既存の既定値がそのタイプで成立しなくなることがあるので
+        // 明示指定が無くても入れ直す（例: segment の選択肢から消えた値が既定値のまま残るのを防ぐ）。
+        const effectiveType = (type ?? existing.type) as string;
+        const effectiveOptions = (() => {
+            if (effectiveType !== 'segment') return null;
+            if (type !== undefined || options !== undefined) {
+                return Array.isArray(options) ? (options as string[]) : null;
+            }
+            return Array.isArray(existing.options) ? (existing.options as string[]) : null;
+        })();
+        const nextDefault = defaultValue !== undefined
+            ? (defaultValue as boolean | string | null)
+            : (existing.defaultValue as boolean | string | null);
+        if (defaultValue !== undefined || type !== undefined || options !== undefined) {
+            updateData.defaultValue = normalizeItemDefaultValue(effectiveType, nextDefault, effectiveOptions) ?? Prisma.JsonNull;
+        }
 
         const item = await prisma.scaffoldingSpecItem.update({ where: { id }, data: updateData });
         return NextResponse.json(item);

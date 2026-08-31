@@ -6,6 +6,15 @@ import toast from 'react-hot-toast';
 
 type ItemType = 'toggle' | 'segment' | 'text';
 
+/** 項目の追加/編集フォームの入力値。defaultValue は新規案件の初期値（null=既定値なし）。 */
+interface ItemDraft {
+    name: string;
+    type: ItemType;
+    options: string;
+    hasText: boolean;
+    defaultValue: boolean | string | null;
+}
+
 interface SpecItem {
     id: string;
     groupId: string;
@@ -13,6 +22,8 @@ interface SpecItem {
     type: ItemType;
     options: string[] | null;
     hasText: boolean;
+    /** 新規案件を開いたときの初期値（null = 既定値なし）。 */
+    defaultValue: boolean | string | null;
     legacyKey: string | null;
     sortOrder: number;
     isActive: boolean;
@@ -26,6 +37,57 @@ interface SpecGroup {
     items: SpecItem[];
 }
 
+/**
+ * 「既定値」の入力欄。新規案件を開いたときに最初から入っている値を決める。
+ * 項目タイプごとに入力の形を変える（toggle=あり/なし、segment=選択肢、text=自由入力）。
+ */
+function DefaultValueInput({
+    draft,
+    onChange,
+}: {
+    draft: ItemDraft;
+    onChange: (v: boolean | string | null) => void;
+}) {
+    if (draft.type === 'toggle') {
+        return (
+            <select
+                value={draft.defaultValue === true ? 'true' : 'none'}
+                onChange={(e) => onChange(e.target.value === 'true' ? true : null)}
+                title="新規案件を開いたときの初期値"
+                className="px-2 py-1 border border-slate-300 rounded text-sm"
+            >
+                <option value="none">既定値なし</option>
+                <option value="true">既定: 必要</option>
+            </select>
+        );
+    }
+    if (draft.type === 'segment') {
+        const opts = draft.options.split(',').map((o) => o.trim()).filter(Boolean);
+        return (
+            <select
+                value={typeof draft.defaultValue === 'string' ? draft.defaultValue : ''}
+                onChange={(e) => onChange(e.target.value || null)}
+                title="新規案件を開いたときの初期値"
+                className="px-2 py-1 border border-slate-300 rounded text-sm"
+            >
+                <option value="">既定値なし</option>
+                {opts.map((o) => (
+                    <option key={o} value={o}>{`既定: ${o}`}</option>
+                ))}
+            </select>
+        );
+    }
+    return (
+        <input
+            value={typeof draft.defaultValue === 'string' ? draft.defaultValue : ''}
+            onChange={(e) => onChange(e.target.value || null)}
+            placeholder="既定値（空=なし）"
+            title="新規案件を開いたときの初期値"
+            className="w-32 px-2 py-1 border border-slate-300 rounded text-sm"
+        />
+    );
+}
+
 export default function ScaffoldingSpecSettings() {
     const [groups, setGroups] = useState<SpecGroup[]>([]);
     const [loading, setLoading] = useState(true);
@@ -37,9 +99,9 @@ export default function ScaffoldingSpecSettings() {
     const [editingGroupName, setEditingGroupName] = useState('');
 
     // item form state: groupId -> form
-    const [itemForm, setItemForm] = useState<Record<string, { name: string; type: ItemType; options: string; hasText: boolean }>>({});
+    const [itemForm, setItemForm] = useState<Record<string, ItemDraft>>({});
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
-    const [editingItem, setEditingItem] = useState<{ name: string; type: ItemType; options: string; hasText: boolean }>({ name: '', type: 'toggle', options: '', hasText: false });
+    const [editingItem, setEditingItem] = useState<ItemDraft>({ name: '', type: 'toggle', options: '', hasText: false, defaultValue: null });
 
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -91,19 +153,23 @@ export default function ScaffoldingSpecSettings() {
     };
 
     // ---- item CRUD ----
-    const getForm = (groupId: string) => itemForm[groupId] ?? { name: '', type: 'toggle' as ItemType, options: '', hasText: false };
-    const setForm = (groupId: string, patch: Partial<{ name: string; type: ItemType; options: string; hasText: boolean }>) => {
+    const getForm = (groupId: string): ItemDraft => itemForm[groupId] ?? { name: '', type: 'toggle' as ItemType, options: '', hasText: false, defaultValue: null };
+    const setForm = (groupId: string, patch: Partial<ItemDraft>) => {
         setItemForm((prev) => ({ ...prev, [groupId]: { ...getForm(groupId), ...patch } }));
     };
 
     const addItem = async (groupId: string) => {
         const f = getForm(groupId);
         if (!f.name.trim()) return;
-        const body: { groupId: string; name: string; type: ItemType; options?: string[]; hasText?: boolean } = {
+        const body: {
+            groupId: string; name: string; type: ItemType;
+            options?: string[]; hasText?: boolean; defaultValue?: boolean | string | null;
+        } = {
             groupId,
             name: f.name.trim(),
             type: f.type,
             hasText: f.type !== 'text' ? f.hasText : false,
+            defaultValue: f.defaultValue,
         };
         if (f.type === 'segment') {
             const opts = f.options.split(',').map((s) => s.trim()).filter(Boolean);
@@ -115,7 +181,7 @@ export default function ScaffoldingSpecSettings() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-        if (res.ok) { toast.success('項目を追加しました'); setItemForm((p) => ({ ...p, [groupId]: { name: '', type: 'toggle', options: '', hasText: false } })); fetchData(); }
+        if (res.ok) { toast.success('項目を追加しました'); setItemForm((p) => ({ ...p, [groupId]: { name: '', type: 'toggle', options: '', hasText: false, defaultValue: null } })); fetchData(); }
         else toast.error('追加に失敗しました');
     };
 
@@ -126,15 +192,20 @@ export default function ScaffoldingSpecSettings() {
             type: item.type,
             options: item.options ? item.options.join(', ') : '',
             hasText: !!item.hasText,
+            defaultValue: item.defaultValue ?? null,
         });
     };
 
     const saveItem = async (id: string) => {
         if (!editingItem.name.trim()) return;
-        const body: { name: string; type: ItemType; options?: string[]; hasText?: boolean } = {
+        const body: {
+            name: string; type: ItemType;
+            options?: string[]; hasText?: boolean; defaultValue?: boolean | string | null;
+        } = {
             name: editingItem.name.trim(),
             type: editingItem.type,
             hasText: editingItem.type !== 'text' ? editingItem.hasText : false,
+            defaultValue: editingItem.defaultValue,
         };
         if (editingItem.type === 'segment') {
             const opts = editingItem.options.split(',').map((s) => s.trim()).filter(Boolean);
@@ -165,6 +236,10 @@ export default function ScaffoldingSpecSettings() {
             <div className="mb-6">
                 <h3 className="text-lg font-semibold text-slate-900">足場仕様マスター</h3>
                 <p className="text-sm text-slate-500 mt-1">案件登録時に表示される足場仕様の項目・グループを管理します</p>
+                <p className="text-xs text-slate-500 mt-1.5">
+                    「既定値」を設定すると、新規案件を開いた時点でその値が入った状態になります（毎回同じ項目の入力を省けます）。
+                    案件ごとに変わる組み合わせは、案件登録画面の「テンプレート」で保存・呼び出しできます。
+                </p>
             </div>
 
             {/* 新規グループ追加 */}
@@ -261,6 +336,10 @@ export default function ScaffoldingSpecSettings() {
                                                         +テキスト
                                                     </label>
                                                 )}
+                                                <DefaultValueInput
+                                                    draft={editingItem}
+                                                    onChange={(v) => setEditingItem((p) => ({ ...p, defaultValue: v }))}
+                                                />
                                                 <button onClick={() => saveItem(item.id)} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded"><Check className="w-4 h-4" /></button>
                                                 <button onClick={() => setEditingItemId(null)} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded"><X className="w-4 h-4" /></button>
                                             </>
@@ -271,6 +350,14 @@ export default function ScaffoldingSpecSettings() {
                                                     {item.type === 'toggle' ? '必要/不要' : item.type === 'segment' ? `選択: ${item.options?.join('/')}` : 'テキスト'}
                                                     {item.hasText && item.type !== 'text' && ' +テキスト'}
                                                 </span>
+                                                {item.defaultValue !== null && item.defaultValue !== undefined && item.defaultValue !== '' && (
+                                                    <span
+                                                        className="whitespace-nowrap rounded bg-teal-50 px-2 py-0.5 text-xs text-teal-700"
+                                                        title="新規案件を開いたときに最初から入っている値"
+                                                    >
+                                                        既定: {item.defaultValue === true ? '必要' : String(item.defaultValue)}
+                                                    </span>
+                                                )}
                                                 <button onClick={() => startEditItem(item)} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded"><Edit className="w-4 h-4" /></button>
                                                 {confirmDelete === `i:${item.id}` ? (
                                                     <div className="flex gap-1">
@@ -320,6 +407,10 @@ export default function ScaffoldingSpecSettings() {
                                             +テキスト
                                         </label>
                                     )}
+                                    <DefaultValueInput
+                                        draft={getForm(group.id)}
+                                        onChange={(v) => setForm(group.id, { defaultValue: v })}
+                                    />
                                     <button onClick={() => addItem(group.id)} className="px-3 py-1 bg-teal-600 text-white rounded text-xs flex items-center gap-1">
                                         <Plus className="w-3 h-3" />追加
                                     </button>

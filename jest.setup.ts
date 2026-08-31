@@ -226,6 +226,13 @@ jest.mock('@/lib/prisma', () => ({
             update: jest.fn(),
             delete: jest.fn(),
         },
+        scaffoldingSpecPreset: {
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            aggregate: jest.fn(),
+        },
         billingStagedLine: {
             findMany: jest.fn(),
             findUnique: jest.fn(),

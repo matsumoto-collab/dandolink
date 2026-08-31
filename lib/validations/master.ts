@@ -76,6 +76,8 @@ export const scaffoldingSpecItemSchema = z.object({
     type: z.enum(['toggle', 'segment', 'text']),
     options: z.array(z.string()).nullable().optional(),
     hasText: z.boolean().optional(),
+    // 新規案件を開いたときの初期値。toggle=真偽値 / segment・text=文字列。null=既定値なし
+    defaultValue: z.union([z.boolean(), z.string().max(500)]).nullable().optional(),
 });
 
 export const memberCountHistoryCreateSchema = z.object({

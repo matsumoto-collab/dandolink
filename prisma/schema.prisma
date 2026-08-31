@@ -740,6 +740,9 @@ model ScaffoldingSpecItem {
   options   Json? // segment用 string[]
   hasText   Boolean              @default(false) // toggle/segment時に補足テキスト欄を併設するか
   legacyKey String? // 旧固定フィールドのキー（後方互換）
+  /// 新規案件を開いたときに最初から入っている値。ProjectMaster.scaffoldingSpec に入るのと同じ形で持つ
+  /// （toggle=true/false、segment/text=文字列）。null = 既定値なし（従来どおり未入力で開く）。
+  defaultValue Json?
   sortOrder Int                  @default(0)
   isActive  Boolean              @default(true)
   createdAt DateTime             @default(now())
@@ -747,6 +750,27 @@ model ScaffoldingSpecItem {
 
   @@index([groupId])
   @@index([sortOrder])
+  @@schema("public")
+}
+
+/// 足場仕様のテンプレート（プリセット）。
+/// spec は ProjectMaster.scaffoldingSpec と同じ形（itemId → 値）で、
+/// 適用時は「テンプレートに入っている項目だけ」を反映し、残りは現状を維持する。
+/// ownerId = 作成者専用のテンプレート。null = 全社共有（作成・編集は admin/manager のみ）。
+model ScaffoldingSpecPreset {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name        String
+  spec        Json
+  ownerId     String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([ownerId])
+  @@index([sortOrder])
+  @@index([isActive])
   @@schema("public")
 }
 
