@@ -112,6 +112,12 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
         initialData?.projectMasterIds || (initialData?.projectId ? [initialData.projectId] : [])
     );
+    // 呼び出し元が指定してきた案件（請求待ちボードの請求対象など）。
+    // 請求先が案件の元請と違っても案件チェックリストに出し続けるために保持する
+    // （チェックを外したら一覧からも消えてしまい、付け直せなくなるのを防ぐ）。
+    const openedWithProjectIdsRef = useRef<string[]>(
+        initialData?.projectMasterIds || (initialData?.projectId ? [initialData.projectId] : [])
+    );
     const [title, setTitle] = useState(initialData?.title || '');
     const [invoiceNumber, setInvoiceNumber] = useState(initialData?.invoiceNumber || '');
     const [dueDate, setDueDate] = useState(() => {
@@ -194,9 +200,14 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     // 請求待ちボードからの起動時は customerId が初期値のまま＝発火せず、ボードが渡した値（選択月の締め日）を優先。
     // 顧客一覧の遅延ロード等での再実行は customerId 不変なので無視（lastFilledCustomerRef で判定）。
     // 既存請求書の編集時（isExistingInvoice＝保存済み Invoice）は自動補完しない＝保存済みの値を尊重。
+    // 呼び出し元が顧客を指定して開いた場合（initialData.customerId 有り＝請求待ちボード等）は、
+    // 途中で請求先を別会社に変えても締め日は引き直さない。締め期間は案件の元請基準で決まっており、
+    // ここで請求先の締め日に付け替えると請求日が元請の締め窓から外れ、ボードの「請求済み」タブに
+    // 出なくなる／請求漏れの見張り通知が誤って鳴る。
+    const hasPresetCustomer = !!initialData?.customerId;
     const lastFilledCustomerRef = useRef(initialData?.customerId ?? '');
     useEffect(() => {
-        if (isExistingInvoice) return;
+        if (isExistingInvoice || hasPresetCustomer) return;
         if (customerId === lastFilledCustomerRef.current) return;
         lastFilledCustomerRef.current = customerId;
         if (!customerId) return;
@@ -207,22 +218,53 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         setIssueDate(closingYmd);
         const [yy, mm] = closingYmd.split('-').map(Number);
         setDueDate(dueDateFromClosing(yy, mm - 1, 'nextMonthEnd'));
-    }, [customerId, customers, isExistingInvoice]);
+    }, [customerId, customers, isExistingInvoice, hasPresetCustomer]);
 
-    // 顧客に紐付く案件一覧
+    // 顧客に紐付く案件一覧。
+    // 既に選択済みの案件は、その案件の元請が選択中の顧客と違っても必ず残す。
+    // （A社の現場をA社の依頼でB社へ請求するケースで、請求先をB社にしたとたんに
+    //   請求対象の案件がチェックリストから消えてしまうのを防ぐ）
     const customerProjects = React.useMemo(() => {
         if (!customerId) return [];
         const customer = customers.find(c => c.id === customerId);
-        if (!customer) return [];
-        return projectMasters
-            .filter(pm => {
+        const matched = customer
+            ? projectMasters.filter(pm => {
                 if (pm.customerId === customerId) return true;
                 if (pm.customerName === customer.name || pm.customerName === customer.shortName) return true;
                 if (pm.customerShortName === customer.shortName || pm.customerShortName === customer.name) return true;
                 return false;
             })
-            .map(pm => ({ id: pm.id, title: pm.title }));
-    }, [customerId, customers, projectMasters]);
+            : [];
+        const matchedIds = new Set(matched.map(pm => pm.id));
+        const extras = projectMasters.filter(
+            pm =>
+                !matchedIds.has(pm.id) &&
+                (selectedProjectIds.includes(pm.id) || openedWithProjectIdsRef.current.includes(pm.id))
+        );
+        return [...matched, ...extras].map(pm => ({ id: pm.id, title: pm.title }));
+    }, [customerId, customers, projectMasters, selectedProjectIds]);
+
+    // 選択中の案件の元請のうち、請求先（customerId）と異なるもの。
+    // 請求先を切り替えた請求書で「もとはどこの現場か」を画面に出すために使う。
+    // 元請の同一判定は customerId を正とし、customerId を持たない古い案件だけ名前で突き合わせる
+    // （顧客名のスナップショットが古い案件で「別の元請」と誤表示しないため）。
+    const sourceCustomerNames = React.useMemo(() => {
+        const current = customers.find(c => c.id === customerId);
+        const names = new Set<string>();
+        for (const pmId of selectedProjectIds) {
+            const pm = projectMasters.find(p => p.id === pmId);
+            if (!pm) continue;
+            const name = pm.customerName || pm.customerShortName;
+            if (!name) continue;
+            if (pm.customerId) {
+                if (pm.customerId === customerId) continue;
+            } else if (current && (name === current.name || name === current.shortName)) {
+                continue;
+            }
+            names.add(name);
+        }
+        return Array.from(names);
+    }, [selectedProjectIds, projectMasters, customers, customerId]);
 
     const handleToggleProject = useCallback((pmId: string) => {
         setSelectedProjectIds(prev => {
@@ -714,6 +756,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 selectedProjectIds={selectedProjectIds}
                 onToggleProject={handleToggleProject}
                 customerProjects={customerProjects}
+                sourceCustomerNames={sourceCustomerNames}
             />
 
             {/* 案件ごとの明細セクション */}

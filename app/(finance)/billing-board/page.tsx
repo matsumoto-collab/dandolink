@@ -185,7 +185,7 @@ export default function BillingBoardPage() {
 
     // 「請求書を作成」押下時に開く確認ダイアログ（案件ごとに請求完了／まだ続くを必ず選ばせる）。
     const [completionDialog, setCompletionDialog] = useState<
-        { customerId: string; projects: BillingCompletionTarget[]; isAppend: boolean } | null
+        { customerId: string; customerName: string; projects: BillingCompletionTarget[]; isAppend: boolean } | null
     >(null);
     // 確認ダイアログで選んだ値。請求書の発行/追記が成功した直後に billingStatusOverride へ書き込む。
     const [pendingCompletion, setPendingCompletion] = useState<Record<string, BillingCompletion>>({});
@@ -451,6 +451,15 @@ export default function BillingBoardPage() {
 
     // 案件ID → 行（確認ダイアログの案件名解決などに使う）
     const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
+
+    // 請求先セレクトの選択肢（顧客マスタ全件・五十音順）
+    const billingCustomerOptions = useMemo(
+        () =>
+            [...customers]
+                .map((c) => ({ id: c.id, name: c.name, shortName: c.shortName }))
+                .sort((a, b) => a.name.localeCompare(b.name, 'ja')),
+        [customers],
+    );
 
     // 顧客ごとの請求対象（staged を顧客単位に集約）
     const stagedByCustomer = useMemo(() => {
@@ -899,11 +908,14 @@ export default function BillingBoardPage() {
     // 当月まとめ: 締め分モードで、同じ顧客・同じ締め期間・編集可（下書き/担当確認済み）の既存請求書。
     // あれば新規作成せずその請求書へ今回の明細を追記する（編集モードで開く）。
     // 送付済/支払済/期限超過の請求書は対象外＝新規作成（顧客へ送った後の請求書は書き換えない）。
+    // 請求先を元請から切り替えた場合（billingCustId 指定）は、締め期間だけ元請から引き、
+    // まとめ（追記）はしない＝元請の違う案件が1枚の請求書に混ざらないようにする。
     const findAppendableInvoice = useCallback(
-        (custId: string) => {
+        (custId: string, billingCustId?: string) => {
             const sampleRow = rows.find((r) => r.customerId === custId);
             const closingYmd = sampleRow?.periodTo;
             const periodFrom = sampleRow?.periodFrom;
+            if (billingCustId && billingCustId !== custId) return { closingYmd, existing: undefined };
             if (mode !== 'closing' || !periodFrom || !closingYmd) return { closingYmd, existing: undefined };
             const EDITABLE = new Set(['draft', 'confirmed']);
             const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -922,16 +934,18 @@ export default function BillingBoardPage() {
 
     // ── 顧客ごとに請求書を作成（請求予定を介さず /api/invoices に直接発行）──────
     // 確認ダイアログで案件ごとの請求完了指定を受け取ってから、この関数で請求書フォームを開く。
+    // custId＝案件の元請（グループ顧客・締め期間の基準）。billingCustomerId＝請求書の宛名（既定は元請）。
+    // 案件側の顧客（ProjectMaster.customerId）は書き換えない＝見積・完了報告・利益集計は元請のまま。
     const openInvoiceFlow = useCallback(
-        (custId: string) => {
+        (custId: string, billingCustomerId: string) => {
             const sc = stagedByCustomer.get(custId);
             if (!sc || sc.items.length === 0) {
                 toast.error('請求対象がありません');
                 return;
             }
-            const { closingYmd, existing } = findAppendableInvoice(custId);
+            const { closingYmd, existing } = findAppendableInvoice(custId, billingCustomerId);
 
-            setIssuingCustomerId(custId);
+            setIssuingCustomerId(billingCustomerId);
             setIssuingProjectIds(sc.projectIds);
 
             if (existing) {
@@ -942,7 +956,7 @@ export default function BillingBoardPage() {
                 setEditingInvoiceId(existing.id);
                 setEditingExistingProjectIds(existingPmIds);
                 setInvoiceInitialData({
-                    customerId: custId,
+                    customerId: billingCustomerId,
                     projectMasterIds: combinedPmIds,
                     items: combinedItems,
                     title: existing.title,
@@ -974,7 +988,7 @@ export default function BillingBoardPage() {
                 dueDate = new Date(dyy, dmm - 1, ddd);
             }
             setInvoiceInitialData({
-                customerId: custId,
+                customerId: billingCustomerId,
                 projectMasterIds: sc.projectIds,
                 items: sc.items,
                 title,
@@ -996,6 +1010,10 @@ export default function BillingBoardPage() {
             }
             setCompletionDialog({
                 customerId: custId,
+                customerName:
+                    customers.find((c) => c.id === custId)?.name ||
+                    rows.find((r) => r.customerId === custId)?.customerName ||
+                    '元請',
                 projects: sc.projectIds.map((pid) => {
                     const r = rowById.get(pid);
                     return { id: pid, title: r?.title || r?.name || '案件' };
@@ -1003,16 +1021,16 @@ export default function BillingBoardPage() {
                 isAppend: !!findAppendableInvoice(custId).existing,
             });
         },
-        [stagedByCustomer, rowById, findAppendableInvoice],
+        [stagedByCustomer, rowById, findAppendableInvoice, customers, rows],
     );
 
     const handleCompletionConfirm = useCallback(
-        (completions: Record<string, BillingCompletion>) => {
+        (completions: Record<string, BillingCompletion>, billingCustomerId: string) => {
             const custId = completionDialog?.customerId;
             if (!custId) return;
             setPendingCompletion(completions);
             setCompletionDialog(null);
-            openInvoiceFlow(custId);
+            openInvoiceFlow(custId, billingCustomerId || custId);
         },
         [completionDialog, openInvoiceFlow],
     );
@@ -1041,7 +1059,8 @@ export default function BillingBoardPage() {
                     cache: 'no-store',
                     body: JSON.stringify({
                         ...data,
-                        customerId: issuingCustomerId,
+                        // 請求先は確認ダイアログで決めた宛名。請求書フォーム側で直した場合はそちらを優先する。
+                        customerId: data.customerId || issuingCustomerId,
                         projectMasterIds,
                         dueDate: data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate,
                     }),
@@ -1430,6 +1449,9 @@ export default function BillingBoardPage() {
                 open={!!completionDialog}
                 projects={completionDialog?.projects ?? []}
                 isAppend={completionDialog?.isAppend}
+                sourceCustomerId={completionDialog?.customerId ?? ''}
+                sourceCustomerName={completionDialog?.customerName ?? ''}
+                customers={billingCustomerOptions}
                 onCancel={() => setCompletionDialog(null)}
                 onConfirm={handleCompletionConfirm}
             />

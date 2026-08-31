@@ -172,6 +172,8 @@ interface InvoiceHeaderProps {
     selectedProjectIds: string[];
     onToggleProject: (pmId: string) => void;
     customerProjects: Array<{ id: string; title: string }>;
+    /** 選択中の案件の元請のうち、請求先と異なるもの（請求先を切り替えたときだけ入る）。 */
+    sourceCustomerNames?: string[];
 }
 
 export default function InvoiceHeader({
@@ -187,6 +189,7 @@ export default function InvoiceHeader({
     selectedProjectIds,
     onToggleProject,
     customerProjects,
+    sourceCustomerNames,
 }: InvoiceHeaderProps) {
     const inputClass = "w-full px-3 py-3 md:py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm";
     const labelClass = "block text-sm font-semibold text-slate-700 mb-1.5";
@@ -208,7 +211,14 @@ export default function InvoiceHeader({
                             + 新規顧客
                         </button>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">顧客を選択すると、その顧客の案件が表示されます</p>
+                    {sourceCustomerNames && sourceCustomerNames.length > 0 ? (
+                        <p className="mt-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-800">
+                            案件の元請は「{sourceCustomerNames.join('、')}」です。この請求書の宛名だけが上の会社になります
+                            （案件マスタの元請は変更しません）。
+                        </p>
+                    ) : (
+                        <p className="text-xs text-slate-500 mt-1">顧客を選択すると、その顧客の案件が表示されます</p>
+                    )}
                 </div>
 
                 <div>

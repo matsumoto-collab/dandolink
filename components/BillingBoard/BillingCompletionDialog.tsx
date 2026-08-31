@@ -17,14 +17,27 @@ export interface BillingCompletionTarget {
     title: string;
 }
 
+/** 請求先の切り替え候補（顧客マスタ）。 */
+export interface BillingCustomerOption {
+    id: string;
+    name: string;
+    shortName?: string | null;
+}
+
 interface BillingCompletionDialogProps {
     open: boolean;
     projects: BillingCompletionTarget[];
     /** 既存請求書への追記か（見出しの文言だけ変える）。 */
     isAppend?: boolean;
     submitting?: boolean;
+    /** 案件の元請（＝ボードのグループ顧客）。請求先の既定値。 */
+    sourceCustomerId: string;
+    /** 元請の表示名（請求先を変えたときの注意書きに出す）。 */
+    sourceCustomerName: string;
+    /** 請求先に選べる顧客の一覧。 */
+    customers: BillingCustomerOption[];
     onCancel: () => void;
-    onConfirm: (completions: Record<string, BillingCompletion>) => void;
+    onConfirm: (completions: Record<string, BillingCompletion>, billingCustomerId: string) => void;
 }
 
 const OPTIONS: Array<{ value: BillingCompletion; label: string; hint: string }> = [
@@ -35,21 +48,32 @@ const OPTIONS: Array<{ value: BillingCompletion; label: string; hint: string }> 
 /**
  * 請求書を発行する直前に、含まれる案件ごとに「請求完了／まだ続く」を必ず選ばせる確認ダイアログ。
  * 既定は常に未選択（過去の手動設定はプレフィルしない）。全案件を選ぶまで確定できない。
+ *
+ * ここで「請求先」も切り替えられる（A社の現場を、A社の依頼でB社へ請求するケース）。
+ * 変えるのは請求書の宛名だけで、案件の元請（ProjectMaster.customerId）は触らない
+ * ＝見積書の宛名・完了報告のLINE・元請表示・利益の顧客別集計は元請のまま保たれる。
  */
 export default function BillingCompletionDialog({
     open,
     projects,
     isAppend,
     submitting,
+    sourceCustomerId,
+    sourceCustomerName,
+    customers,
     onCancel,
     onConfirm,
 }: BillingCompletionDialogProps) {
     const [choices, setChoices] = useState<Record<string, BillingCompletion>>({});
+    // 請求先（宛名）。既定は元請。変更すると請求書の customerId だけがこの顧客になる。
+    const [billingCustomerId, setBillingCustomerId] = useState(sourceCustomerId);
 
-    // 開くたびに未選択へ戻す（前回の選択やDBの手動設定は引き継がない）
+    // 開くたびに未選択へ戻す（前回の選択やDBの手動設定は引き継がない）。請求先も元請に戻す。
     useEffect(() => {
-        if (open) setChoices({});
-    }, [open]);
+        if (!open) return;
+        setChoices({});
+        setBillingCustomerId(sourceCustomerId);
+    }, [open, sourceCustomerId]);
 
     useEffect(() => {
         if (!open) return;
@@ -63,6 +87,16 @@ export default function BillingCompletionDialog({
     if (!open) return null;
 
     const remaining = projects.filter((p) => !choices[p.id]).length;
+    // 請求先を元請から変えたか。変えた場合は既存請求書へのまとめ（追記）はせず、必ず新規で発行する
+    // ＝元請の違う案件が1枚の請求書に混ざらないようにする。
+    const redirected = !!billingCustomerId && billingCustomerId !== sourceCustomerId;
+    const effectiveAppend = !!isAppend && !redirected;
+    const billingCustomerName =
+        customers.find((c) => c.id === billingCustomerId)?.name || sourceCustomerName;
+    // 顧客一覧がまだ読み込めていなくても元請だけは必ず選択肢に出す（セレクトが空欄にならないように）
+    const options = customers.some((c) => c.id === sourceCustomerId)
+        ? customers
+        : [{ id: sourceCustomerId, name: sourceCustomerName }, ...customers];
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
@@ -70,7 +104,7 @@ export default function BillingCompletionDialog({
                 <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
                     <div className="min-w-0">
                         <h2 className="text-base font-semibold text-slate-900">
-                            {isAppend ? '当月の請求書に追記します' : '請求書を作成します'}
+                            {effectiveAppend ? '当月の請求書に追記します' : '請求書を作成します'}
                         </h2>
                         <p className="mt-0.5 text-xs text-slate-500">
                             案件ごとに、今回で請求が終わりかどうかを選んでください（案件の請求バッジに反映します）。
@@ -86,6 +120,37 @@ export default function BillingCompletionDialog({
                 </div>
 
                 <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                    {/* 請求先（宛名）。既定は案件の元請。A社の依頼でB社へ請求する場合だけ変更する。 */}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <label htmlFor="billing-customer" className="block text-xs font-medium text-slate-600">
+                            請求先（宛名）
+                        </label>
+                        <select
+                            id="billing-customer"
+                            value={billingCustomerId}
+                            onChange={(e) => setBillingCustomerId(e.target.value)}
+                            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        >
+                            {options.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name}
+                                    {c.id === sourceCustomerId ? '（元請）' : ''}
+                                </option>
+                            ))}
+                        </select>
+                        {redirected ? (
+                            <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] leading-relaxed text-amber-800">
+                                この請求書の宛名は「{billingCustomerName}」になります。案件の元請は「{sourceCustomerName}」のまま変わりません
+                                （見積書の宛名・完了報告の連絡先・案件一覧の表示は元請のままです）。
+                                {isAppend ? '元請の当月請求書へのまとめはせず、単独の請求書として発行します。' : ''}
+                            </p>
+                        ) : (
+                            <p className="mt-1.5 text-[11px] text-slate-500">
+                                元請と違う会社に請求する場合だけ変更してください。
+                            </p>
+                        )}
+                    </div>
+
                     {projects.map((p) => (
                         <div key={p.id} className="rounded-xl border border-slate-200 p-3">
                             <div className="truncate text-sm font-medium text-slate-800">{p.title}</div>
@@ -128,11 +193,11 @@ export default function BillingCompletionDialog({
                         <Button
                             type="button"
                             variant="primary"
-                            onClick={() => onConfirm(choices)}
-                            disabled={submitting || remaining > 0 || projects.length === 0}
+                            onClick={() => onConfirm(choices, billingCustomerId || sourceCustomerId)}
+                            disabled={submitting || remaining > 0 || projects.length === 0 || !billingCustomerId}
                             isLoading={submitting}
                         >
-                            {isAppend ? '追記へ進む' : '請求書へ進む'}
+                            {effectiveAppend ? '追記へ進む' : '請求書へ進む'}
                         </Button>
                     </div>
                 </div>

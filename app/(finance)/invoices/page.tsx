@@ -150,6 +150,56 @@ export default function InvoiceListPage() {
         return { name: c?.name || customerName, honorific: c?.honorific, postalCode: c?.postalCode, address: c?.address };
     }, [projectMasters, customers]);
 
+    // 請求書に紐づく案件の元請顧客名（案件マスタ側の顧客）。
+    // 請求先を切り替えた請求書（A社の現場をB社へ請求）を、元の顧客名でも検索できるようにするために使う。
+    const getSourceCustomerNames = useCallback((invoice: Invoice): string[] => {
+        const ids =
+            invoice.projectMasterIds && invoice.projectMasterIds.length > 0
+                ? invoice.projectMasterIds
+                : invoice.projectMasters && invoice.projectMasters.length > 0
+                  ? invoice.projectMasters.map(p => p.id)
+                  : invoice.projectId
+                    ? [invoice.projectId]
+                    : [];
+        const names = new Set<string>();
+        for (const id of ids) {
+            const pm = projectMasters.find(p => p.id === id);
+            if (!pm) continue;
+            if (pm.customerName) names.add(pm.customerName);
+            if (pm.customerShortName) names.add(pm.customerShortName);
+        }
+        return Array.from(names);
+    }, [projectMasters]);
+
+    // 案件の元請が請求先（宛名）と違う場合の元請名。一覧に「元請: A社」として出す。
+    // 同一判定は customerId を正とし、customerId を持たない古い案件だけ名前で突き合わせる。
+    const getRedirectedSourceNames = useCallback((invoice: Invoice): string[] => {
+        const billTo = invoice.customerId ? customers.find(c => c.id === invoice.customerId) : undefined;
+        if (!billTo) return [];
+        const ids =
+            invoice.projectMasterIds && invoice.projectMasterIds.length > 0
+                ? invoice.projectMasterIds
+                : invoice.projectMasters && invoice.projectMasters.length > 0
+                  ? invoice.projectMasters.map(p => p.id)
+                  : invoice.projectId
+                    ? [invoice.projectId]
+                    : [];
+        const names = new Set<string>();
+        for (const id of ids) {
+            const pm = projectMasters.find(p => p.id === id);
+            if (!pm) continue;
+            const name = pm.customerName || pm.customerShortName;
+            if (!name) continue;
+            if (pm.customerId) {
+                if (pm.customerId === billTo.id) continue;
+            } else if (name === billTo.name || name === billTo.shortName) {
+                continue;
+            }
+            names.add(name);
+        }
+        return Array.from(names);
+    }, [customers, projectMasters]);
+
     // ステータスアイコンとカラー（灰=未完成 / 橙=送付待ち / 青=入金待ち / 緑=完了 / 赤=超過）
     const getStatusInfo = (status: Invoice['status']) => {
         switch (status) {
@@ -262,6 +312,8 @@ export default function InvoiceListPage() {
                     matchesSearch(inv.invoiceNumber, q) ||
                     matchesSearch(getProjectName(inv), q) ||
                     matchesSearch(getCustomerName(inv), q) ||
+                    // 請求先を切り替えた請求書も、案件の元請（もとの顧客名）で検索できるようにする
+                    matchesSearch(getSourceCustomerNames(inv).join(' '), q) ||
                     matchesSearch(getInvoiceAssigneeNames(inv), q);
                 const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
                 const matchesAssignee = !assigneeIdFilter || getInvoiceAssigneeIds(inv).includes(assigneeIdFilter);
@@ -277,7 +329,7 @@ export default function InvoiceListPage() {
                 // 作成日が同一（同じ締め日でまとめた請求書など）でも並びが揺れないよう請求番号で決定的に並べる
                 return (b.invoiceNumber || '').localeCompare(a.invoiceNumber || '', 'ja', { numeric: true });
             });
-    }, [invoices, debouncedSearchTerm, statusFilter, assigneeIdFilter, createdFrom, createdTo, getProjectName, getCustomerName, getInvoiceAssigneeNames, getInvoiceAssigneeIds]);
+    }, [invoices, debouncedSearchTerm, statusFilter, assigneeIdFilter, createdFrom, createdTo, getProjectName, getCustomerName, getSourceCustomerNames, getInvoiceAssigneeNames, getInvoiceAssigneeIds]);
 
     // フィルター変更時にページをリセット
     useEffect(() => {
@@ -633,9 +685,14 @@ export default function InvoiceListPage() {
                                         {invoice.title || '(タイトル未設定)'}
                                     </div>
 
-                                    {/* 顧客名 */}
+                                    {/* 顧客名（請求先）。元請が別会社なら併記する。 */}
                                     {getCustomerName(invoice) && (
                                         <div className="text-sm text-slate-600 mb-1">{getCustomerName(invoice)}</div>
+                                    )}
+                                    {getRedirectedSourceNames(invoice).length > 0 && (
+                                        <div className="text-xs text-amber-700 mb-1">
+                                            元請: {getRedirectedSourceNames(invoice).join('、')}
+                                        </div>
                                     )}
 
                                     {/* 案件担当者 */}
@@ -764,8 +821,13 @@ export default function InvoiceListPage() {
                                                 {invoice.title || '(タイトル未設定)'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
-                                            {getCustomerName(invoice) || '−'}
+                                        <td className="px-6 py-4 text-[12px] text-slate-700">
+                                            <span className="whitespace-nowrap">{getCustomerName(invoice) || '−'}</span>
+                                            {getRedirectedSourceNames(invoice).length > 0 && (
+                                                <span className="block text-[11px] text-amber-700">
+                                                    元請: {getRedirectedSourceNames(invoice).join('、')}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-[12px] text-slate-700">
                                             {getInvoiceAssigneeNames(invoice) || '−'}
