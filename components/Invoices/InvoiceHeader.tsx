@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Customer } from '@/types/customer';
 import { matchesSearch } from '@/utils/searchNormalize';
+import SearchableCustomerSelect from '@/components/ui/SearchableCustomerSelect';
 import { DUE_DATE_PRESETS, dueDateFromClosing } from '@/lib/closingDay';
 
 function TitleAutocomplete({ value, onChange, inputClass }: { value: string; onChange: (v: string) => void; inputClass: string }) {
@@ -52,100 +53,6 @@ function TitleAutocomplete({ value, onChange, inputClass }: { value: string; onC
                         </li>
                     ))}
                 </ul>
-            )}
-        </div>
-    );
-}
-
-function SearchableCustomerSelect({
-    value,
-    onChange,
-    customers,
-    inputClass
-}: {
-    value: string;
-    onChange: (value: string) => void;
-    customers: Customer[];
-    inputClass: string;
-}) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const filteredCustomers = customers.filter(c =>
-        matchesSearch(c.name, searchQuery) || matchesSearch(c.shortName, searchQuery)
-    );
-
-    const selectedCustomer = customers.find(c => c.id === value);
-    const displayText = selectedCustomer ? selectedCustomer.name : '元請会社を選択';
-
-    return (
-        <div className="relative flex-1" ref={dropdownRef}>
-            <div
-                className={`${inputClass} flex justify-between items-center cursor-pointer bg-white`}
-                onClick={() => setIsOpen(!isOpen)}
-            >
-                <span className={`truncate ${!selectedCustomer ? 'text-slate-500' : ''}`}>
-                    {displayText}
-                </span>
-                <span className="text-slate-400 ml-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                </span>
-            </div>
-
-            {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg">
-                    <div className="p-2 border-b border-slate-200 sticky top-0 bg-white rounded-t-lg">
-                        <div className="relative">
-                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                            </span>
-                            <input
-                                type="text"
-                                className="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
-                                placeholder="元請会社を検索..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                autoFocus
-                            />
-                        </div>
-                    </div>
-                    <ul className="max-h-60 overflow-y-auto overscroll-contain">
-                        <li
-                            className={`px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm ${!value ? 'bg-slate-50 font-medium' : ''}`}
-                            onClick={() => { onChange(''); setIsOpen(false); setSearchQuery(''); }}
-                        >
-                            <span className="text-slate-600">選択してください</span>
-                        </li>
-                        {filteredCustomers.map(customer => (
-                            <li
-                                key={customer.id}
-                                className={`px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm ${customer.id === value ? 'bg-slate-50 font-medium' : ''}`}
-                                onClick={() => { onChange(customer.id); setIsOpen(false); setSearchQuery(''); }}
-                            >
-                                <div className="flex flex-col">
-                                    <span>{customer.name}</span>
-                                    {customer.shortName && <span className="text-xs text-slate-500 mt-0.5">{customer.shortName}</span>}
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
             )}
         </div>
     );
@@ -205,6 +112,8 @@ export default function InvoiceHeader({
                             value={customerId}
                             onChange={setCustomerId}
                             customers={customers}
+                            placeholder="元請会社を選択"
+                            searchPlaceholder="元請会社を検索..."
                             inputClass={"flex-1 px-3 py-3 md:py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm"}
                         />
                         <button type="button" onClick={onOpenCustomerModal} className="px-4 py-3 md:py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 active:bg-teal-800 transition-colors whitespace-nowrap text-sm font-medium">

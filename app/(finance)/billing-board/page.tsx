@@ -870,14 +870,26 @@ export default function BillingBoardPage() {
      * 請求書の発行/追記が成功したあとに、各案件の請求バッジ（billingStatusOverride）を書き込む。
      * 失敗しても請求書自体は成功扱い（ロールバックしない）。トーストで知らせるだけ。
      */
+    // 確認ダイアログの選択を案件へ書き込む。
+    // 'full_and_close'（請求完了・案件も完了）だけは請求バッジに加えて案件のステータスも完了にする。
+    // ※ ダイアログの値をそのまま billingStatusOverride に入れてはいけない
+    //   （'full_and_close' は請求バッジの値としては不正）。
     const applyBillingCompletion = useCallback(
         async (completions: Record<string, BillingCompletion>) => {
             const targets = Object.entries(completions);
             if (targets.length === 0) return;
+            let closed = 0;
             const oks = await Promise.all(
                 targets.map(async ([pid, value]) => {
                     try {
-                        await updateProjectMaster(pid, { billingStatusOverride: value });
+                        const payload: Partial<ProjectMaster> =
+                            value === 'partial'
+                                ? { billingStatusOverride: 'partial' }
+                                : value === 'full_and_close'
+                                  ? { billingStatusOverride: 'full', status: 'completed' }
+                                  : { billingStatusOverride: 'full' };
+                        await updateProjectMaster(pid, payload);
+                        if (value === 'full_and_close') closed += 1;
                         return true;
                     } catch (e) {
                         logger.error('Failed to apply billing completion:', e);
@@ -888,6 +900,8 @@ export default function BillingBoardPage() {
             const failed = oks.filter((ok) => !ok).length;
             if (failed > 0) {
                 toast.error(`案件の請求状態を更新できませんでした（${failed}件）。案件行のバッジから設定してください`);
+            } else if (closed > 0) {
+                toast.success(`${closed}件の案件を完了にしました`);
             }
         },
         [updateProjectMaster],

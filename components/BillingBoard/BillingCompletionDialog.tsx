@@ -3,12 +3,15 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import SearchableCustomerSelect from '@/components/ui/SearchableCustomerSelect';
 
 /**
- * この案件の請求が今回で終わりか（請求書の発行後に ProjectMaster.billingStatusOverride へ書き込む値）。
- * 'full' = 請求完了（請求済みにする） / 'partial' = まだ続く（一部請求にする）。
+ * この案件の請求が今回で終わりか（請求書の発行後に ProjectMaster へ書き込む内容）。
+ * - 'full_and_close' = 請求完了（案件も完了）: billingStatusOverride='full' ＋ status='completed'
+ * - 'full'           = 請求完了（案件進行中）: billingStatusOverride='full' のみ
+ * - 'partial'        = まだ続く: billingStatusOverride='partial'
  */
-export type BillingCompletion = 'full' | 'partial';
+export type BillingCompletion = 'full_and_close' | 'full' | 'partial';
 
 /** 確認ダイアログに並べる案件（請求書に含まれる案件）。 */
 export interface BillingCompletionTarget {
@@ -41,7 +44,8 @@ interface BillingCompletionDialogProps {
 }
 
 const OPTIONS: Array<{ value: BillingCompletion; label: string; hint: string }> = [
-    { value: 'full', label: '請求完了', hint: '請求済みにする' },
+    { value: 'full_and_close', label: '請求完了（案件も完了）', hint: '請求済みにして、案件のステータスも完了にする' },
+    { value: 'full', label: '請求完了（案件進行中）', hint: '請求済みにする（案件は進行中のまま）' },
     { value: 'partial', label: 'まだ続く', hint: '一部請求にする' },
 ];
 
@@ -107,7 +111,8 @@ export default function BillingCompletionDialog({
                             {effectiveAppend ? '当月の請求書に追記します' : '請求書を作成します'}
                         </h2>
                         <p className="mt-0.5 text-xs text-slate-500">
-                            案件ごとに、今回で請求が終わりかどうかを選んでください（案件の請求バッジに反映します）。
+                            案件ごとに、今回で請求が終わりかどうかを選んでください。案件の請求バッジに反映します
+                            （「案件も完了」を選ぶと、その案件のステータスも完了になります）。
                         </p>
                     </div>
                     <button
@@ -119,25 +124,23 @@ export default function BillingCompletionDialog({
                     </button>
                 </div>
 
-                <div className="flex-1 space-y-3 overflow-y-auto p-4">
-                    {/* 請求先（宛名）。既定は案件の元請。A社の依頼でB社へ請求する場合だけ変更する。 */}
+                {/* 請求先（宛名）。既定は案件の元請。A社の依頼でB社へ請求する場合だけ変更する。
+                    検索ドロップダウンが切れないよう、スクロール領域の外に置く。 */}
+                <div className="shrink-0 border-b border-slate-200 p-4">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <label htmlFor="billing-customer" className="block text-xs font-medium text-slate-600">
-                            請求先（宛名）
-                        </label>
-                        <select
-                            id="billing-customer"
-                            value={billingCustomerId}
-                            onChange={(e) => setBillingCustomerId(e.target.value)}
-                            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                        >
-                            {options.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                    {c.id === sourceCustomerId ? '（元請）' : ''}
-                                </option>
-                            ))}
-                        </select>
+                        <span className="block text-xs font-medium text-slate-600">請求先（宛名）</span>
+                        <div className="mt-1.5 flex">
+                            <SearchableCustomerSelect
+                                value={billingCustomerId}
+                                onChange={setBillingCustomerId}
+                                customers={options}
+                                allowEmpty={false}
+                                placeholder="請求先を選択"
+                                searchPlaceholder="会社名・略称で検索..."
+                                optionSuffix={(c) => (c.id === sourceCustomerId ? '（元請）' : '')}
+                                inputClass="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                            />
+                        </div>
                         {redirected ? (
                             <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] leading-relaxed text-amber-800">
                                 この請求書の宛名は「{billingCustomerName}」になります。案件の元請は「{sourceCustomerName}」のまま変わりません
@@ -150,11 +153,13 @@ export default function BillingCompletionDialog({
                             </p>
                         )}
                     </div>
+                </div>
 
+                <div className="flex-1 space-y-3 overflow-y-auto p-4">
                     {projects.map((p) => (
                         <div key={p.id} className="rounded-xl border border-slate-200 p-3">
                             <div className="truncate text-sm font-medium text-slate-800">{p.title}</div>
-                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                            <div className="mt-2 grid gap-2">
                                 {OPTIONS.map((o) => (
                                     <label
                                         key={o.value}
