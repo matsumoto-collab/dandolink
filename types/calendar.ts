@@ -177,6 +177,18 @@ export interface ProjectMaster {
     assignmentCount?: number;          // 配置件数（一覧表示用）
     hasEstimate?: boolean;             // 紐付く見積書が存在するか（一覧表示用）
     hasInvoice?: boolean;              // 紐付く請求書が存在するか（一覧表示用）
+    workHistory?: ProjectWorkHistoryItem[]; // 作業履歴（一覧の表示・絞り込み用・日付昇順）
+}
+
+/**
+ * 案件一覧に出す作業履歴の1件（配置1件ぶんの軽量版）。
+ * /api/project-masters が日付の昇順で返す（1案件あたり最大60件・超過時は直近側）。
+ */
+export interface ProjectWorkHistoryItem {
+    date: string;                    // ISO文字列（JSONで来るのでDate化しない）
+    constructionType: string | null; // 工事種別ID（マスタのUUID or レガシー値）
+    foremanId: string | null;        // 職長の User ID
+    memberCount: number;
 }
 
 // 案件配置（班・日付への割り当て）

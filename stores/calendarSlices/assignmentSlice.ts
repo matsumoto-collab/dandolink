@@ -611,9 +611,21 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
         } catch {
             logId = null;
         }
-        set((state) => ({
-            assignments: state.assignments.filter((a) => a.id !== id),
-        }));
+        set((state) => {
+            // 案件一覧の「未着工」判定は assignmentCount を見るので、削除でも必ず減らす
+            // （追加時だけ増やして削除で減らさないと、配置を全部消した案件が進行中のまま残る）
+            const removed = state.assignments.find((a) => a.id === id);
+            return {
+                assignments: state.assignments.filter((a) => a.id !== id),
+                projectMasters: removed
+                    ? state.projectMasters.map((pm) =>
+                          pm.id === removed.projectMasterId
+                              ? { ...pm, assignmentCount: Math.max(0, (pm.assignmentCount ?? 0) - 1) }
+                              : pm
+                      )
+                    : state.projectMasters,
+            };
+        });
         return logId;
     },
 
@@ -749,9 +761,20 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
     },
 
     removeAssignmentById: (id) => {
-        set((state) => ({
-            assignments: state.assignments.filter((a) => a.id !== id),
-        }));
+        set((state) => {
+            // deleteProject と同じく assignmentCount を減らす（他端末の削除を受けた同期経路）
+            const removed = state.assignments.find((a) => a.id === id);
+            return {
+                assignments: state.assignments.filter((a) => a.id !== id),
+                projectMasters: removed
+                    ? state.projectMasters.map((pm) =>
+                          pm.id === removed.projectMasterId
+                              ? { ...pm, assignmentCount: Math.max(0, (pm.assignmentCount ?? 0) - 1) }
+                              : pm
+                      )
+                    : state.projectMasters,
+            };
+        });
     },
 
     updateProjectMasterInAssignments: (projectMaster) => {

@@ -7,6 +7,9 @@ import { formatProjectMaster, stripProjectMasterFinancials } from '@/lib/formatt
 import { notifyUsers } from '@/lib/notifications';
 import { logger } from '@/lib/logger';
 
+/** 1案件あたりに返す作業履歴の上限（請求待ちボードと同値）。 */
+const MAX_WORK_ITEMS = 60;
+
 /**
  * GET /api/project-masters - 案件マスター一覧取得
  */
@@ -96,6 +99,42 @@ export async function GET(req: NextRequest) {
             return { estimateSet, invoiceSet };
         };
 
+        /**
+         * 作業履歴（案件一覧の表示・絞り込み用）。日付・工事種別・職長・人数だけの軽量版。
+         * 案件あたり MAX_WORK_ITEMS 件で頭打ちにする（超過時は直近側を残す＝請求待ちボードと同じ方針）。
+         */
+        const buildWorkHistory = async (pmIds: string[]) => {
+            const map = new Map<string, Array<{
+                date: string; constructionType: string | null; foremanId: string | null; memberCount: number;
+            }>>();
+            if (pmIds.length === 0) return map;
+            const rows = await prisma.projectAssignment.findMany({
+                where: { projectMasterId: { in: pmIds } },
+                select: {
+                    projectMasterId: true,
+                    date: true,
+                    constructionType: true,
+                    assignedEmployeeId: true,
+                    memberCount: true,
+                },
+                orderBy: { date: 'asc' },
+            });
+            for (const r of rows) {
+                const arr = map.get(r.projectMasterId) ?? [];
+                arr.push({
+                    date: r.date.toISOString(),
+                    constructionType: r.constructionType,
+                    foremanId: r.assignedEmployeeId,
+                    memberCount: r.memberCount,
+                });
+                map.set(r.projectMasterId, arr);
+            }
+            for (const [k, v] of map) {
+                if (v.length > MAX_WORK_ITEMS) map.set(k, v.slice(-MAX_WORK_ITEMS));
+            }
+            return map;
+        };
+
         const canSeeFinancials = role === 'admin' || role === 'manager';
         const formatForRole = (pm: Parameters<typeof formatProjectMaster>[0]) => {
             const formatted = formatProjectMaster(pm);
@@ -115,25 +154,35 @@ export async function GET(req: NextRequest) {
                 prisma.projectMaster.count({ where }),
             ]);
 
-            const { estimateSet, invoiceSet } = await buildDocFlags(projectMasters.map(pm => pm.id));
+            const pmIds = projectMasters.map(pm => pm.id);
+            const [{ estimateSet, invoiceSet }, workMap] = await Promise.all([
+                buildDocFlags(pmIds),
+                buildWorkHistory(pmIds),
+            ]);
 
             return NextResponse.json({
                 data: projectMasters.map(pm => ({
                     ...formatForRole(pm),
                     hasEstimate: estimateSet.has(pm.id),
                     hasInvoice: invoiceSet.has(pm.id),
+                    workHistory: workMap.get(pm.id) ?? [],
                 })),
                 pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
             }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
         const projectMasters = await prisma.projectMaster.findMany({ where, include, orderBy });
-        const { estimateSet, invoiceSet } = await buildDocFlags(projectMasters.map(pm => pm.id));
+        const allPmIds = projectMasters.map(pm => pm.id);
+        const [{ estimateSet, invoiceSet }, workMap] = await Promise.all([
+            buildDocFlags(allPmIds),
+            buildWorkHistory(allPmIds),
+        ]);
         return NextResponse.json(
             projectMasters.map(pm => ({
                 ...formatForRole(pm),
                 hasEstimate: estimateSet.has(pm.id),
                 hasInvoice: invoiceSet.has(pm.id),
+                workHistory: workMap.get(pm.id) ?? [],
             })),
             { headers: { 'Cache-Control': 'no-store' } }
         );

@@ -22,6 +22,8 @@ describe('/api/project-masters', () => {
         // GET の見積/請求フラグ集計(buildDocFlags)が findMany を呼ぶため空配列を既定に
         (prisma.estimate.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+        // GET の作業履歴集計(buildWorkHistory)も findMany を呼ぶため同様に空配列を既定に
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([]);
     });
 
     describe('GET', () => {

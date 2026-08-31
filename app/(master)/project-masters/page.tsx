@@ -11,7 +11,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { ProjectMaster, Project } from '@/types/calendar';
 import { Estimate, EstimateInput, EstimateItem } from '@/types/estimate';
 import { Invoice, InvoiceInput } from '@/types/invoice';
-import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, User, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, User, Check, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import { buildProjectMasterCreatePayload, createAssignmentsFromWorkDates } from '@/lib/projectMasterCreate';
@@ -31,6 +31,19 @@ import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { logger } from '@/lib/logger';
 import { matchesSearch } from '@/utils/searchNormalize';
+import {
+    matchesProjectListStatus,
+    resolveProjectListStatus,
+    PROJECT_LIST_STATUS_OPTIONS,
+    DEFAULT_PROJECT_LIST_STATUS_FILTER,
+} from '@/lib/projectMasterStatus';
+import {
+    matchesWorkHistory,
+    filterWorkHistory,
+    hasWorkHistoryFilter,
+    workDateToJstYmd,
+} from '@/lib/projectWorkHistory';
+import CTypeChip, { ctypeName, type CtypeMap } from '@/components/ui/CTypeChip';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
@@ -66,6 +79,20 @@ const BILLING_CELL_META: Record<BillingStatus, { text: string; className: string
         ]),
     ) as Record<BillingStatus, { text: string; className: string; showCheck: boolean; title: string }>;
 
+/** 請求ステータスの絞り込みに出す選択肢（表示順）。 */
+const BILLING_FILTER_CHOICES: BillingStatus[] = ['unbilled', 'partial', 'full', 'none'];
+
+/** 一覧の作業履歴セルに出す件数（超過分は「他N件」に畳む）。 */
+const WORK_HISTORY_PREVIEW = 3;
+
+/** 作業履歴の日付表示（JSTの M/D）。 */
+const workMd = (iso: string): string => {
+    const ymd = workDateToJstYmd(iso);
+    if (!ymd) return '—';
+    const [, m, d] = ymd.split('-');
+    return `${Number(m)}/${Number(d)}`;
+};
+
 // useSearchParams() を含むため、ビルド時のプリレンダリングで Suspense 境界が必要
 // （Next.js App Router の制約: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout）
 function ProjectMasterListPageContent() {
@@ -79,7 +106,7 @@ function ProjectMasterListPageContent() {
     const isForeman2 = userRole === 'foreman2';
     const isAdminOrManager = userRole === 'admin' || userRole === 'manager';
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterStatus, setFilterStatus] = useState<string>('active');
+    const [filterStatus, setFilterStatus] = useState<string>(DEFAULT_PROJECT_LIST_STATUS_FILTER);
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
     const [openModalInEditMode, setOpenModalInEditMode] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
@@ -94,42 +121,21 @@ function ProjectMasterListPageContent() {
     // 複数見積/請求がある場合のピッカー
     const [pickerContext, setPickerContext] = useState<{ pm: ProjectMaster; kind: 'estimate' | 'invoice' } | null>(null);
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
+    // 検索窓とは別の絞り込み（担当者 / 作業履歴の日付・工事種別・職長 / 請求ステータス）
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterAssigneeId, setFilterAssigneeId] = useState('');
+    const [workFrom, setWorkFrom] = useState('');
+    const [workTo, setWorkTo] = useState('');
+    const [filterCtypeName, setFilterCtypeName] = useState('');
+    const [filterForemanId, setFilterForemanId] = useState('');
+    const [filterBillingStatus, setFilterBillingStatus] = useState('');
+    // 工事種別ID → 名称・色（作業履歴のチップ表示と、種別での絞り込みに使う）
+    const [ctypeMap, setCtypeMap] = useState<CtypeMap>({});
     const [suffixMap, setSuffixMap] = useState<Record<string, string>>({});
     const [currentPage, setCurrentPage] = useState(1);
     // 完了連動: 貸出中が残る案件を完了にしようとしたときの警告
     const [archiveWarn, setArchiveWarn] = useState<{ pm: ProjectMaster; count: number } | null>(null);
     const ITEMS_PER_PAGE = 20;
-
-    // Filter and sort
-    const filteredMasters = useMemo(() => {
-        let results = projectMasters;
-
-        // Status filter
-        if (filterStatus !== 'all') {
-            results = results.filter(pm => pm.status === filterStatus);
-        }
-
-        // Search
-        if (searchTerm.trim()) {
-            results = results.filter(pm =>
-                matchesSearch(pm.title, searchTerm) ||
-                matchesSearch(pm.customerName, searchTerm) ||
-                matchesSearch(pm.customerShortName, searchTerm) ||
-                matchesSearch(pm.location, searchTerm) ||
-                matchesSearch(pm.city, searchTerm)
-            );
-        }
-
-        // Sort by updated date
-        return results.sort((a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
-    }, [projectMasters, searchTerm, filterStatus]);
-
-    // Reset pagination when filter or search changes
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, filterStatus]);
 
     // 通知からの遷移など、ページを開いたタイミングで最新データを取得
     // （ストアが初期化済みでも、hidden中に発生した新規案件を取りこぼさないため）
@@ -207,6 +213,41 @@ function ProjectMasterListPageContent() {
         return () => { cancelled = true; };
     }, []);
 
+    // 工事種別マスタ（作業履歴チップの名称・色。請求待ちボードと同じAPI）
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/master-data/construction-types');
+                if (!res.ok) return;
+                const list: Array<{ id: string; name: string; color: string }> = await res.json();
+                if (cancelled) return;
+                const m: CtypeMap = {};
+                for (const t of Array.isArray(list) ? list : []) m[t.id] = { name: t.name, color: t.color };
+                setCtypeMap(m);
+            } catch (e) {
+                logger.error('工事種別マスタの取得に失敗:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    /** 工事種別ID→名称（マスタに同名が複数あるため、絞り込みは名称で突き合わせる）。 */
+    const resolveCtypeNameById = useCallback(
+        (id: string | null) => ctypeName(id, ctypeMap),
+        [ctypeMap],
+    );
+
+    /**
+     * 案件の担当者ID配列。
+     * この一覧の「担当者」列と同じ createdBy（JSON配列）を使う＝絞り込みと表示が必ず一致する。
+     * （managerIds は /api/project-masters のレスポンスに含まれないため、ここでは参照しない）
+     */
+    const getAssigneeIds = useCallback((pm: ProjectMaster): string[] => {
+        if (Array.isArray(pm.createdBy)) return pm.createdBy.filter(Boolean);
+        return pm.createdBy ? [pm.createdBy] : [];
+    }, []);
+
     const getManagersLabel = useCallback((pm: ProjectMaster): string => {
         const ids = Array.isArray(pm.createdBy) ? pm.createdBy : pm.createdBy ? [pm.createdBy] : [];
         if (ids.length === 0) return '';
@@ -242,13 +283,6 @@ function ProjectMasterListPageContent() {
         const suffixPart = suffixName ? ` ${suffixName}` : '';
         return `${pm.name}${honorific}${place}${suffixPart}`;
     }, [suffixMap]);
-
-    const totalPages = Math.ceil(filteredMasters.length / ITEMS_PER_PAGE);
-
-    const paginatedMasters = useMemo(() => {
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredMasters.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    }, [filteredMasters, currentPage]);
 
     const handleCreate = async (data: ProjectMasterFormData) => {
         const pm = await createProjectMaster(buildProjectMasterCreatePayload(data));
@@ -396,6 +430,143 @@ function ProjectMasterListPageContent() {
             getBillingStatus(resolveBillingBasisFor(pm).amount, invoicedByProject[pm.id] ?? 0),
         [invoicedByProject, resolveBillingBasisFor],
     );
+    // ── 絞り込みの選択肢（実際にデータに存在するものだけを出す）─────────────
+    /** 担当者（案件に設定されている人だけ・五十音順）。 */
+    const assigneeOptions = useMemo(() => {
+        const ids = new Set<string>();
+        for (const pm of projectMasters) for (const id of getAssigneeIds(pm)) ids.add(id);
+        return Array.from(ids)
+            .map((id) => ({ id, name: managerMap[id] || '' }))
+            .filter((o) => o.name)
+            .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    }, [projectMasters, getAssigneeIds, managerMap]);
+
+    /** 職長（作業履歴に登場する人だけ・五十音順）。 */
+    const foremanOptions = useMemo(() => {
+        const ids = new Set<string>();
+        for (const pm of projectMasters) for (const w of pm.workHistory ?? []) if (w.foremanId) ids.add(w.foremanId);
+        return Array.from(ids)
+            .map((id) => ({ id, name: managerMap[id] || '' }))
+            .filter((o) => o.name)
+            .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    }, [projectMasters, managerMap]);
+
+    /** 工事種別（作業履歴に登場する名称だけ。マスタに同名IDが複数あるので名称で一意化する）。 */
+    const ctypeNameOptions = useMemo(() => {
+        const names = new Set<string>();
+        for (const pm of projectMasters) {
+            for (const w of pm.workHistory ?? []) {
+                const n = resolveCtypeNameById(w.constructionType);
+                if (n) names.add(n);
+            }
+        }
+        return Array.from(names).sort((a, b) => a.localeCompare(b, 'ja'));
+    }, [projectMasters, resolveCtypeNameById]);
+
+    /** 適用中の絞り込み数（検索窓とステータスを除く。バッジ表示用）。 */
+    const activeFilterCount = useMemo(
+        () => [filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus]
+            .filter(Boolean).length,
+        [filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus],
+    );
+
+    const clearExtraFilters = useCallback(() => {
+        setFilterAssigneeId('');
+        setWorkFrom('');
+        setWorkTo('');
+        setFilterCtypeName('');
+        setFilterForemanId('');
+        setFilterBillingStatus('');
+    }, []);
+
+    /**
+     * 一覧に出す作業履歴。
+     * 作業履歴で絞り込み中はその条件に合致した分だけを出す（なぜヒットしたかが見て分かる）。
+     * 未指定なら全件を対象に、新しい順で先頭 WORK_HISTORY_PREVIEW 件を出す。
+     */
+    const visibleWorkHistory = useCallback((pm: ProjectMaster) => {
+        const all = pm.workHistory ?? [];
+        const f = {
+            from: workFrom || undefined,
+            to: workTo || undefined,
+            ctypeName: filterCtypeName || undefined,
+            foremanId: filterForemanId || undefined,
+        };
+        const filtered = hasWorkHistoryFilter(f) ? filterWorkHistory(all, f, resolveCtypeNameById) : all;
+        // API は日付の昇順で返すので、表示は新しい順にする
+        const newestFirst = [...filtered].reverse();
+        return {
+            total: filtered.length,
+            matched: hasWorkHistoryFilter(f),
+            items: newestFirst.slice(0, WORK_HISTORY_PREVIEW),
+        };
+    }, [workFrom, workTo, filterCtypeName, filterForemanId, resolveCtypeNameById]);
+
+    // ── 絞り込み・並び替え ────────────────────────────────
+    // 作業履歴の条件（日付範囲 / 工事種別 / 職長）は「同じ1件の作業履歴」がすべて満たすことを求める
+    // ＝「この期間に、この職長が、組立をやった案件」を探せる（lib/projectWorkHistory）。
+    const filteredMasters = useMemo(() => {
+        let results = projectMasters;
+
+        // Status filter（進行中/未着工はカレンダーの配置件数から導出。lib/projectMasterStatus に一本化）
+        if (filterStatus !== 'all') {
+            results = results.filter(pm => matchesProjectListStatus(pm, filterStatus));
+        }
+
+        // Search
+        if (searchTerm.trim()) {
+            results = results.filter(pm =>
+                matchesSearch(pm.title, searchTerm) ||
+                matchesSearch(pm.customerName, searchTerm) ||
+                matchesSearch(pm.customerShortName, searchTerm) ||
+                matchesSearch(pm.location, searchTerm) ||
+                matchesSearch(pm.city, searchTerm)
+            );
+        }
+
+        // 担当者
+        if (filterAssigneeId) {
+            results = results.filter(pm => getAssigneeIds(pm).includes(filterAssigneeId));
+        }
+
+        // 作業履歴（日付範囲・工事種別・職長）
+        if (workFrom || workTo || filterCtypeName || filterForemanId) {
+            results = results.filter(pm =>
+                matchesWorkHistory(
+                    pm.workHistory,
+                    { from: workFrom || undefined, to: workTo || undefined, ctypeName: filterCtypeName || undefined, foremanId: filterForemanId || undefined },
+                    resolveCtypeNameById,
+                )
+            );
+        }
+
+        // 請求ステータス
+        if (filterBillingStatus) {
+            results = results.filter(pm => resolveBillingStatus(pm) === filterBillingStatus);
+        }
+
+        // Sort by updated date
+        return [...results].sort((a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+    }, [
+        projectMasters, searchTerm, filterStatus, filterAssigneeId,
+        workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus,
+        getAssigneeIds, resolveCtypeNameById, resolveBillingStatus,
+    ]);
+
+    // 絞り込み・検索が変わったらページを先頭へ戻す
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterStatus, filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus]);
+
+    const totalPages = Math.ceil(filteredMasters.length / ITEMS_PER_PAGE);
+
+    const paginatedMasters = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredMasters.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredMasters, currentPage]);
+
     const setBillingOverride = useCallback(
         async (pm: ProjectMaster, value: 'unbilled' | 'partial' | 'full' | null) => {
             setBillingMenuPmId(null);
@@ -877,9 +1048,9 @@ function ProjectMasterListPageContent() {
                             onChange={(e) => setFilterStatus(e.target.value)}
                             className="sm:hidden flex-shrink-0 max-w-[45%] px-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm"
                         >
-                            <option value="all">全てのステータス</option>
-                            <option value="active">進行中</option>
-                            <option value="completed">完了</option>
+                            {PROJECT_LIST_STATUS_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -891,9 +1062,9 @@ function ProjectMasterListPageContent() {
                             onChange={(e) => setFilterStatus(e.target.value)}
                             className="w-full md:w-auto md:flex-none px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm"
                         >
-                            <option value="all">全てのステータス</option>
-                            <option value="active">進行中</option>
-                            <option value="completed">完了</option>
+                            {PROJECT_LIST_STATUS_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
                         </select>
 
                         {!isForeman2 && (
@@ -910,6 +1081,131 @@ function ProjectMasterListPageContent() {
                     </div>
                 </div>
 
+                {/* 追加の絞り込み（担当者 / 作業履歴 / 請求ステータス）。検索窓とは別建て。
+                    既定は閉じた状態にして一覧の視界を塞がない。適用中は件数バッジを出す。 */}
+                <div className="flex-shrink-0 mb-3 sm:mb-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowFilters((v) => !v)}
+                            aria-expanded={showFilters}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+                        >
+                            <SlidersHorizontal className="h-4 w-4 text-slate-500" />
+                            絞り込み
+                            {activeFilterCount > 0 && (
+                                <span className="ml-0.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-teal-600 px-1.5 text-[11px] font-semibold text-white">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </button>
+                        {activeFilterCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={clearExtraFilters}
+                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                                絞り込みをクリア
+                            </button>
+                        )}
+                    </div>
+
+                    {showFilters && (
+                        <div className="mt-2 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <div>
+                                <label htmlFor="f-assignee" className="mb-1 block text-xs font-medium text-slate-600">担当者</label>
+                                <select
+                                    id="f-assignee"
+                                    value={filterAssigneeId}
+                                    onChange={(e) => setFilterAssigneeId(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                >
+                                    <option value="">すべての担当者</option>
+                                    {assigneeOptions.map((o) => (
+                                        <option key={o.id} value={o.id}>{o.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="sm:col-span-2 lg:col-span-1">
+                                <label className="mb-1 block text-xs font-medium text-slate-600">作業日（範囲）</label>
+                                <div className="flex items-center gap-1.5">
+                                    <input
+                                        type="date"
+                                        value={workFrom}
+                                        max={workTo || undefined}
+                                        onChange={(e) => setWorkFrom(e.target.value)}
+                                        aria-label="作業日の開始"
+                                        className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    />
+                                    <span className="shrink-0 text-xs text-slate-400">〜</span>
+                                    <input
+                                        type="date"
+                                        value={workTo}
+                                        min={workFrom || undefined}
+                                        onChange={(e) => setWorkTo(e.target.value)}
+                                        aria-label="作業日の終了"
+                                        className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label htmlFor="f-ctype" className="mb-1 block text-xs font-medium text-slate-600">工事種別（作業履歴）</label>
+                                <select
+                                    id="f-ctype"
+                                    value={filterCtypeName}
+                                    onChange={(e) => setFilterCtypeName(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                >
+                                    <option value="">すべての工事種別</option>
+                                    {ctypeNameOptions.map((n) => (
+                                        <option key={n} value={n}>{n}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="f-foreman" className="mb-1 block text-xs font-medium text-slate-600">職長（作業履歴）</label>
+                                <select
+                                    id="f-foreman"
+                                    value={filterForemanId}
+                                    onChange={(e) => setFilterForemanId(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                >
+                                    <option value="">すべての職長</option>
+                                    {foremanOptions.map((o) => (
+                                        <option key={o.id} value={o.id}>{o.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="f-billing" className="mb-1 block text-xs font-medium text-slate-600">請求ステータス</label>
+                                <select
+                                    id="f-billing"
+                                    value={filterBillingStatus}
+                                    onChange={(e) => setFilterBillingStatus(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                >
+                                    <option value="">すべての請求ステータス</option>
+                                    {BILLING_FILTER_CHOICES.map((k) => (
+                                        <option key={k} value={k}>{BILLING_STATUS_META[k].label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {(workFrom || workTo) && (filterCtypeName || filterForemanId) && (
+                                <p className="text-[11px] leading-relaxed text-slate-500 sm:col-span-2 lg:col-span-3">
+                                    工事種別・職長は「指定した期間内の作業履歴」に対して判定します
+                                    （その期間に、その職長が、その工事種別で作業した案件だけが出ます）。
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 {/* モバイルカードビュー */}
                 <div className="md:hidden flex-1 overflow-y-auto space-y-3">
                     {isLoading ? (
@@ -919,7 +1215,7 @@ function ProjectMasterListPageContent() {
                     ) : filteredMasters.length === 0 ? (
                         <div className="text-center py-12 text-slate-500">
                             <Calendar className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                            <p>案件マスターがありません</p>
+                            <p>{searchTerm || filterStatus !== 'all' || activeFilterCount > 0 ? '検索結果が見つかりませんでした' : '案件マスターがありません'}</p>
                         </div>
                     ) : (
                         paginatedMasters.map((pm) => (
@@ -934,6 +1230,11 @@ function ProjectMasterListPageContent() {
                                         {pm.constructionContent && (
                                             <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
                                                 {getConstructionContentLabel(pm.constructionContent)}
+                                            </span>
+                                        )}
+                                        {resolveProjectListStatus(pm) === 'unstarted' && (
+                                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-50 text-amber-700">
+                                                未着工
                                             </span>
                                         )}
                                         {pm.status === 'completed' && (
@@ -966,6 +1267,36 @@ function ProjectMasterListPageContent() {
                                             {pm.assignmentCount ?? 0}件
                                         </span>
                                     </div>
+                                    {/* 作業履歴（新しい順。作業履歴で絞り込み中は該当分だけ） */}
+                                    {(() => {
+                                        const wh = visibleWorkHistory(pm);
+                                        if (wh.total === 0) return null;
+                                        return (
+                                            <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2">
+                                                <div className="mb-1 text-[11px] font-medium text-slate-500">
+                                                    作業履歴{wh.matched ? `（該当 ${wh.total}件）` : `（${wh.total}件）`}
+                                                </div>
+                                                <div className="space-y-1">
+                                                    {wh.items.map((w, i) => (
+                                                        <div key={i} className="flex items-center gap-1.5 text-xs">
+                                                            <span className="w-9 shrink-0 tabular-nums text-slate-500">{workMd(w.date)}</span>
+                                                            {w.constructionType ? (
+                                                                <CTypeChip id={w.constructionType} map={ctypeMap} small />
+                                                            ) : (
+                                                                <span className="text-slate-300">—</span>
+                                                            )}
+                                                            <span className="truncate text-slate-600">
+                                                                {(w.foremanId && managerMap[w.foremanId]) || '—'}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                {wh.total > wh.items.length && (
+                                                    <div className="mt-1 text-[11px] text-slate-400">他 {wh.total - wh.items.length} 件</div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                     {/* 見積書・請求書 済/未（管理者・マネージャーのみ） */}
                                     {isAdminOrManager && (
                                         <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
@@ -1045,7 +1376,7 @@ function ProjectMasterListPageContent() {
                                     所在地
                                 </th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                    配置数
+                                    作業履歴
                                 </th>
                                 {isAdminOrManager && (
                                     <>
@@ -1086,7 +1417,7 @@ function ProjectMasterListPageContent() {
                             ) : filteredMasters.length === 0 ? (
                                 <tr>
                                     <td colSpan={6 + (isAdminOrManager ? 2 : 0) + (!isForeman2 ? 1 : 0)} className="px-6 py-12 text-center text-slate-500">
-                                        {searchTerm || filterStatus !== 'all' ? '検索結果が見つかりませんでした' : '案件マスターがありません'}
+                                        {searchTerm || filterStatus !== 'all' || activeFilterCount > 0 ? '検索結果が見つかりませんでした' : '案件マスターがありません'}
                                     </td>
                                 </tr>
                             ) : (
@@ -1101,6 +1432,11 @@ function ProjectMasterListPageContent() {
                                                 <span className="text-[12px] font-semibold text-slate-900">
                                                     {buildListTitle(pm)}
                                                 </span>
+                                                {resolveProjectListStatus(pm) === 'unstarted' && (
+                                                    <span className="px-2 py-0.5 text-[12px] font-medium rounded-full bg-amber-50 text-amber-700">
+                                                        未着工
+                                                    </span>
+                                                )}
                                                 {pm.status === 'completed' && (
                                                     <span className="px-2 py-0.5 text-[12px] font-medium rounded-full bg-slate-100 text-slate-600">
                                                         完了
@@ -1126,8 +1462,36 @@ function ProjectMasterListPageContent() {
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {[pm.city, pm.location].filter(Boolean).join('-') || '-'}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
-                                            {pm.assignmentCount ?? 0}件
+                                        <td className="px-6 py-4 text-[12px] text-slate-700 min-w-[200px]">
+                                            {(() => {
+                                                const wh = visibleWorkHistory(pm);
+                                                if (wh.total === 0) {
+                                                    return <span className="text-slate-400">{wh.matched ? '該当なし' : '未着工'}</span>;
+                                                }
+                                                return (
+                                                    <div className="space-y-0.5">
+                                                        <div className="text-[11px] text-slate-500">
+                                                            {wh.matched ? `該当 ${wh.total}件` : `${wh.total}件`}
+                                                        </div>
+                                                        {wh.items.map((w, i) => (
+                                                            <div key={i} className="flex items-center gap-1.5">
+                                                                <span className="w-9 shrink-0 tabular-nums text-slate-500">{workMd(w.date)}</span>
+                                                                {w.constructionType ? (
+                                                                    <CTypeChip id={w.constructionType} map={ctypeMap} small />
+                                                                ) : (
+                                                                    <span className="text-slate-300">—</span>
+                                                                )}
+                                                                <span className="truncate text-slate-600">
+                                                                    {(w.foremanId && managerMap[w.foremanId]) || '—'}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                        {wh.total > wh.items.length && (
+                                                            <div className="text-[11px] text-slate-400">他 {wh.total - wh.items.length} 件</div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         {isAdminOrManager && (
                                             <>
