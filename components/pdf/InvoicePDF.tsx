@@ -136,6 +136,21 @@ function cellLineCount(text: string, contentWidth: number): number {
     return Math.max(1, Math.ceil(u / maxUnits));
 }
 
+// 宛名（顧客名＋敬称）は表紙2段目の左ブロック（width 50% − paddingLeft 40 ≒ 227pt）に
+// FitText ではなく素の Text で描くため、長い会社名は折り返して2行になり、そのぶん表紙ヘッダーが
+// 縦に伸びる（≒14pt＝明細1行ぶん）。フォントサイズは文字数で段階的に決まる（描画側と同じ規則）。
+const CUSTOMER_NAME_W = 227;
+function customerNameFontSize(name: string): number {
+    const len = name.length;
+    return len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
+}
+// 宛名が何行に折り返すか（全角16文字＋「　御中」＝19文字で2行になることを実測で確認）。
+function customerNameLineCount(name: string): number {
+    const u = textUnits(name);
+    if (u <= 0) return 1;
+    return Math.max(1, Math.ceil((u * customerNameFontSize(name)) / CUSTOMER_NAME_W));
+}
+
 function rowSpan(row: InvoiceDisplayRow): number {
     if (row.type === 'header') {
         return cellLineCount(row.title, INV_W.headerName);
@@ -184,6 +199,8 @@ function CoverPage({
     const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
     const extra = getExtra(project);
 
+    const customerFullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
+
     // 明細データ準備
     const allItems = invoice.items.filter(item => item.description);
     // 見出しは sectionTitle（この請求書だけの上書き）を優先し、無ければ案件マスタ名にフォールバック
@@ -210,8 +227,13 @@ function CoverPage({
         .split('\n')
         .reduce((s, line) => s + Math.max(1, Math.ceil(textUnits(line) / (527 / INV_FS))), 0);
     const extraNotesRows = Math.max(0, notesLines - 2);
-    const FIRST_NO_TOTALS = Math.max(16, 24 - extraBankRows);
-    const FIRST_WITH_TOTALS = Math.max(14, 22 - extraBankRows - extraNotesRows);
+    // 宛名が2行に折り返すと表紙ヘッダーが1行ぶん高くなる。実測（宛名1行＝span22 が上限 /
+    // 宛名2行＝span21 が上限）どおり、折り返したぶんだけ容量から差し引く。これを引かないと
+    // 空行埋めが1行過剰になり、備考欄が用紙下端をはみ出して空の2ページ目が出る
+    // （2026-09-01 kei報告: ミサワホーム四国株式会社　愛媛支店の I20260190 / I20260160）。
+    const extraCustomerRows = customerNameLineCount(customerFullName) - 1;
+    const FIRST_NO_TOTALS = Math.max(16, 24 - extraBankRows - extraCustomerRows);
+    const FIRST_WITH_TOTALS = Math.max(14, 22 - extraBankRows - extraNotesRows - extraCustomerRows);
     const CONT_NO_TOTALS = 38;
     const CONT_WITH_TOTALS = Math.max(20, 33 - extraNotesRows);
     // 各行の推定占有行数（折り返し考慮）。行数ではなくこの合計でページを分割する。
@@ -328,8 +350,6 @@ function CoverPage({
         return toReiwa(dueDate);
     })();
 
-    const customerFullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
-
     // Bank accounts from companyInfo
     const bankAccounts = companyInfo.bankAccounts || [];
 
@@ -379,8 +399,7 @@ function CoverPage({
                 {/* 左: 顧客名 + 合計金額 + 件名 */}
                 <View style={{ width: '50%', paddingLeft: 40 }}>
                     {(() => {
-                        const len = customerFullName.length;
-                        const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
+                        const fontSize = customerNameFontSize(customerFullName);
                         return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy, marginBottom: 55 }}>{customerFullName}</Text>;
                     })()}
 

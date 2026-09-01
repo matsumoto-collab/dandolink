@@ -100,10 +100,13 @@ async function analyze(buf: Buffer): Promise<{ pages: number; lowestY: number[] 
 }
 
 // ページ高さを動かす要素のバリエーション。容量の動的減算が効いているかを確認する。
-const VARIANTS: Record<string, { notes?: string; banks?: number }> = {
+const VARIANTS: Record<string, { notes?: string; banks?: number; customer?: string }> = {
     base: {},
     notes4: { notes: '※壁つなぎ補修の合番を12日分お願いいたします。\n※足場の解体は先行足場を残して実施します。\n※雨天順延の場合は前日にご連絡します。\n※請求書の内訳は別紙の通りです。' },
     bank3: { banks: 3 },
+    // 宛名（顧客名＋「　御中」）が2行に折り返すケース。表紙ヘッダーが1行ぶん高くなるぶん
+    // 容量は base より1行少ない（2026-09-01 ミサワホーム四国の空ページ報告）。
+    longName: { customer: 'ミサワホーム四国株式会社　愛媛支店' },
     both: {
         notes: '※壁つなぎ補修の合番を12日分お願いいたします。\n※足場の解体は先行足場を残して実施します。\n※雨天順延の場合は前日にご連絡します。\n※請求書の内訳は別紙の通りです。',
         banks: 3,
@@ -126,6 +129,10 @@ async function main() {
             { bankName: '三菱UFJ銀行', branchName: '松山支店', accountType: '普', accountNumber: '1234567' },
         ].slice(0, variant.banks) }
         : companyInfo;
+    const proj = variant.customer
+        ? ({ ...(project as any), customer: variant.customer } as unknown as Project)
+        : project;
+    console.log(`  宛名: ${(proj as any).customer}`);
     console.log(`variant=${variantKey}（振込先${(ci as any).bankAccounts.length}件 / 備考${variant.notes ? variant.notes.split('\n').length + '行' : 'なし'}）`);
     console.log('案件数 / span(=案件数×2) / PDFページ数 / 各ページの本文最下端Y（下端=40pt が用紙の余白）');
     for (const n of counts) {
@@ -134,7 +141,7 @@ async function main() {
             await renderToBuffer(
                 <InvoicePDF
                     invoice={invoice}
-                    project={project}
+                    project={proj}
                     companyInfo={ci}
                     projectMasters={masters}
                     includeCopy={false}
