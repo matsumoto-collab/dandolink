@@ -19,6 +19,7 @@ export type PageType =
     | 'inventory'        // 在庫管理
     | 'loading-list'     // 積込リスト
     | 'material-returns' // 材料返却
+    | 'equipment'        // 機材台帳（車両・電動工具の車検/整備履歴/使用履歴）
     | 'attendance'       // 出勤簿
     | 'chat'             // チャット
     | 'payment-schedules'// 支払予定

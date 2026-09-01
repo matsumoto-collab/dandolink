@@ -525,8 +525,9 @@ model Vehicle {
   @@schema("public")
 }
 
-/// 【機能撤去済み 2026-07-03】安全書類（工事・通勤用車両届）用の車両安全プロフィール。Vehicle と1:1。
-/// 安全書類機能のUI・APIは未使用のため削除済み。テーブルとデータは残置（復活時はモデル再利用）。
+/// 車両の詳細情報（車種・車番・車検満了日・保険）。Vehicle と1:1。
+/// 元は安全書類（工事・通勤用車両届）用に作ったもので、安全書類機能の撤去（2026-07-03）後も
+/// データが残っていたため、機材台帳（2026-09-01）でそのまま再利用している。
 model VehicleSafetyProfile {
   id                 String    @id @default(uuid())
   vehicleId          String    @unique
@@ -1852,6 +1853,17 @@ model Tool {
   checkedOutAt    DateTime?
   /// メモ（修理の入庫先・紛失の経緯など）
   note            String?
+  /// ── 機材台帳（電動工具）用 ──
+  /// メーカー（例: マキタ）
+  maker           String?
+  /// 型番（例: TD173DRGX）
+  modelNumber     String?
+  /// 製造番号・シリアル
+  serialNumber    String?
+  /// 購入日
+  purchaseDate    DateTime?         @db.Date
+  /// 購入金額（税込）
+  purchasePrice   Decimal?          @db.Decimal(12, 2)
   sortOrder       Int               @default(0)
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
@@ -1888,6 +1900,63 @@ model ToolCheckoutLog {
 
   @@index([toolId])
   @@index([createdAt])
+  @@schema("public")
+}
+
+/// 機材（車両・電動工具）の整備・修理履歴。1件 = 1回の入庫（修理・車検・点検など）。
+/// targetType='vehicle' なら targetId は Vehicle.id、'tool' なら Tool.id（論理 FK。
+/// 機材を消しても履歴は残す方針＝過去の支出の記録なので、参照先が無くなっても保持する）。
+model EquipmentMaintenanceRecord {
+  id                 String                     @id @default(uuid())
+  /// 'vehicle' | 'tool'
+  targetType         String
+  /// Vehicle.id または Tool.id
+  targetId           String
+  /// 実施日（入庫日）
+  date               DateTime                   @db.Date
+  /// repair（修理） | inspection（車検） | maintenance（点検・整備） | consumable（消耗品・部品） | insurance（保険） | other
+  category           String                     @default("repair")
+  /// 内容（例: ブレーキパッド交換）
+  title              String
+  /// 業者名（例: ○○自動車）
+  vendor             String?
+  /// 金額（税込）
+  amount             Decimal?                   @db.Decimal(12, 2)
+  /// 走行距離（車両のみ・km）
+  odometer           Int?
+  /// この入庫で更新された次回の満了日（車検・保険のとき。車両プロフィールへの反映は画面から行う）
+  nextDueDate        DateTime?                  @db.Date
+  note               String?
+  createdById        String?
+  createdByName      String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  files              EquipmentMaintenanceFile[]
+
+  @@index([targetType, targetId, date])
+  @@index([date])
+  @@schema("public")
+}
+
+/// 整備・修理履歴に添付する写真/PDF（見積書・請求書など）。
+/// 保存の持ち方は CardReceipt / Receipt と同じ（Supabase Storage + 署名付きURLのキャッシュ）。
+model EquipmentMaintenanceFile {
+  id                          String                     @id @default(uuid())
+  recordId                    String
+  fileName                    String
+  storagePath                 String
+  thumbnailPath               String?
+  mimeType                    String
+  fileSize                    Int
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+  uploadedById                String?
+  createdAt                   DateTime                   @default(now())
+  record                      EquipmentMaintenanceRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@index([recordId])
   @@schema("public")
 }
 

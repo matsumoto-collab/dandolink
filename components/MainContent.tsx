@@ -14,7 +14,7 @@ const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
     'profit-dashboard', 'estimates', 'invoices', 'billing-drafts', 'billing-board',
     'partners', 'customers', 'company',
-    'materials', 'inventory', 'loading-list', 'material-returns', 'settings', 'chat',
+    'materials', 'inventory', 'loading-list', 'material-returns', 'equipment', 'settings', 'chat',
     'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume',
 ];
 
@@ -80,6 +80,9 @@ const LoadingListPage = dynamic(() => import('@/components/Materials/LoadingList
     loading: () => <LoadingSpinner />,
 });
 const MaterialReturnPage = dynamic(() => import('@/components/Materials/MaterialReturnPage'), {
+    loading: () => <LoadingSpinner />,
+});
+const EquipmentPage = dynamic(() => import('@/components/Equipment/EquipmentPage'), {
     loading: () => <LoadingSpinner />,
 });
 const MySchedulePage = dynamic(() => import('@/components/MySchedule/MySchedulePage'), {
@@ -218,6 +221,7 @@ export default function MainContent() {
         'inventory': '在庫',
         'loading-list': '積み込みリスト',
         'material-returns': '材料返却',
+        'equipment': '機材台帳',
         'settings': '設定',
         'chat': 'チャット',
         'payment-schedules': '支払予定',
@@ -367,6 +371,13 @@ export default function MainContent() {
 
             case 'material-returns':
                 return <MaterialReturnPage />;
+
+            case 'equipment':
+                // 機材台帳（車両・電動工具）。協力会社には出さない（社内の車検・修理費が載るため）
+                if (userRole === 'partner' || userRole === 'partner_member') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <EquipmentPage />;
 
             case 'customers':
                 return <CustomersPage />;

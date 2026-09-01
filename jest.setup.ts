@@ -226,6 +226,30 @@ jest.mock('@/lib/prisma', () => ({
             update: jest.fn(),
             delete: jest.fn(),
         },
+        equipmentMaintenanceRecord: {
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
+            groupBy: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+        },
+        equipmentMaintenanceFile: {
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+        },
+        vehicleSafetyProfile: {
+            findUnique: jest.fn(),
+            upsert: jest.fn(),
+            update: jest.fn(),
+        },
+        assignmentVehicle: {
+            findMany: jest.fn(),
+            count: jest.fn(),
+        },
         scaffoldingSpecPreset: {
             findMany: jest.fn(),
             findUnique: jest.fn(),
