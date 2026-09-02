@@ -102,6 +102,20 @@ export function isToolStatus(v: unknown): v is ToolStatus {
     return typeof v === 'string' && TOOL_STATUSES.some((s) => s.value === v);
 }
 
+/**
+ * スケジュール（配置）で選べる電動工具か。
+ * 台帳から外したもの（isActive=false）と、廃棄・紛失は選択肢から隠す。
+ * ただし既に選ばれている工具は、後から状態が変わっても外れて見えないように残す。
+ */
+export function isSchedulableTool(
+    tool: { id: string; status: string; isActive: boolean },
+    selectedIds: readonly string[] = []
+): boolean {
+    if (selectedIds.includes(tool.id)) return true;
+    if (!tool.isActive) return false;
+    return tool.status !== 'disposed' && tool.status !== 'lost';
+}
+
 export function toolStatusLabel(value: string): string {
     return TOOL_STATUSES.find((s) => s.value === value)?.label ?? value;
 }

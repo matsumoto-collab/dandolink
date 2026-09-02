@@ -18,6 +18,8 @@ interface WorkHistoryItem {
     workerNames: string[];
     vehicleIds: string[];
     vehicleNames: string[];
+    toolIds?: string[];
+    toolNames?: string[];
     isConfirmed: boolean;
     remarks?: string;
     workTimeMinutes?: number | null;
@@ -134,14 +136,17 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                                     <span className="text-slate-400">{formatMinutes(item.workTimeMinutes)}</span>
                                 )}
                             </div>
-                            {/* 2行目: メンバー・車両・備考（ある場合のみ） */}
-                            {(item.workerNames.length > 0 || item.vehicleNames.length > 0 || item.remarks) && (
+                            {/* 2行目: メンバー・車両・電動工具・備考（ある場合のみ） */}
+                            {(item.workerNames.length > 0 || item.vehicleNames.length > 0 || (item.toolNames?.length ?? 0) > 0 || item.remarks) && (
                                 <div className="mt-1 text-slate-500 leading-tight truncate">
                                     {item.workerNames.length > 0 && (
                                         <span>メンバー: {item.workerNames.join('、')}</span>
                                     )}
                                     {item.vehicleNames.length > 0 && (
                                         <span className="ml-2">車両: {item.vehicleNames.join('、')}</span>
+                                    )}
+                                    {(item.toolNames?.length ?? 0) > 0 && (
+                                        <span className="ml-2">電動工具: {item.toolNames!.join('、')}</span>
                                     )}
                                     {item.remarks && (
                                         <span className="ml-2">備考: {item.remarks}</span>

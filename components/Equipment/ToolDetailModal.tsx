@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 import { TOOL_STATUSES, toolStatusLabel } from '@/lib/equipment';
 import { Button } from '@/components/ui/Button';
 import { MaintenanceTab } from './MaintenanceTab';
-import { EquipmentTool, ToolCategory, ToolLog, fmtDate, fmtDateTime, toDateInput } from './types';
+import { EquipmentTool, ToolCategory, ToolLog, VehicleUsage, fmtDate, fmtDateTime, toDateInput } from './types';
 
 interface Props {
     tool: EquipmentTool;
@@ -42,6 +42,9 @@ export function ToolDetailModal({ tool, categories, canEdit, onClose, onChanged 
 
     const [logs, setLogs] = useState<ToolLog[]>([]);
     const [logsLoading, setLogsLoading] = useState(false);
+    // 現場での使用履歴（スケジュールで選ばれた配置から自動で出る。手入力の持出し記録とは別物）
+    const [usage, setUsage] = useState<VehicleUsage[]>([]);
+    const [usageLoading, setUsageLoading] = useState(false);
     const [users, setUsers] = useState<SimpleUser[]>([]);
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [checkout, setCheckout] = useState({ holderId: '', holderName: '', destinationNote: '', note: '' });
@@ -61,9 +64,23 @@ export function ToolDetailModal({ tool, categories, canEdit, onClose, onChanged 
         }
     }, [tool.id]);
 
+    const fetchUsage = useCallback(async () => {
+        setUsageLoading(true);
+        try {
+            const res = await fetch(`/api/equipment/tools/${tool.id}/usage`, { cache: 'no-store' });
+            if (!res.ok) throw new Error('failed');
+            setUsage(await res.json());
+        } catch (e) {
+            logger.error('Failed to fetch tool usage:', e);
+        } finally {
+            setUsageLoading(false);
+        }
+    }, [tool.id]);
+
     useEffect(() => {
         if (tab !== 'usage') return;
         fetchLogs();
+        fetchUsage();
         if (users.length === 0) {
             fetch('/api/users', { cache: 'no-store' })
                 .then((r) => (r.ok ? r.json() : []))
@@ -313,6 +330,45 @@ export function ToolDetailModal({ tool, categories, canEdit, onClose, onChanged 
                                 </div>
                             )}
 
+                            {/* 現場での使用履歴（スケジュールから自動） */}
+                            <div className="mb-5">
+                                <div className="mb-2 flex items-baseline gap-2">
+                                    <h4 className="text-sm font-semibold text-slate-700">現場での使用履歴</h4>
+                                    <span className="text-xs text-slate-500">スケジュールで選ばれた分を自動で出しています（直近100件）</span>
+                                </div>
+                                {usageLoading ? (
+                                    <div className="py-6 text-center text-sm text-slate-500">読み込み中...</div>
+                                ) : usage.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-slate-300 py-6 text-center text-sm text-slate-500">
+                                        この工具を使った配置の記録がありません
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-[520px] text-sm">
+                                            <thead>
+                                                <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+                                                    <th className="py-2 pr-3">日付</th>
+                                                    <th className="py-2 pr-3">現場</th>
+                                                    <th className="py-2 pr-3">職長</th>
+                                                    <th className="py-2">作業員</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {usage.map((u) => (
+                                                    <tr key={u.id} className="border-b border-slate-100">
+                                                        <td className="whitespace-nowrap py-2 pr-3 text-slate-700">{fmtDate(u.date)}</td>
+                                                        <td className="py-2 pr-3 text-slate-700">{u.projectName}</td>
+                                                        <td className="whitespace-nowrap py-2 pr-3 text-slate-600">{u.foremanName || '—'}</td>
+                                                        <td className="py-2 text-slate-600">{u.workerNames.join('、') || '—'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+
+                            <h4 className="mb-2 text-sm font-semibold text-slate-700">持出し・返却の記録</h4>
                             {logsLoading ? (
                                 <div className="py-10 text-center text-slate-500">読み込み中...</div>
                             ) : logs.length === 0 ? (

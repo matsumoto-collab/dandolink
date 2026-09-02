@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search, Truck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search, Truck, Wrench } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { useVacation } from '@/hooks/useVacation';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { useMasterStore, selectConstructionTypes, selectVehicles } from '@/stores/masterStore';
-import { resolveEventVehicleNames } from './vehicleNames';
+import { useMasterStore, selectConstructionTypes, selectVehicles, selectTools } from '@/stores/masterStore';
+import { resolveEventVehicleNames, resolveEventToolNames } from './vehicleNames';
 import VacationSelector from './VacationSelector';
 import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
 import FloatingLane, { getFloatingSummaryForDate } from './FloatingLane';
@@ -92,6 +92,7 @@ interface MobileForemanRowProps {
     cellRemarks: Record<string, string>;
     projects: Project[];
     vehicleMaster: ReturnType<typeof selectVehicles>;
+    toolMaster: ReturnType<typeof selectTools>;
     highlightedEventId: string | null;
     getEditingUsers: (assignmentId: string) => EditingUser[];
     handleCellClick?: (employeeId: string, date: Date) => void;
@@ -118,6 +119,7 @@ const MobileForemanRow = React.memo(function MobileForemanRow({
     cellRemarks,
     projects,
     vehicleMaster,
+    toolMaster,
     highlightedEventId,
     getEditingUsers,
     handleCellClick,
@@ -289,6 +291,15 @@ const MobileForemanRow = React.memo(function MobileForemanRow({
                                                                         </div>
                                                                     ) : null;
                                                                 })()}
+                                                                {(() => {
+                                                                    const toolNames = resolveEventToolNames(project ?? event, toolMaster);
+                                                                    return toolNames.length > 0 ? (
+                                                                        <div className="flex items-start gap-0.5 mt-0.5 text-slate-700">
+                                                                            <Wrench className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 text-slate-500" />
+                                                                            <span className="text-[9px] leading-tight truncate">{toolNames.join('・')}</span>
+                                                                        </div>
+                                                                    ) : null;
+                                                                })()}
                                                                 {event.remarks && (
                                                                     <div className="flex items-start gap-0.5 mt-0.5 text-slate-700">
                                                                         <MessageSquare className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 text-slate-500" />
@@ -397,6 +408,7 @@ function MobileCalendarView({
     // ── 工事種別の名前解決（カード/アクションシート表示用） ──
     const constructionTypes = useMasterStore(selectConstructionTypes);
     const vehicleMaster = useMasterStore(selectVehicles);
+    const toolMaster = useMasterStore(selectTools);
     const getConstructionTypeName = useCallback(
         (id?: string | null): string | null => {
             if (!id) return null;
@@ -855,6 +867,7 @@ function MobileCalendarView({
                                 cellRemarks={cellRemarks}
                                 projects={projects}
                                 vehicleMaster={vehicleMaster}
+                                toolMaster={toolMaster}
                                 highlightedEventId={highlightedEventId}
                                 getEditingUsers={getEditingUsers}
                                 handleCellClick={handleCellClick}
@@ -925,6 +938,15 @@ function MobileCalendarView({
                                             <div className="flex items-start gap-1 mt-1 text-slate-500 text-xs">
                                                 <Truck className="w-3 h-3 flex-shrink-0 mt-0.5" />
                                                 <span>{vehicleNames.join('・')}</span>
+                                            </div>
+                                        ) : null;
+                                    })()}
+                                    {(() => {
+                                        const toolNames = resolveEventToolNames(actionSheet.project ?? actionSheet.event, toolMaster);
+                                        return toolNames.length > 0 ? (
+                                            <div className="flex items-start gap-1 mt-1 text-slate-500 text-xs">
+                                                <Wrench className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                                <span>{toolNames.join('・')}</span>
                                             </div>
                                         ) : null;
                                     })()}

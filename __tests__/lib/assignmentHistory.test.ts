@@ -21,11 +21,14 @@ const baseCurrent = {
     isDispatchConfirmed: false,
     confirmedWorkerIds: null as string | null,
     confirmedVehicleIds: null as string | null,
+    tools: null as string | null,
+    confirmedToolIds: null as string | null,
 };
 
 const emptyMaps: HistoryNameMaps = {
     users: new Map(),
     vehicles: new Map(),
+    tools: new Map(),
     constructionTypes: new Map(),
 };
 
@@ -87,6 +90,59 @@ describe('buildAssignmentHistoryEntries', () => {
         ]);
     });
 
+    it('電動工具は ID を名前に解決して記録する', () => {
+        const entries = buildAssignmentHistoryEntries({
+            current: { ...baseCurrent, tools: JSON.stringify(['t1']) },
+            body: { tools: ['t1', 't2'] },
+            nameMaps: {
+                ...emptyMaps,
+                tools: new Map([
+                    ['t1', 'インパクト #1'],
+                    ['t2', '発電機 A'],
+                ]),
+            },
+        });
+        expect(entries).toEqual([
+            { changeType: 'tools', previousValue: 'インパクト #1', newValue: 'インパクト #1, 発電機 A' },
+        ]);
+    });
+
+    it('手配確定の工具が空なら従来どおりメンバー｜車両の2区切りで記録する', () => {
+        const entries = buildAssignmentHistoryEntries({
+            current: baseCurrent,
+            body: { isDispatchConfirmed: true, confirmedWorkerIds: ['u1'], confirmedVehicleIds: ['v1'] },
+            nameMaps: {
+                ...emptyMaps,
+                users: new Map([['u1', '東本']]),
+                vehicles: new Map([['v1', '3t幅狭']]),
+            },
+        });
+        expect(entries).toEqual([
+            { changeType: 'dispatch', previousValue: '未確定', newValue: '確定（東本｜3t幅狭）' },
+        ]);
+    });
+
+    it('手配確定に工具があれば メンバー｜車両｜工具 で記録する', () => {
+        const entries = buildAssignmentHistoryEntries({
+            current: baseCurrent,
+            body: {
+                isDispatchConfirmed: true,
+                confirmedWorkerIds: ['u1'],
+                confirmedVehicleIds: ['v1'],
+                confirmedToolIds: ['t1'],
+            },
+            nameMaps: {
+                ...emptyMaps,
+                users: new Map([['u1', '東本']]),
+                vehicles: new Map([['v1', '3t幅狭']]),
+                tools: new Map([['t1', 'インパクト #1']]),
+            },
+        });
+        expect(entries).toEqual([
+            { changeType: 'dispatch', previousValue: '未確定', newValue: '確定（東本｜3t幅狭｜インパクト #1）' },
+        ]);
+    });
+
     it('工事種別はマスタ名に解決して記録する', () => {
         const entries = buildAssignmentHistoryEntries({
             current: baseCurrent,
@@ -118,6 +174,7 @@ describe('buildAssignmentHistoryEntries', () => {
                     ['u2', 'ケキ'],
                 ]),
                 vehicles: new Map([['v1', '3t幅狭']]),
+                tools: new Map(),
                 constructionTypes: new Map(),
             },
         });
@@ -164,6 +221,6 @@ describe('collectHistoryResolutionIds', () => {
 
     it('無関係の変更では何も収集しない', () => {
         const ids = collectHistoryResolutionIds({ current: baseCurrent, body: { memberCount: 5 } });
-        expect(ids).toEqual({ userIds: [], vehicleIds: [], constructionTypeIds: [] });
+        expect(ids).toEqual({ userIds: [], vehicleIds: [], toolIds: [], constructionTypeIds: [] });
     });
 });

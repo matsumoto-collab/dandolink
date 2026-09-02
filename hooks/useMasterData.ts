@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useMasterStore } from '@/stores/masterStore';
 
 // Re-export types for backward compatibility
-export type { Vehicle, MasterData, MemberCountHistoryEntry } from '@/stores/masterStore';
+export type { Vehicle, MasterData, MemberCountHistoryEntry, ScheduleTool, ToolCategoryOption } from '@/stores/masterStore';
 
 // This hook wraps the Zustand store and handles initialization/realtime
 export function useMasterData() {
@@ -13,6 +13,8 @@ export function useMasterData() {
 
     // Get state from Zustand store
     const vehicles = useMasterStore((state) => state.vehicles);
+    const tools = useMasterStore((state) => state.tools);
+    const toolCategories = useMasterStore((state) => state.toolCategories);
     const constructionTypes = useMasterStore((state) => state.constructionTypes);
     const totalMembers = useMasterStore((state) => state.totalMembers);
     const memberCountHistory = useMasterStore((state) => state.memberCountHistory);
@@ -25,6 +27,10 @@ export function useMasterData() {
     const addVehicle = useMasterStore((state) => state.addVehicle);
     const updateVehicle = useMasterStore((state) => state.updateVehicle);
     const deleteVehicle = useMasterStore((state) => state.deleteVehicle);
+    const fetchTools = useMasterStore((state) => state.fetchTools);
+    const addTool = useMasterStore((state) => state.addTool);
+    const updateTool = useMasterStore((state) => state.updateTool);
+    const deleteTool = useMasterStore((state) => state.deleteTool);
     const addMemberCountEntry = useMasterStore((state) => state.addMemberCountEntry);
     const updateMemberCountEntry = useMasterStore((state) => state.updateMemberCountEntry);
     const deleteMemberCountEntry = useMasterStore((state) => state.deleteMemberCountEntry);
@@ -49,6 +55,8 @@ export function useMasterData() {
     return {
         // Data
         vehicles,
+        tools,
+        toolCategories,
         constructionTypes,
         totalMembers,
         memberCountHistory,
@@ -58,6 +66,12 @@ export function useMasterData() {
         addVehicle,
         updateVehicle,
         deleteVehicle,
+
+        // Tool operations（機材台帳の Tool と同じ実体）
+        fetchTools,
+        addTool,
+        updateTool,
+        deleteTool,
 
         // Member count history
         addMemberCountEntry,

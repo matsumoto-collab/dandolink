@@ -84,6 +84,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 projectMaster: true,
                 assignmentWorkers: true,
                 assignmentVehicles: true,
+                assignmentTools: true,
             },
         });
 

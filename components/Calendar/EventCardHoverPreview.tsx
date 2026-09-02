@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState, useMemo, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Hammer, Users, Truck, ClipboardCheck, UserCircle, CheckCircle } from 'lucide-react';
+import { Hammer, Users, Truck, Wrench, ClipboardCheck, UserCircle, CheckCircle } from 'lucide-react';
 import { CalendarEvent } from '@/types/calendar';
-import { useMasterStore, selectVehicles, selectConstructionTypes } from '@/stores/masterStore';
-import { resolveEventVehicleNames } from './vehicleNames';
+import { useMasterStore, selectVehicles, selectTools, selectConstructionTypes } from '@/stores/masterStore';
+import { resolveEventVehicleNames, resolveEventToolNames } from './vehicleNames';
 import { logger } from '@/lib/logger';
 
 interface EventCardHoverPreviewProps {
@@ -17,8 +17,10 @@ interface EventCardHoverPreviewProps {
 interface PreviewProject extends CalendarEvent {
     createdBy?: string | string[];
     vehicles?: string[];
+    tools?: string[];
     confirmedWorkerIds?: string[];
     confirmedVehicleIds?: string[];
+    confirmedToolIds?: string[];
     isDispatchConfirmed?: boolean;
 }
 
@@ -50,6 +52,7 @@ export default function EventCardHoverPreview({ event, anchorRect }: EventCardHo
     const project = event as PreviewProject;
     const constructionTypes = useMasterStore(selectConstructionTypes);
     const vehicles = useMasterStore(selectVehicles);
+    const toolMaster = useMasterStore(selectTools);
 
     const [users, setUsers] = useState<Map<string, string>>(usersCache);
 
@@ -83,6 +86,11 @@ export default function EventCardHoverPreview({ event, anchorRect }: EventCardHo
     const vehicleNames = useMemo<string[]>(
         () => resolveEventVehicleNames(project, vehicles),
         [project, vehicles]
+    );
+
+    const toolNames = useMemo<string[]>(
+        () => resolveEventToolNames(project, toolMaster),
+        [project, toolMaster]
     );
 
     // 位置計算: カードの右側に置く。画面右に収まらなければ左側へ。
@@ -199,6 +207,21 @@ export default function EventCardHoverPreview({ event, anchorRect }: EventCardHo
                         <span className="text-slate-700 leading-snug">{vehicleNames.join('、')}</span>
                     )}
                 </Row>
+
+                {/* 電動工具（選んでいる案件だけ表示。使わない班のカードに空行を増やさない） */}
+                {toolNames.length > 0 && (
+                    <Row
+                        icon={<Wrench className="w-3.5 h-3.5 text-slate-400" />}
+                        label="電動工具"
+                        badge={isConfirmed && project.confirmedToolIds?.length ? (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">
+                                <CheckCircle className="w-2.5 h-2.5" />確定
+                            </span>
+                        ) : undefined}
+                    >
+                        <span className="text-slate-700 leading-snug">{toolNames.join('、')}</span>
+                    </Row>
+                )}
 
                 {/* 手配確定済みアイコン（メタ情報） */}
                 {isConfirmed && (

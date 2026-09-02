@@ -32,6 +32,7 @@ jest.mock('lucide-react', () => ({
     Check: () => <span data-testid="icon-check" />,
     Users: () => <span data-testid="icon-users" />,
     Truck: () => <span data-testid="icon-truck" />,
+    Wrench: () => <span data-testid="icon-wrench" />,
     Loader2: () => <span data-testid="icon-loader" />,
     ChevronDown: () => <span data-testid="icon-chevron-down" />,
     ChevronUp: () => <span data-testid="icon-chevron-up" />,
@@ -62,6 +63,11 @@ describe('DispatchConfirmModal', () => {
         { id: 'v2', name: 'Vehicle 2' },
     ];
 
+// 電動工具（機材台帳の Tool）。車両と違い ID で選ぶ
+const mockTools = [
+    { id: 'tool-1', name: 'インパクト #1', categoryId: 'c1', categoryName: '電動工具', categorySortOrder: 0, status: 'in_stock', sortOrder: 0, isActive: true },
+];
+
     const mockWorkers = [
         { id: 'w1', displayName: 'Worker 1', role: 'worker' },
         { id: 'w2', displayName: 'Worker 2', role: 'worker' },
@@ -81,7 +87,7 @@ describe('DispatchConfirmModal', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        (useMasterData as jest.Mock).mockReturnValue({ vehicles: mockVehicles });
+        (useMasterData as jest.Mock).mockReturnValue({ vehicles: mockVehicles, tools: mockTools });
         (useProjects as jest.Mock).mockReturnValue({
             projects: mockProjects,
             updateProject: mockUpdateProject

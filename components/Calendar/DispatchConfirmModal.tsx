@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Check, Users, Truck, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Check, Users, Truck, Wrench, ChevronDown, ChevronUp } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { Project } from '@/types/calendar';
 import toast from 'react-hot-toast';
 import { useMasterData } from '@/hooks/useMasterData';
+import { isSchedulableTool } from '@/lib/equipment';
 import { useProjects } from '@/hooks/useProjects';
 import { useVacation } from '@/hooks/useVacation';
 import { formatDateKey } from '@/utils/employeeUtils';
@@ -47,7 +48,7 @@ export default function DispatchConfirmModal({
     onClose,
     project,
 }: DispatchConfirmModalProps) {
-    const { vehicles } = useMasterData();
+    const { vehicles, tools: toolMaster } = useMasterData();
     const { projects, updateProject } = useProjects();
     const { getVacationEmployees } = useVacation();
     const allForemen = useCalendarStore((state) => state.allForemen);
@@ -68,6 +69,9 @@ export default function DispatchConfirmModal({
     );
     const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>(
         project.confirmedVehicleIds || []
+    );
+    const [selectedToolIds, setSelectedToolIds] = useState<string[]>(
+        project.confirmedToolIds || []
     );
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSecondaryWorkers, setShowSecondaryWorkers] = useState(false);
@@ -90,6 +94,10 @@ export default function DispatchConfirmModal({
                     : []
             );
         }
+        // 電動工具は登録時から Tool.id なので、そのまま事前選択できる
+        setSelectedToolIds(
+            project.confirmedToolIds?.length ? project.confirmedToolIds : (project.tools || [])
+        );
     }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
     const modalRef = useModalKeyboard(isOpen, onClose);
 
@@ -119,7 +127,7 @@ export default function DispatchConfirmModal({
     // - 確定済み案件 → 確定メンバー / 確定車両（vehicleTeamMap・琥珀バッジ）
     // - 未確定案件 → スケジュール登録時の予定車両（vehiclePlannedTeamMap・水色バッジ）
     //   ※予定車両は車両「名」で保存されているため、車両マスターで名前→IDに変換する
-    const { workerTeamMap, vehicleTeamMap, vehiclePlannedTeamMap } = useMemo(() => {
+    const { workerTeamMap, vehicleTeamMap, vehiclePlannedTeamMap, toolTeamMap, toolPlannedTeamMap } = useMemo(() => {
         const dateKey = formatDateKey(project.startDate);
         const sameDayProjects = projects.filter(p =>
             p.id !== project.id &&
@@ -133,6 +141,8 @@ export default function DispatchConfirmModal({
         const workerMap = new Map<string, string[]>();
         const vehicleMap = new Map<string, string[]>();        // 他班が確定済み
         const vehiclePlannedMap = new Map<string, string[]>(); // 他班が予定（未確定）
+        const toolMap = new Map<string, string[]>();           // 電動工具（他班が確定済み）
+        const toolPlannedMap = new Map<string, string[]>();    // 電動工具（他班が予定）
 
         sameDayProjects.forEach(p => {
             const foreman = allForemen.find(f => f.id === p.assignedEmployeeId);
@@ -149,6 +159,11 @@ export default function DispatchConfirmModal({
                     if (!teams.includes(teamName)) teams.push(teamName);
                     vehicleMap.set(id, teams);
                 });
+                p.confirmedToolIds?.forEach(id => {
+                    const teams = toolMap.get(id) || [];
+                    if (!teams.includes(teamName)) teams.push(teamName);
+                    toolMap.set(id, teams);
+                });
             } else {
                 // スケジュール登録時に指定された予定車両（まだ手配確定されていない）
                 const plannedNames = (p.trucks || p.vehicles || []) as string[];
@@ -158,6 +173,12 @@ export default function DispatchConfirmModal({
                     const teams = vehiclePlannedMap.get(id) || [];
                     if (!teams.includes(teamName)) teams.push(teamName);
                     vehiclePlannedMap.set(id, teams);
+                });
+                // 電動工具は最初から ID なので名前の逆引きは要らない
+                (p.tools || []).forEach(id => {
+                    const teams = toolPlannedMap.get(id) || [];
+                    if (!teams.includes(teamName)) teams.push(teamName);
+                    toolPlannedMap.set(id, teams);
                 });
             }
         });
@@ -171,10 +192,20 @@ export default function DispatchConfirmModal({
             else vehiclePlannedMap.delete(id);
         });
 
+        toolPlannedMap.forEach((teams, id) => {
+            const confirmedTeams = toolMap.get(id);
+            if (!confirmedTeams) return;
+            const remaining = teams.filter(t => !confirmedTeams.includes(t));
+            if (remaining.length > 0) toolPlannedMap.set(id, remaining);
+            else toolPlannedMap.delete(id);
+        });
+
         return {
             workerTeamMap: workerMap,
             vehicleTeamMap: vehicleMap,
             vehiclePlannedTeamMap: vehiclePlannedMap,
+            toolTeamMap: toolMap,
+            toolPlannedTeamMap: toolPlannedMap,
         };
     }, [projects, project.id, project.startDate, allForemen, vehicles]);
 
@@ -271,6 +302,12 @@ export default function DispatchConfirmModal({
         );
     };
 
+    // 選べる工具（台帳から外した分・廃棄・紛失は隠す）
+    const selectableTools = useMemo(
+        () => toolMaster.filter(t => isSchedulableTool(t, selectedToolIds)),
+        [toolMaster, selectedToolIds]
+    );
+
     const handleWorkerToggle = (workerId: string) => {
         setSelectedWorkerIds(prev =>
             prev.includes(workerId)
@@ -287,12 +324,21 @@ export default function DispatchConfirmModal({
         );
     };
 
+    const handleToolToggle = (toolId: string) => {
+        setSelectedToolIds(prev =>
+            prev.includes(toolId)
+                ? prev.filter(id => id !== toolId)
+                : [...prev, toolId]
+        );
+    };
+
     const handleConfirm = async () => {
         setIsSubmitting(true);
         try {
             await updateProject(project.id, {
                 confirmedWorkerIds: selectedWorkerIds,
                 confirmedVehicleIds: selectedVehicleIds,
+                confirmedToolIds: selectedToolIds,
                 isDispatchConfirmed: true,
             });
 
@@ -307,6 +353,7 @@ export default function DispatchConfirmModal({
                     await updateProject(p.id, {
                         confirmedWorkerIds: selectedWorkerIds,
                         confirmedVehicleIds: selectedVehicleIds,
+                        confirmedToolIds: selectedToolIds,
                         isDispatchConfirmed: true,
                     });
                 } catch {
@@ -386,6 +433,7 @@ export default function DispatchConfirmModal({
             await updateProject(project.id, {
                 confirmedWorkerIds: [],
                 confirmedVehicleIds: [],
+                confirmedToolIds: [],
                 isDispatchConfirmed: false,
             });
 
@@ -395,6 +443,7 @@ export default function DispatchConfirmModal({
                     await updateProject(p.id, {
                         confirmedWorkerIds: [],
                         confirmedVehicleIds: [],
+                        confirmedToolIds: [],
                         isDispatchConfirmed: false,
                     });
                 } catch {
@@ -593,6 +642,62 @@ export default function DispatchConfirmModal({
                                     </div>
                                 )}
                             </div>
+
+                            {/* 電動工具選択（登録された工具がある会社だけ表示） */}
+                            {selectableTools.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                            <Wrench className="w-4 h-4" />
+                                            電動工具
+                                        </label>
+                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedToolIds.length === 0
+                                            ? 'bg-slate-100 text-slate-500'
+                                            : 'bg-slate-100 text-slate-700'
+                                            }`}>
+                                            選択 {selectedToolIds.length} 点
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        {selectableTools.map(tool => {
+                                            const teams = toolTeamMap.get(tool.id);
+                                            const plannedTeams = toolPlannedTeamMap.get(tool.id);
+                                            const isSelected = selectedToolIds.includes(tool.id);
+
+                                            // 車両と同じ配色: 他班確定済み=淡い琥珀 ＞ 他班予定のみ=淡い水色 ＞ 空き=白
+                                            const toolChipClass = isSelected
+                                                ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
+                                                : teams
+                                                    ? 'bg-amber-50 text-slate-500 border-2 border-amber-300 hover:border-amber-400'
+                                                    : plannedTeams
+                                                        ? 'bg-sky-50 text-slate-500 border-2 border-sky-300 hover:border-sky-400'
+                                                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50';
+
+                                            return (
+                                                <button
+                                                    key={tool.id}
+                                                    type="button"
+                                                    onClick={() => handleToolToggle(tool.id)}
+                                                    className={`relative flex items-center justify-center gap-1.5 px-3 min-h-[52px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${toolChipClass}`}
+                                                >
+                                                    {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
+                                                    <span className="truncate">{tool.name}</span>
+                                                    {teams && (
+                                                        <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
+                                                            {teams.join('・')}
+                                                        </span>
+                                                    )}
+                                                    {plannedTeams && (
+                                                        <span className="absolute -top-2 -left-1 px-1.5 py-0.5 text-[10px] bg-sky-400 text-sky-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
+                                                            {plannedTeams.join('・')}予定
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* 反映範囲の選択（同じ班・同じ日に他案件があるときだけ表示） */}
                             {eligibleSiblings.length > 0 && (

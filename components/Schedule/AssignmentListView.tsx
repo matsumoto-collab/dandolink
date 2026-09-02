@@ -16,6 +16,7 @@ interface AssignmentListViewProps {
     selectedDate: Date;
     workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null; role: string | null }>;
     vehicleNameMap: Map<string, string>;
+    toolNameMap: Map<string, string>;
     isNamesLoaded: boolean;
     userRole?: string;
 }
@@ -30,6 +31,7 @@ export default function AssignmentListView({
     selectedDate,
     workerNameMap,
     vehicleNameMap,
+    toolNameMap,
     isNamesLoaded,
     userRole,
 }: AssignmentListViewProps) {
@@ -74,12 +76,13 @@ export default function AssignmentListView({
                 allForemen,
                 workerNameMap,
                 vehicleNameMap,
+                toolNameMap,
                 managerMap,
                 ctMap,
                 isNamesLoaded,
                 hidePartnerLedTeams,
             }),
-        [projects, dateKey, displayedForemanIds, allForemen, workerNameMap, vehicleNameMap, managerMap, ctMap, isNamesLoaded, hidePartnerLedTeams],
+        [projects, dateKey, displayedForemanIds, allForemen, workerNameMap, vehicleNameMap, toolNameMap, managerMap, ctMap, isNamesLoaded, hidePartnerLedTeams],
     );
 
     return (
@@ -147,6 +150,7 @@ function AssignmentRow({ row, onClick }: AssignmentRowProps) {
         sameForemanAsAbove,
         memberNames,
         vehicleNames,
+        toolNames,
         memberCount,
     } = row;
 
@@ -231,6 +235,11 @@ function AssignmentRow({ row, onClick }: AssignmentRowProps) {
                 {vehicleNames.length > 0 && (
                     <div className="text-slate-600 font-medium mt-0.5 break-words">
                         {vehicleNames.join('·')}
+                    </div>
+                )}
+                {toolNames.length > 0 && (
+                    <div className="text-slate-500 mt-0.5 break-words text-[10px]">
+                        {toolNames.join('·')}
                     </div>
                 )}
             </div>

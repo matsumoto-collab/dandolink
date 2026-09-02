@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
+import { buildAssignmentToolRows, normalizeToolIds } from '@/lib/assignmentTools';
 
 interface SnapshotShape {
     assignedEmployeeId: string;
@@ -16,6 +17,8 @@ interface SnapshotShape {
     memberCount?: number;
     workers?: string[];
     vehicles?: string[];
+    /** 電動工具（Tool.id の配列） */
+    tools?: string[];
     meetingTime?: string | null;
     sortOrder?: number;
     remarks?: string | null;
@@ -25,6 +28,7 @@ interface SnapshotShape {
     isDispatchConfirmed?: boolean;
     confirmedWorkerIds?: string[];
     confirmedVehicleIds?: string[];
+    confirmedToolIds?: string[];
     dateStatus?: string;
     confirmDueDate?: string | null;
 }
@@ -55,6 +59,8 @@ export async function POST(req: NextRequest) {
         const snap = JSON.parse(log.snapshot) as SnapshotShape;
         const workers = Array.isArray(snap.workers) ? snap.workers : [];
         const vehicles = Array.isArray(snap.vehicles) ? snap.vehicles : [];
+        // 工具は Tool.id の控え。復元時点で消えている工具は落ちる（名前は今の値で取り直す）
+        const toolRows = await buildAssignmentToolRows(snap.tools);
 
         const created = await prisma.projectAssignment.create({
             data: {
@@ -64,6 +70,7 @@ export async function POST(req: NextRequest) {
                 memberCount: snap.memberCount || 0,
                 workers: stringifyJsonField(workers),
                 vehicles: stringifyJsonField(vehicles),
+                tools: stringifyJsonField(toolRows.map((t) => t.toolId)),
                 meetingTime: snap.meetingTime || null,
                 sortOrder: snap.sortOrder || 0,
                 remarks: snap.remarks || null,
@@ -73,16 +80,19 @@ export async function POST(req: NextRequest) {
                 isDispatchConfirmed: snap.isDispatchConfirmed || false,
                 confirmedWorkerIds: stringifyJsonField(snap.confirmedWorkerIds ?? []),
                 confirmedVehicleIds: stringifyJsonField(snap.confirmedVehicleIds ?? []),
+                confirmedToolIds: stringifyJsonField(normalizeToolIds(snap.confirmedToolIds)),
                 dateStatus: snap.dateStatus === 'tentative' ? 'tentative' : 'confirmed',
                 confirmDueDate: snap.confirmDueDate ? new Date(snap.confirmDueDate) : null,
                 updatedBy: session!.user.id,
                 assignmentWorkers: { create: workers.map((w) => ({ workerName: w })) },
                 assignmentVehicles: { create: vehicles.map((v) => ({ vehicleName: v })) },
+                assignmentTools: { create: toolRows },
             },
             include: {
                 projectMaster: true,
                 assignmentWorkers: true,
                 assignmentVehicles: true,
+                assignmentTools: true,
             },
         });
 

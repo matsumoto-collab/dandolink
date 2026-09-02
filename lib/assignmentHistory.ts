@@ -22,6 +22,7 @@ export const ASSIGNMENT_CHANGE_LABELS: Record<string, string> = {
     confirmDueDate: '確認予定日',
     memberCount: '人数',
     vehicles: '車両',
+    tools: '電動工具',
     meetingTime: '集合時間',
     remarks: '備考',
     dispatchRemark: '手配備考',
@@ -55,6 +56,7 @@ interface CurrentAssignmentShape {
     confirmDueDate: Date | null;
     memberCount: number;
     vehicles: string | null;
+    tools: string | null;
     meetingTime: string | null;
     remarks: string | null;
     dispatchRemark: string | null;
@@ -63,6 +65,7 @@ interface CurrentAssignmentShape {
     isDispatchConfirmed: boolean;
     confirmedWorkerIds: string | null;
     confirmedVehicleIds: string | null;
+    confirmedToolIds: string | null;
 }
 
 export interface HistoryNameMaps {
@@ -70,6 +73,8 @@ export interface HistoryNameMaps {
     users: Map<string, string>;
     /** 確定車両（confirmedVehicleIds）の ID → 車両名 */
     vehicles: Map<string, string>;
+    /** 電動工具（tools / confirmedToolIds）の ID → 工具名 */
+    tools: Map<string, string>;
     /** 工事種別の ID → 名前 */
     constructionTypes: Map<string, string>;
 }
@@ -82,6 +87,7 @@ export const HISTORY_TRACKED_KEYS = [
     'confirmDueDate',
     'memberCount',
     'vehicles',
+    'tools',
     'meetingTime',
     'remarks',
     'dispatchRemark',
@@ -90,6 +96,7 @@ export const HISTORY_TRACKED_KEYS = [
     'isDispatchConfirmed',
     'confirmedWorkerIds',
     'confirmedVehicleIds',
+    'confirmedToolIds',
 ] as const;
 
 const fmtOrEmpty = (v: string | null | undefined): string => {
@@ -119,12 +126,15 @@ function dispatchStateLabel(
     confirmed: boolean,
     workerIds: string[],
     vehicleIds: string[],
-    maps: HistoryNameMaps
+    maps: HistoryNameMaps,
+    toolIds: string[] = []
 ): string {
     if (!confirmed) return '未確定';
     const members = joinOrEmpty(resolveNames(workerIds, maps.users));
     const vehicles = joinOrEmpty(resolveNames(vehicleIds, maps.vehicles));
-    return `確定（${members}｜${vehicles}）`;
+    // 工具は使っている班だけ増える情報なので、空のときは従来どおり2区切りのままにする
+    const tools = toolIds.length ? `｜${joinOrEmpty(resolveNames(toolIds, maps.tools))}` : '';
+    return `確定（${members}｜${vehicles}${tools}）`;
 }
 
 /**
@@ -189,6 +199,17 @@ export function buildAssignmentHistoryEntries(params: {
         }
     }
 
+    // 電動工具（予定。Tool.id の配列なので名前に解決してから比べる）
+    if (body.tools !== undefined) {
+        const prev = joinOrEmpty(resolveNames(parseJsonField<string[]>(current.tools, []), nameMaps.tools));
+        const next = joinOrEmpty(
+            resolveNames(Array.isArray(body.tools) ? (body.tools as string[]) : [], nameMaps.tools)
+        );
+        if (prev !== next) {
+            entries.push({ changeType: 'tools', previousValue: prev, newValue: next });
+        }
+    }
+
     // 集合時間
     if (body.meetingTime !== undefined) {
         const prev = fmtOrEmpty(current.meetingTime);
@@ -238,13 +259,15 @@ export function buildAssignmentHistoryEntries(params: {
     if (
         body.isDispatchConfirmed !== undefined ||
         body.confirmedWorkerIds !== undefined ||
-        body.confirmedVehicleIds !== undefined
+        body.confirmedVehicleIds !== undefined ||
+        body.confirmedToolIds !== undefined
     ) {
         const prevLabel = dispatchStateLabel(
             current.isDispatchConfirmed,
             parseJsonField<string[]>(current.confirmedWorkerIds, []),
             parseJsonField<string[]>(current.confirmedVehicleIds, []),
-            nameMaps
+            nameMaps,
+            parseJsonField<string[]>(current.confirmedToolIds, [])
         );
         const nextConfirmed =
             body.isDispatchConfirmed !== undefined ? Boolean(body.isDispatchConfirmed) : current.isDispatchConfirmed;
@@ -256,7 +279,11 @@ export function buildAssignmentHistoryEntries(params: {
             body.confirmedVehicleIds !== undefined
                 ? (Array.isArray(body.confirmedVehicleIds) ? (body.confirmedVehicleIds as string[]) : [])
                 : parseJsonField<string[]>(current.confirmedVehicleIds, []);
-        const nextLabel = dispatchStateLabel(nextConfirmed, nextWorkers, nextVehicles, nameMaps);
+        const nextTools =
+            body.confirmedToolIds !== undefined
+                ? (Array.isArray(body.confirmedToolIds) ? (body.confirmedToolIds as string[]) : [])
+                : parseJsonField<string[]>(current.confirmedToolIds, []);
+        const nextLabel = dispatchStateLabel(nextConfirmed, nextWorkers, nextVehicles, nameMaps, nextTools);
         if (prevLabel !== nextLabel) {
             entries.push({ changeType: 'dispatch', previousValue: prevLabel, newValue: nextLabel });
         }
@@ -271,21 +298,29 @@ export function buildAssignmentHistoryEntries(params: {
 export function collectHistoryResolutionIds(params: {
     current: CurrentAssignmentShape;
     body: Record<string, unknown>;
-}): { userIds: string[]; vehicleIds: string[]; constructionTypeIds: string[] } {
+}): { userIds: string[]; vehicleIds: string[]; toolIds: string[]; constructionTypeIds: string[] } {
     const { current, body } = params;
     const userIds = new Set<string>();
     const vehicleIds = new Set<string>();
+    const toolIds = new Set<string>();
     const constructionTypeIds = new Set<string>();
 
     if (
         body.isDispatchConfirmed !== undefined ||
         body.confirmedWorkerIds !== undefined ||
-        body.confirmedVehicleIds !== undefined
+        body.confirmedVehicleIds !== undefined ||
+        body.confirmedToolIds !== undefined
     ) {
         parseJsonField<string[]>(current.confirmedWorkerIds, []).forEach((id) => userIds.add(id));
         parseJsonField<string[]>(current.confirmedVehicleIds, []).forEach((id) => vehicleIds.add(id));
+        parseJsonField<string[]>(current.confirmedToolIds, []).forEach((id) => toolIds.add(id));
         if (Array.isArray(body.confirmedWorkerIds)) (body.confirmedWorkerIds as string[]).forEach((id) => userIds.add(id));
         if (Array.isArray(body.confirmedVehicleIds)) (body.confirmedVehicleIds as string[]).forEach((id) => vehicleIds.add(id));
+        if (Array.isArray(body.confirmedToolIds)) (body.confirmedToolIds as string[]).forEach((id) => toolIds.add(id));
+    }
+    if (body.tools !== undefined) {
+        parseJsonField<string[]>(current.tools, []).forEach((id) => toolIds.add(id));
+        if (Array.isArray(body.tools)) (body.tools as string[]).forEach((id) => toolIds.add(id));
     }
     if (body.constructionType !== undefined) {
         if (current.constructionType) constructionTypeIds.add(current.constructionType);
@@ -295,6 +330,7 @@ export function collectHistoryResolutionIds(params: {
     return {
         userIds: Array.from(userIds),
         vehicleIds: Array.from(vehicleIds),
+        toolIds: Array.from(toolIds),
         constructionTypeIds: Array.from(constructionTypeIds),
     };
 }

@@ -6,6 +6,7 @@ import { createAssignmentSchema, validateRequest } from '@/lib/validations';
 import { formatAssignment } from '@/lib/formatters';
 import { logger } from '@/lib/logger';
 import { notifyAssignmentsCreated } from '@/lib/scheduleChangeNotify';
+import { buildAssignmentToolRows, normalizeToolIds } from '@/lib/assignmentTools';
 
 /**
  * GET /api/assignments - 配置一覧取得
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
                 projectMaster: true,
                 assignmentWorkers: true,
                 assignmentVehicles: true,
+                assignmentTools: true,
             },
             orderBy: [{ date: 'asc' }, { sortOrder: 'asc' }],
         });
@@ -72,7 +74,9 @@ export async function POST(req: NextRequest) {
         const validation = validateRequest(createAssignmentSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        const { projectMasterId, assignedEmployeeId, date, memberCount, workers, vehicles, meetingTime, sortOrder, remarks, isDispatchConfirmed, confirmedWorkerIds, confirmedVehicleIds, estimatedHours, dateStatus, confirmDueDate } = validation.data;
+        const { projectMasterId, assignedEmployeeId, date, memberCount, workers, vehicles, tools, meetingTime, sortOrder, remarks, isDispatchConfirmed, confirmedWorkerIds, confirmedVehicleIds, confirmedToolIds, estimatedHours, dateStatus, confirmDueDate } = validation.data;
+        // 電動工具は Tool.id で受け取り、当時の名前をスナップショットして保存する
+        const toolRows = await buildAssignmentToolRows(tools);
         const constructionType = body.constructionType; // バリデーションスキーマ外で取得
 
         // 一意制約を削除したため、重複チェックは不要（同一案件・同一職長・同一日付で複数配置可能）
@@ -81,6 +85,8 @@ export async function POST(req: NextRequest) {
             data: {
                 projectMasterId, assignedEmployeeId, date: new Date(date),
                 memberCount: memberCount || 0, workers: stringifyJsonField(workers), vehicles: stringifyJsonField(vehicles),
+                tools: stringifyJsonField(toolRows.map((t) => t.toolId)),
+                confirmedToolIds: stringifyJsonField(normalizeToolIds(confirmedToolIds)),
                 meetingTime: meetingTime || null, sortOrder: sortOrder || 0, remarks: remarks || null,
                 isDispatchConfirmed: isDispatchConfirmed || false,
                 confirmedWorkerIds: stringifyJsonField(confirmedWorkerIds), confirmedVehicleIds: stringifyJsonField(confirmedVehicleIds),
@@ -96,11 +102,15 @@ export async function POST(req: NextRequest) {
                 assignmentVehicles: {
                     create: Array.isArray(vehicles) ? vehicles.map((v: string) => ({ vehicleName: v })) : [],
                 },
+                assignmentTools: {
+                    create: toolRows,
+                },
             },
             include: {
                 projectMaster: true,
                 assignmentWorkers: true,
                 assignmentVehicles: true,
+                assignmentTools: true,
             },
         });
 

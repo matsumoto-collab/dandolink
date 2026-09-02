@@ -7,6 +7,7 @@ import { batchUpdateAssignmentsSchema, validateRequest } from '@/lib/validations
 import { logger } from '@/lib/logger';
 import { relocateAssignmentWorkItems } from '@/lib/relocateWorkItems';
 import { notifyAssignmentMoved, notifyAssignmentReassigned } from '@/lib/scheduleChangeNotify';
+import { buildAssignmentToolRowsBatch, normalizeToolIds } from '@/lib/assignmentTools';
 
 /**
  * POST /api/assignments/batch - 配置の一括更新
@@ -81,6 +82,11 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // 工具名のスナップショットはトランザクションの前にまとめて解決する
+        const toolUpdates = updates.filter((u) => u.data.tools !== undefined);
+        const toolRowsList = await buildAssignmentToolRowsBatch(toolUpdates.map((u) => u.data.tools));
+        const toolRowsByUpdateId = new Map(toolUpdates.map((u, i) => [u.id, toolRowsList[i]]));
+
         const results = await prisma.$transaction(
             updates.map(update => {
                 const updateData: Record<string, unknown> = {};
@@ -95,6 +101,12 @@ export async function POST(req: NextRequest) {
                 if (update.data.isDispatchConfirmed !== undefined) updateData.isDispatchConfirmed = update.data.isDispatchConfirmed;
                 if (update.data.confirmedWorkerIds !== undefined) updateData.confirmedWorkerIds = stringifyJsonField(update.data.confirmedWorkerIds);
                 if (update.data.confirmedVehicleIds !== undefined) updateData.confirmedVehicleIds = stringifyJsonField(update.data.confirmedVehicleIds);
+                if (update.data.confirmedToolIds !== undefined) updateData.confirmedToolIds = stringifyJsonField(normalizeToolIds(update.data.confirmedToolIds));
+                if (update.data.tools !== undefined) {
+                    const rows = toolRowsByUpdateId.get(update.id) ?? [];
+                    updateData.tools = stringifyJsonField(rows.map((t) => t.toolId));
+                    updateData.assignmentTools = { deleteMany: {}, create: rows };
+                }
                 if (update.data.estimatedHours !== undefined) updateData.estimatedHours = update.data.estimatedHours;
                 updateData.updatedBy = session!.user.id;
 

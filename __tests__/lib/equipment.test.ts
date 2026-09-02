@@ -9,6 +9,7 @@ import {
     isToolStatus,
     maintenanceCategoryLabel,
     toolStatusLabel,
+    isSchedulableTool,
 } from '@/lib/equipment';
 
 // 判定を決定的にするため「今日」を固定して渡す（実装は既定で JST の今日を使う）
@@ -118,5 +119,29 @@ describe('区分・状態の判定', () => {
         expect(isToolStatus('broken')).toBe(false);
         expect(toolStatusLabel('checked_out')).toBe('持出中');
         expect(toolStatusLabel('legacy')).toBe('legacy');
+    });
+});
+
+describe('isSchedulableTool', () => {
+    const tool = (over: Partial<{ id: string; status: string; isActive: boolean }> = {}) => ({
+        id: 't1', status: 'in_stock', isActive: true, ...over,
+    });
+
+    it('台帳にある通常の工具は選べる', () => {
+        expect(isSchedulableTool(tool())).toBe(true);
+        expect(isSchedulableTool(tool({ status: 'checked_out' }))).toBe(true);
+        expect(isSchedulableTool(tool({ status: 'repairing' }))).toBe(true);
+    });
+
+    it('台帳から外した工具・廃棄・紛失は選べない', () => {
+        expect(isSchedulableTool(tool({ isActive: false }))).toBe(false);
+        expect(isSchedulableTool(tool({ status: 'disposed' }))).toBe(false);
+        expect(isSchedulableTool(tool({ status: 'lost' }))).toBe(false);
+    });
+
+    it('既に選ばれている工具は状態が変わっても残す（選択が勝手に外れないように）', () => {
+        expect(isSchedulableTool(tool({ isActive: false }), ['t1'])).toBe(true);
+        expect(isSchedulableTool(tool({ status: 'disposed' }), ['t1'])).toBe(true);
+        expect(isSchedulableTool(tool({ isActive: false }), ['t9'])).toBe(false);
     });
 });

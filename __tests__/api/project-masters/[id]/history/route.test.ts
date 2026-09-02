@@ -18,6 +18,9 @@ jest.mock('@/lib/prisma', () => ({
         vehicle: {
             findMany: jest.fn(),
         },
+        tool: {
+            findMany: jest.fn(),
+        },
     },
 }));
 
@@ -42,6 +45,8 @@ describe('/api/project-masters/[id]/history', () => {
         workers: '[]',
         confirmedVehicleIds: '["veh-1"]',
         vehicles: '[]',
+        confirmedToolIds: '["tool-1"]',
+        tools: '[]',
         isDispatchConfirmed: true,
         remarks: 'Done',
         constructionType: null,
@@ -53,10 +58,12 @@ describe('/api/project-masters/[id]/history', () => {
     const mockUserForeman = { id: 'emp-1', displayName: 'Foreman A' };
     const mockUserWorker = { id: 'worker-1', displayName: 'Worker A' };
     const mockVehicle = { id: 'veh-1', name: 'Vehicle A' };
+    const mockTool = { id: 'tool-1', name: 'インパクト #1' };
 
     beforeEach(() => {
         jest.clearAllMocks();
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
+        (prisma.tool.findMany as jest.Mock).mockResolvedValue([mockTool]);
     });
 
     describe('GET', () => {
@@ -76,6 +83,7 @@ describe('/api/project-masters/[id]/history', () => {
             expect(json[0].foremanName).toBe('Foreman A');
             expect(json[0].workerNames).toContain('Worker A');
             expect(json[0].vehicleNames).toContain('Vehicle A');
+            expect(json[0].toolNames).toContain('インパクト #1');
 
             // Verify JSON parsing logic via mock call checks is implied by result correctness
         });
@@ -87,6 +95,8 @@ describe('/api/project-masters/[id]/history', () => {
                 workers: '["worker-1"]',
                 confirmedVehicleIds: null,
                 vehicles: '["veh-1"]',
+                confirmedToolIds: null,
+                tools: '["tool-1"]',
             };
             (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([mockAssignmentUnconfirmed]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([mockUserForeman, mockUserWorker]);
@@ -98,12 +108,14 @@ describe('/api/project-masters/[id]/history', () => {
             expect(res.status).toBe(200);
             expect(json[0].workerNames).toContain('Worker A');
             expect(json[0].vehicleNames).toContain('Vehicle A');
+            expect(json[0].toolNames).toContain('インパクト #1');
         });
 
         it('should return empty list if no assignments', async () => {
             (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
             (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([]);
+            (prisma.tool.findMany as jest.Mock).mockResolvedValue([]);
 
             const res = await GET(createReq(), context);
             const json = await res.json();

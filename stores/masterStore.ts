@@ -2,15 +2,19 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { ConstructionTypeMaster } from '@/types/calendar';
-import { Vehicle, MemberCountHistoryEntry } from '@/types/master';
+import { Vehicle, MemberCountHistoryEntry, ScheduleTool, ToolCategoryOption } from '@/types/master';
 import { logger } from '@/lib/logger';
 
 // Re-export types for backward compatibility
-export type { Vehicle, Manager, MemberCountHistoryEntry, MasterData } from '@/types/master';
+export type { Vehicle, Manager, MemberCountHistoryEntry, MasterData, ScheduleTool, ToolCategoryOption } from '@/types/master';
 
 interface MasterState {
     // Data
     vehicles: Vehicle[];
+    /** 電動工具（機材台帳の Tool）。スケジュールの選択と、ID→名前の解決に使う */
+    tools: ScheduleTool[];
+    /** 電動工具の分類（設定画面のセレクト用） */
+    toolCategories: ToolCategoryOption[];
     constructionTypes: ConstructionTypeMaster[];
     totalMembers: number;
     memberCountHistory: MemberCountHistoryEntry[];
@@ -33,6 +37,12 @@ interface MasterActions {
     updateVehicle: (id: string, name: string, dailyRate?: number | null) => Promise<void>;
     deleteVehicle: (id: string) => Promise<void>;
 
+    // Tool operations（実体は機材台帳の Tool。設定画面から追加・改名・削除する）
+    fetchTools: () => Promise<void>;
+    addTool: (name: string, categoryId?: string | null) => Promise<void>;
+    updateTool: (id: string, name: string, categoryId?: string | null) => Promise<void>;
+    deleteTool: (id: string) => Promise<void>;
+
     // Member count history
     fetchMemberCountHistory: () => Promise<void>;
     addMemberCountEntry: (startDate: string, count: number) => Promise<void>;
@@ -52,6 +62,8 @@ type MasterStore = MasterState & MasterActions;
 
 const initialState: MasterState = {
     vehicles: [],
+    tools: [],
+    toolCategories: [],
     constructionTypes: [],
     totalMembers: 20,
     memberCountHistory: [],
@@ -91,6 +103,7 @@ export const useMasterStore = create<MasterStore>()(
                     const data = await masterResponse.json();
                     set({
                         vehicles: data.vehicles || [],
+                        tools: data.tools || [],
                         constructionTypes,
                         totalMembers: data.totalMembers || 20,
                         memberCountHistory,
@@ -127,6 +140,7 @@ export const useMasterStore = create<MasterStore>()(
                     const data = await masterResponse.json();
                     set({
                         vehicles: data.vehicles || [],
+                        tools: data.tools || [],
                         constructionTypes,
                         totalMembers: data.totalMembers || 20,
                         memberCountHistory,
@@ -174,6 +188,60 @@ export const useMasterStore = create<MasterStore>()(
                     vehicles: state.vehicles.filter((v) => v.id !== id),
                 }));
             }
+        },
+
+        // Tool operations
+        // 設定画面（マスター・設定 ＞ 電動工具）の追加・改名・削除。
+        // 実体は機材台帳の Tool なので、ここでの変更はそのまま台帳にも出る。
+        fetchTools: async () => {
+            try {
+                const res = await fetch('/api/master-data/tools', { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                set({ tools: data.tools || [], toolCategories: data.categories || [] });
+            } catch (error) {
+                logger.error('Failed to fetch tools:', error);
+            }
+        },
+
+        addTool: async (name: string, categoryId: string | null = null) => {
+            const response = await fetch('/api/master-data/tools', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, categoryId }),
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err?.error || '電動工具の追加に失敗しました');
+            }
+            // 分類が自動作成される場合があるので一覧ごと取り直す
+            await get().fetchTools();
+        },
+
+        updateTool: async (id: string, name: string, categoryId: string | null = null) => {
+            const response = await fetch(`/api/master-data/tools/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(categoryId ? { name, categoryId } : { name }),
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err?.error || '電動工具の更新に失敗しました');
+            }
+            const updated: ScheduleTool = await response.json();
+            set((state) => ({ tools: state.tools.map((t) => (t.id === id ? updated : t)) }));
+        },
+
+        deleteTool: async (id: string) => {
+            const response = await fetch(`/api/master-data/tools/${id}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err?.error || '電動工具の削除に失敗しました');
+            }
+            // 一覧からは消さず isActive=false にする（過去の配置に残る工具名を解決するため）
+            set((state) => ({
+                tools: state.tools.map((t) => (t.id === id ? { ...t, isActive: false } : t)),
+            }));
         },
 
         // Member count history
@@ -247,7 +315,10 @@ export const useMasterStore = create<MasterStore>()(
             try {
                 const { supabase } = await import('@/lib/supabase');
                 const channels: RealtimeChannel[] = [];
-                const tables = ['Vehicle', 'SystemSettings', 'ConstructionType', 'MemberCountHistory'];
+                // Tool（電動工具）は Supabase の Realtime 対象に入れていないと通知が来ない。
+                // 購読していても害はなく、設定画面での追加・改名は自分の画面には即反映される
+                // （他の端末には次のリロードで反映）。
+                const tables = ['Vehicle', 'Tool', 'SystemSettings', 'ConstructionType', 'MemberCountHistory'];
 
                 tables.forEach(table => {
                     const channel = supabase
@@ -296,6 +367,8 @@ export const useMasterStore = create<MasterStore>()(
 
 // Selectors for optimized re-renders
 export const selectVehicles = (state: MasterStore) => state.vehicles;
+export const selectTools = (state: MasterStore) => state.tools;
+export const selectToolCategories = (state: MasterStore) => state.toolCategories;
 export const selectConstructionTypes = (state: MasterStore) => state.constructionTypes;
 export const selectTotalMembers = (state: MasterStore) => state.totalMembers;
 export const selectMemberCountHistory = (state: MasterStore) => state.memberCountHistory;

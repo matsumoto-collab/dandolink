@@ -25,6 +25,9 @@ export interface AssignmentSheetProject {
     workers?: string[] | null;
     confirmedVehicleIds?: string[] | null;
     vehicles?: string[] | null;
+    /** 電動工具（Tool.id の配列。車両と違い名前ではなく ID で持つ） */
+    tools?: string[] | null;
+    confirmedToolIds?: string[] | null;
     memberCount?: number | null;
     meetingTime?: string | null;
     isDispatchConfirmed?: boolean | null;
@@ -60,6 +63,8 @@ export interface AssignmentSheetRow<T extends AssignmentSheetProject = Assignmen
     memberCount: number;
     /** 車両名（確定済みがあれば確定、なければ予定）。 */
     vehicleNames: string[];
+    /** 電動工具名（確定済みがあれば確定、なければ予定）。 */
+    toolNames: string[];
     /** 集合時間（任意）。 */
     meetingTime: string | null;
     /** 工事種別カラー（現場名等の文字色に使用）。 */
@@ -82,6 +87,8 @@ export interface BuildAssignmentSheetRowsParams<T extends AssignmentSheetProject
     allForemen: { id: string; displayName: string }[];
     workerNameMap: Map<string, WorkerNameInfo>;
     vehicleNameMap: Map<string, string>;
+    /** 電動工具 ID → 工具名。 */
+    toolNameMap?: Map<string, string>;
     /** 案件担当者 ID → 表示名。 */
     managerMap: Map<string, string>;
     /** 工事種別 ID → { name, color }。 */
@@ -110,6 +117,7 @@ export function buildAssignmentSheetRows<T extends AssignmentSheetProject>(
         allForemen,
         workerNameMap,
         vehicleNameMap,
+        toolNameMap,
         managerMap,
         ctMap,
         isNamesLoaded,
@@ -166,6 +174,12 @@ export function buildAssignmentSheetRows<T extends AssignmentSheetProject>(
                 : (p.vehicles || []).map((id) => vehicleNameMap.get(id) || id)
             : [];
 
+        // 電動工具は最初から Tool.id なので、マスタで名前に解決する（マスタに無ければ ID のまま）
+        const toolNames = isNamesLoaded
+            ? (p.confirmedToolIds && p.confirmedToolIds.length > 0 ? p.confirmedToolIds : (p.tools || []))
+                .map((id) => toolNameMap?.get(id) || id)
+            : [];
+
         const isVisibleMember = (id: string) => id !== p.assignedEmployeeId && workerNameMap.has(id);
         const formatMemberName = (id: string): string => {
             const info = workerNameMap.get(id)!;
@@ -191,6 +205,7 @@ export function buildAssignmentSheetRows<T extends AssignmentSheetProject>(
             memberNames,
             memberCount: p.memberCount ?? 0,
             vehicleNames,
+            toolNames,
             meetingTime: p.meetingTime ?? null,
             color,
             isConfirmed: !!p.isDispatchConfirmed,

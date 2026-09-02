@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 jest.mock('@/lib/prisma', () => ({
     prisma: {
         vehicle: { findMany: jest.fn() },
+        tool: { findMany: jest.fn() },
         systemSettings: { findFirst: jest.fn() },
     },
 }));
@@ -27,6 +28,8 @@ describe('/api/master-data', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
+        // 電動工具（機材台帳の Tool）も同じ一括取得で返す
+        (prisma.tool.findMany as jest.Mock).mockResolvedValue([]);
     });
 
     it('should return all master data', async () => {
@@ -39,6 +42,7 @@ describe('/api/master-data', () => {
         const json = await res.json();
         expect(json).toEqual({
             vehicles: [{ id: 'v1', name: 'Vehicle 1', dailyRate: null }],
+            tools: [],
             totalMembers: 5
         });
     });
@@ -59,6 +63,23 @@ describe('/api/master-data', () => {
 
         const res = await GET();
         expect(res.status).toBe(401);
+    });
+
+    it('電動工具はスケジュールで選ぶのに要る項目だけ返す', async () => {
+        (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue({ totalMembers: 5 });
+        (prisma.tool.findMany as jest.Mock).mockResolvedValue([
+            {
+                id: 't1', name: 'インパクト #1', categoryId: 'c1', status: 'in_stock', sortOrder: 0, isActive: true,
+                category: { id: 'c1', name: '電動工具', sortOrder: 0 },
+            },
+        ]);
+
+        const res = await GET();
+        const json = await res.json();
+        expect(json.tools).toEqual([
+            { id: 't1', name: 'インパクト #1', categoryId: 'c1', categoryName: '電動工具', categorySortOrder: 0, status: 'in_stock', sortOrder: 0, isActive: true },
+        ]);
     });
 
     it('should return 500 on db error (Promise.all failure)', async () => {

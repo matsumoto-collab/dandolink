@@ -26,6 +26,8 @@ export interface CalendarEvent {
     estimatedHours?: number;
     workers?: string[];
     trucks?: string[];
+    /** 電動工具（Tool.id の配列。名前はマスタから解決する） */
+    tools?: string[];
     remarks?: string;
     dispatchRemark?: string;
     status?: ProjectStatus;
@@ -77,6 +79,7 @@ export interface DailySchedule {
     estimatedHours?: number;       // 予定作業時間（時間単位）
     workers?: string[];            // 作業員（詳細）
     trucks?: string[];             // 車両
+    tools?: string[];              // 電動工具（Tool.id の配列）
     remarks?: string;              // 備考
     sortOrder?: number;            // カレンダー内での表示順序
     constructionType?: ConstructionType; // 行ごとの工事種別（未設定時は親フォームの種別を継承）
@@ -203,6 +206,7 @@ export interface ProjectAssignment {
     estimatedHours: number;  // 予定作業時間（時間単位）
     workers?: string[];      // 職方ID配列
     vehicles?: string[];     // 車両ID配列
+    tools?: string[];        // 電動工具（Tool.id 配列）
     meetingTime?: string;    // 集合時間（例: "08:00"）
     sortOrder: number;       // カレンダー内での表示順序
     remarks?: string;        // 配置固有の備考
@@ -212,6 +216,7 @@ export interface ProjectAssignment {
     // 手配確定フィールド
     confirmedWorkerIds?: string[];  // 確定職方ID配列
     confirmedVehicleIds?: string[]; // 確定車両ID配列
+    confirmedToolIds?: string[];    // 確定電動工具ID配列
     isDispatchConfirmed: boolean;   // 手配確定フラグ
 
     // 日付の確度（isDispatchConfirmed=社内手配確定とは別概念）
@@ -236,6 +241,7 @@ export interface AssignmentCalendarEvent extends CalendarEvent {
     memberCount: number;
     confirmedWorkerIds?: string[];
     confirmedVehicleIds?: string[];
+    confirmedToolIds?: string[];
     isDispatchConfirmed: boolean;
 }
 
@@ -265,6 +271,7 @@ export interface Project extends CalendarEvent {
     confirmedForemanId?: string;
     confirmedWorkerIds?: string[];
     confirmedVehicleIds?: string[];
+    confirmedToolIds?: string[];
     isDispatchConfirmed?: boolean;
     constructionContent?: ConstructionContentType; // 工事内容（案件マスターから連携）
     workStartedAt?: Date | null;

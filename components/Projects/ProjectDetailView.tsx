@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
+import { isSchedulableTool } from '@/lib/equipment';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
@@ -54,12 +55,15 @@ export default function ProjectDetailView({ project, onClose, readOnly = false, 
         plusCode?: string;
     } | null>(null);
     const [projectMasterRemarks, setProjectMasterRemarks] = useState<string>('');
-    const { constructionTypes, vehicles } = useMasterData();
+    const { constructionTypes, vehicles, tools: toolMaster } = useMasterData();
     const [workerMap, setWorkerMap] = useState<Record<string, string>>({});
     const [isLoadingWorkers, setIsLoadingWorkers] = useState(false);
     const [isSavingMemberCount, setIsSavingMemberCount] = useState(false);
     const [isEditingVehicles, setIsEditingVehicles] = useState(false);
     const [vehicleEditSelection, setVehicleEditSelection] = useState<string[]>([]);
+    const [isEditingTools, setIsEditingTools] = useState(false);
+    const [toolEditSelection, setToolEditSelection] = useState<string[]>([]);
+    const [isSavingTools, setIsSavingTools] = useState(false);
     const [isSavingVehicles, setIsSavingVehicles] = useState(false);
 
     // ストアから最新の配置を購読（モーダルのinitialDataはクリック時のスナップショットなので古くなる）
@@ -246,6 +250,93 @@ export default function ProjectDetailView({ project, onClose, readOnly = false, 
             toast.error('車両の更新に失敗しました');
         } finally {
             setIsSavingVehicles(false);
+        }
+    };
+
+    // 現在の電動工具（手配確定済みなら confirmedToolIds、なければ配置の tools）。どちらも Tool.id
+    const liveToolIds: string[] = useMemo(() => {
+        const confirmed = liveAssignment?.confirmedToolIds ?? project.confirmedToolIds ?? [];
+        if (liveIsDispatchConfirmed && confirmed.length > 0) return confirmed;
+        return (liveAssignment?.tools ?? project.tools ?? []) as string[];
+    }, [liveAssignment?.confirmedToolIds, liveAssignment?.tools, project.confirmedToolIds, project.tools, liveIsDispatchConfirmed]);
+
+    const liveToolNames: string[] = useMemo(
+        () => liveToolIds.map(id => toolMaster.find(t => t.id === id)?.name || id),
+        [liveToolIds, toolMaster]
+    );
+
+    // 同日の他案件で使われている電動工具 → どの班/案件で使用中か（車両と違い ID で突き合わせる）
+    const toolUsageMap = useMemo(() => {
+        if (!isEditingTools) return new Map<string, { projectTitle: string; foremanName: string }[]>();
+        const dateKey = formatDateKey(project.startDate);
+        const map = new Map<string, { projectTitle: string; foremanName: string }[]>();
+        projects.forEach(p => {
+            if (p.id === project.id) return;
+            if (formatDateKey(p.startDate) !== dateKey) return;
+            const used = p.tools ?? [];
+            if (used.length === 0) return;
+            const foremanName = getForemanName(p.assignedEmployeeId || '') || '不明';
+            used.forEach(id => {
+                if (!id) return;
+                if (!map.has(id)) map.set(id, []);
+                map.get(id)!.push({ projectTitle: p.title, foremanName });
+            });
+        });
+        return map;
+    }, [isEditingTools, projects, project.id, project.startDate, getForemanName]);
+
+    const confirmedToolIdSet = useMemo(() => {
+        if (!isEditingTools) return new Set<string>();
+        const dateKey = formatDateKey(project.startDate);
+        const set = new Set<string>();
+        projects.forEach(p => {
+            if (p.id === project.id) return;
+            if (formatDateKey(p.startDate) !== dateKey) return;
+            if (!p.isDispatchConfirmed) return;
+            p.confirmedToolIds?.forEach(id => set.add(id));
+        });
+        return set;
+    }, [isEditingTools, projects, project.id, project.startDate]);
+
+    // 選べる工具（台帳から外した分・廃棄・紛失は隠す）。並びは車両と同じ考え方
+    const sortedToolsForEdit = useMemo(() => {
+        if (!isEditingTools) return [];
+        return toolMaster
+            .filter(t => isSchedulableTool(t, toolEditSelection))
+            .sort((a, b) => {
+                const rank = (t: typeof a) => {
+                    if (confirmedToolIdSet.has(t.id)) return 0;
+                    if (toolUsageMap.has(t.id)) return 1;
+                    return 2;
+                };
+                return rank(a) - rank(b);
+            });
+    }, [isEditingTools, toolMaster, toolEditSelection, confirmedToolIdSet, toolUsageMap]);
+
+    const startEditTools = () => {
+        setToolEditSelection(liveToolIds);
+        setIsEditingTools(true);
+    };
+
+    const toggleToolInEdit = (id: string) => {
+        setToolEditSelection(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+    };
+
+    const saveTools = async () => {
+        setIsSavingTools(true);
+        try {
+            const updates: Partial<Project> = { tools: toolEditSelection };
+            // 手配確定済みなら確定側も揃える（表示の優先ソースが古いままにならないように）
+            if (liveIsDispatchConfirmed) {
+                updates.confirmedToolIds = toolEditSelection;
+            }
+            await updateProject(project.id, updates);
+            setIsEditingTools(false);
+        } catch (error) {
+            logger.error('Failed to update tools:', error);
+            toast.error('電動工具の更新に失敗しました');
+        } finally {
+            setIsSavingTools(false);
         }
     };
 
@@ -671,6 +762,103 @@ export default function ProjectDetailView({ project, onClose, readOnly = false, 
                                         <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
+                                        {name}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <span className="text-sm text-slate-400">未選択</span>
+                        )}
+                    </div>
+                )}
+
+                {/* 電動工具（手配確定時の工具を優先、なければ登録時の工具）。工具が無ければ編集できる人にだけ出す */}
+                {(canEditVehicles || liveToolNames.length > 0) && toolMaster.length > 0 && (
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-slate-700">
+                                電動工具
+                            </label>
+                            {canEditVehicles && !isEditingTools && (
+                                <button
+                                    type="button"
+                                    onClick={startEditTools}
+                                    className="text-xs px-2.5 py-1 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
+                                >
+                                    編集
+                                </button>
+                            )}
+                        </div>
+                        {isEditingTools ? (
+                            <div className="space-y-2">
+                                <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto border border-slate-200 rounded-xl p-3">
+                                    {sortedToolsForEdit.map(tool => {
+                                        const usages = toolUsageMap.get(tool.id);
+                                        const isInUse = !!(usages && usages.length > 0);
+                                        const isConfirmed = confirmedToolIdSet.has(tool.id);
+                                        return (
+                                            <label
+                                                key={tool.id}
+                                                className={`flex items-center gap-2 p-2 rounded text-sm cursor-pointer ${isConfirmed || isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-slate-50'}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={toolEditSelection.includes(tool.id)}
+                                                    onChange={() => toggleToolInEdit(tool.id)}
+                                                    className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
+                                                />
+                                                <span className="text-slate-700 whitespace-nowrap">{tool.name}</span>
+                                                <span className="text-xs text-slate-400 whitespace-nowrap">{tool.categoryName}</span>
+                                                {isConfirmed ? (
+                                                    <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 ml-auto whitespace-nowrap">
+                                                        手配確定済
+                                                    </span>
+                                                ) : isInUse ? (
+                                                    <div className="flex flex-wrap gap-1 ml-auto justify-end">
+                                                        {usages!.map((u, i) => (
+                                                            <span key={i} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap">
+                                                                {u.foremanName}班 ({u.projectTitle})
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 ml-auto">
+                                                        空き
+                                                    </span>
+                                                )}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex items-center justify-end gap-2">
+                                    {isSavingTools && (
+                                        <span className="text-xs text-slate-500 mr-1">保存中...</span>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditingTools(false)}
+                                        disabled={isSavingTools}
+                                        className="px-3 py-1.5 text-sm border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                                    >
+                                        キャンセル
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={saveTools}
+                                        disabled={isSavingTools}
+                                        className="px-3 py-1.5 text-sm border border-teal-600 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-40"
+                                    >
+                                        保存
+                                    </button>
+                                </div>
+                            </div>
+                        ) : liveToolNames.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {liveToolNames.map((name, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-800"
+                                    >
                                         {name}
                                     </span>
                                 ))}

@@ -229,6 +229,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 memberCount: schedule.memberCount || 0,
                 workers: schedule.workers?.length ? schedule.workers : project.workers,
                 vehicles: schedule.trucks?.length ? schedule.trucks : project.vehicles,
+                tools: schedule.tools?.length ? schedule.tools : project.tools,
                 meetingTime: project.meetingTime,
                 sortOrder: schedule.sortOrder || 0,
                 remarks: schedule.remarks || project.remarks,
@@ -279,6 +280,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     ...(isFloating ? {} : {
                         workers: project.workers,
                         vehicles: project.vehicles,
+                        tools: project.tools,
                         meetingTime: project.meetingTime,
                         sortOrder: project.sortOrder || 0,
                     }),
@@ -378,6 +380,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             const dispatchConfirmed = isMoving ? false : updates.isDispatchConfirmed;
             const dispatchWorkerIds = isMoving ? [] : updates.confirmedWorkerIds;
             const dispatchVehicleIds = isMoving ? [] : updates.confirmedVehicleIds;
+            const dispatchToolIds = isMoving ? [] : updates.confirmedToolIds;
 
             const response = await fetch(`/api/assignments/${id}`, {
                 method: 'PATCH',
@@ -389,6 +392,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     memberCount: updates.memberCount ?? updates.workers?.length ?? assignment?.memberCount,
                     workers: updates.workers,
                     vehicles: updates.vehicles,
+                    tools: updates.tools,
                     meetingTime: updates.meetingTime,
                     sortOrder: updates.sortOrder,
                     remarks: updates.remarks,
@@ -396,6 +400,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     isDispatchConfirmed: dispatchConfirmed,
                     confirmedWorkerIds: dispatchWorkerIds,
                     confirmedVehicleIds: dispatchVehicleIds,
+                    confirmedToolIds: dispatchToolIds,
                     constructionType: updates.constructionType,
                     estimatedHours: updates.estimatedHours,
                     dateStatus: updates.dateStatus,
@@ -561,6 +566,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                                 sortOrder: u.data.sortOrder,
                                 workers: u.data.workers,
                                 vehicles: u.data.vehicles,
+                                tools: u.data.tools,
                                 meetingTime: u.data.meetingTime,
                                 remarks: u.data.remarks,
                             },
@@ -643,6 +649,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 memberCount: snapshot.memberCount,
                 workers: snapshot.workers,
                 vehicles: snapshot.vehicles,
+                tools: snapshot.tools,
                 meetingTime: snapshot.meetingTime,
                 sortOrder: snapshot.sortOrder,
                 remarks: snapshot.remarks,
@@ -651,6 +658,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 isDispatchConfirmed: snapshot.isDispatchConfirmed,
                 confirmedWorkerIds: snapshot.confirmedWorkerIds,
                 confirmedVehicleIds: snapshot.confirmedVehicleIds,
+                confirmedToolIds: snapshot.confirmedToolIds,
             }),
         });
 

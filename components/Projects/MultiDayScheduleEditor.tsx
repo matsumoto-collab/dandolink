@@ -144,6 +144,13 @@ interface VehicleOption {
     name: string;
 }
 
+/** 電動工具（機材台帳の Tool）。車両と違い ID で選ぶ */
+interface ToolOption {
+    id: string;
+    name: string;
+    categoryName?: string;
+}
+
 interface ConstructionTypeOption {
     id: string;
     name: string;
@@ -164,9 +171,12 @@ interface MultiDayScheduleEditorProps {
     onChange: (schedules: DailySchedule[]) => void;
     foremen?: ForemanOption[];
     vehicles?: VehicleOption[];
+    tools?: ToolOption[];
     constructionTypes?: ConstructionTypeOption[];
     existingDayMap?: Record<string, DayExistingInfo[]>;
     vehicleUsageByDate?: Record<string, Record<string, number>>;
+    /** 同日の他案件で使用中の電動工具（日付キー → Tool.id → 件数） */
+    toolUsageByDate?: Record<string, Record<string, number>>;
     getTotalMembersForDate?: (dateStr: string) => number;
     getVacationCountForDate?: (dateStr: string) => number;
 }
@@ -177,9 +187,11 @@ export default function MultiDayScheduleEditor({
     onChange,
     foremen = [],
     vehicles = [],
+    tools = [],
     constructionTypes = [],
     existingDayMap = {},
     vehicleUsageByDate = {},
+    toolUsageByDate = {},
     getTotalMembersForDate,
     getVacationCountForDate,
 }: MultiDayScheduleEditorProps) {
@@ -220,6 +232,7 @@ export default function MultiDayScheduleEditor({
                     estimatedHours: 8,
                     workers: [],
                     trucks: [],
+                    tools: [],
                     remarks: '',
                     sortOrder: 0,
                     constructionType: defaultType || type,
@@ -238,6 +251,7 @@ export default function MultiDayScheduleEditor({
             estimatedHours: 8,
             workers: [],
             trucks: [],
+            tools: [],
             remarks: '',
             sortOrder: 0,
             constructionType: defaultType || type,
@@ -476,6 +490,18 @@ export default function MultiDayScheduleEditor({
                                     subLabelTone: 'warn',
                                 };
                             });
+                            const toolUsageForRow = toolUsageByDate[dateKeyForRow] || {};
+                            const selectedTools = schedule.tools || [];
+                            // 電動工具は Tool.id を値にする（同じ名前の個体があり得るため）
+                            const toolOptions: SelectDropdownOption[] = tools.map(t => {
+                                const count = toolUsageForRow[t.id] ?? 0;
+                                return {
+                                    id: t.id,
+                                    label: t.name,
+                                    subLabel: count > 0 ? '使用中' : t.categoryName,
+                                    subLabelTone: count > 0 ? 'warn' : 'info',
+                                };
+                            });
 
                             return (
                                 <div
@@ -595,6 +621,29 @@ export default function MultiDayScheduleEditor({
                                                     {selectedTrucks.map((t, i) => (
                                                         <span key={i} className="text-xs px-2 py-0.5 bg-slate-700 text-white rounded-full">
                                                             {t}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* 電動工具 */}
+                                    {tools.length > 0 && (
+                                        <div>
+                                            <label className="block text-xs text-slate-500 mb-1">電動工具</label>
+                                            <SelectDropdown
+                                                options={toolOptions}
+                                                selected={selectedTools}
+                                                onChange={(ids) => updateSchedule(index, { tools: ids })}
+                                                multiple
+                                                placeholder="電動工具を選択"
+                                            />
+                                            {selectedTools.length > 0 && (
+                                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                                    {selectedTools.map((id) => (
+                                                        <span key={id} className="text-xs px-2 py-0.5 bg-slate-700 text-white rounded-full">
+                                                            {tools.find(t => t.id === id)?.name ?? '不明'}
                                                         </span>
                                                     ))}
                                                 </div>

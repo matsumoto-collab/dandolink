@@ -193,6 +193,11 @@ model ProjectAssignment {
   dateStatus                String                @default("confirmed")
   // 仮予定の「この日までに先方へ確認する」目安日（JST 0時規約）。tentative のときのみ意味を持つ。
   confirmDueDate            DateTime?
+  /// 予定の電動工具（Tool.id の JSON 配列）。車両は名前で持つが、工具は同じ名前の個体があり得るので ID で持つ。
+  tools                     String?
+  /// 手配確定した電動工具（Tool.id の JSON 配列）
+  confirmedToolIds          String?
+  assignmentTools           AssignmentTool[]
   assignmentVehicles        AssignmentVehicle[]
   assignmentWorkers         AssignmentWorker[]
   dailyReportWorkItems      DailyReportWorkItem[]
@@ -267,6 +272,21 @@ model AssignmentVehicle {
 
   @@index([assignmentId])
   @@index([vehicleName])
+  @@schema("public")
+}
+
+/// 配置に紐づく電動工具。機材台帳（Tool）の個体を日々の配置から選ぶための行。
+/// AssignmentVehicle と同じ役割だが、工具は Tool.id で持つ（toolName は当時の名前のスナップショット）。
+/// Tool への外部キーは張らない（AssignmentVehicle と同方針の論理FK。工具を消しても使用履歴は残す）。
+model AssignmentTool {
+  id           String            @id @default(uuid())
+  assignmentId String
+  toolId       String
+  toolName     String
+  assignment   ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@index([toolId])
   @@schema("public")
 }
 

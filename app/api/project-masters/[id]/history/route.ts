@@ -22,6 +22,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
         const employeeIds = new Set<string>();
         const vehicleIds = new Set<string>();
+        const toolIds = new Set<string>();
 
         assignments.forEach(a => {
             if (a.assignedEmployeeId) employeeIds.add(a.assignedEmployeeId);
@@ -29,19 +30,24 @@ export async function GET(_req: NextRequest, context: RouteContext) {
             workers.forEach(wid => employeeIds.add(wid));
             const vehicles = a.confirmedVehicleIds ? parseJsonField<string[]>(a.confirmedVehicleIds, []) : parseJsonField<string[]>(a.vehicles, []);
             vehicles.forEach(vid => vehicleIds.add(vid));
+            const tools = a.confirmedToolIds ? parseJsonField<string[]>(a.confirmedToolIds, []) : parseJsonField<string[]>(a.tools, []);
+            tools.forEach(tid => toolIds.add(tid));
         });
 
-        const [users, vehicleRecords] = await Promise.all([
+        const [users, vehicleRecords, toolRecords] = await Promise.all([
             prisma.user.findMany({ where: { id: { in: Array.from(employeeIds) } }, select: { id: true, displayName: true } }),
             prisma.vehicle.findMany({ where: { id: { in: Array.from(vehicleIds) } }, select: { id: true, name: true } }),
+            prisma.tool.findMany({ where: { id: { in: Array.from(toolIds) } }, select: { id: true, name: true } }),
         ]);
 
         const userMap = new Map(users.map(u => [u.id, u.displayName || u.id]));
         const vehicleMap = new Map(vehicleRecords.map(v => [v.id, v.name]));
+        const toolMap = new Map(toolRecords.map(t => [t.id, t.name]));
 
         const history = assignments.map(a => {
             const workerIds = a.confirmedWorkerIds ? parseJsonField<string[]>(a.confirmedWorkerIds, []) : parseJsonField<string[]>(a.workers, []);
             const vehicleIdList = a.confirmedVehicleIds ? parseJsonField<string[]>(a.confirmedVehicleIds, []) : parseJsonField<string[]>(a.vehicles, []);
+            const toolIdList = a.confirmedToolIds ? parseJsonField<string[]>(a.confirmedToolIds, []) : parseJsonField<string[]>(a.tools, []);
             return {
                 id: a.id, date: a.date.toISOString(), foremanId: a.assignedEmployeeId,
                 foremanName: userMap.get(a.assignedEmployeeId) || '不明',
@@ -49,6 +55,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
                 memberCount: a.memberCount,
                 workerIds, workerNames: workerIds.map(wid => userMap.get(wid) || wid).filter(name => name !== userMap.get(a.assignedEmployeeId)),
                 vehicleIds: vehicleIdList, vehicleNames: vehicleIdList.map(vid => vehicleMap.get(vid) || vid),
+                toolIds: toolIdList, toolNames: toolIdList.map(tid => toolMap.get(tid) || tid),
                 isConfirmed: a.isDispatchConfirmed, remarks: a.remarks,
                 workTimeMinutes: a.dailyReportWorkItems.reduce((sum, wi) => {
                     if (!wi.startTime || !wi.endTime) return sum;

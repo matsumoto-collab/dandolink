@@ -5,6 +5,7 @@ import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
 import { logger } from '@/lib/logger';
 import { notifyAssignmentsCreated } from '@/lib/scheduleChangeNotify';
+import { buildAssignmentToolRowsBatch } from '@/lib/assignmentTools';
 
 interface BatchCreateAssignment {
     projectMasterId: string;
@@ -13,6 +14,8 @@ interface BatchCreateAssignment {
     memberCount?: number;
     workers?: string[];
     vehicles?: string[];
+    /** 電動工具（Tool.id の配列） */
+    tools?: string[];
     meetingTime?: string;
     sortOrder?: number;
     remarks?: string;
@@ -63,9 +66,12 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // 工具名のスナップショットは1回の SELECT でまとめて解決する
+        const toolRowsPerAssignment = await buildAssignmentToolRowsBatch(assignments.map((a) => a.tools));
+
         // トランザクションで一括作成（includeなし - IDのみ取得）
         const created = await prisma.$transaction(
-            assignments.map((a) =>
+            assignments.map((a, i) =>
                 prisma.projectAssignment.create({
                     data: {
                         projectMasterId: a.projectMasterId,
@@ -74,6 +80,7 @@ export async function POST(req: NextRequest) {
                         memberCount: a.memberCount || 0,
                         workers: stringifyJsonField(a.workers),
                         vehicles: stringifyJsonField(a.vehicles),
+                        tools: stringifyJsonField(toolRowsPerAssignment[i].map((t) => t.toolId)),
                         meetingTime: a.meetingTime || null,
                         sortOrder: a.sortOrder || 0,
                         remarks: a.remarks || null,
@@ -92,6 +99,9 @@ export async function POST(req: NextRequest) {
                                 ? a.vehicles.map((v: string) => ({ vehicleName: v }))
                                 : [],
                         },
+                        assignmentTools: {
+                            create: toolRowsPerAssignment[i],
+                        },
                     },
                     select: { id: true },
                 })
@@ -105,6 +115,7 @@ export async function POST(req: NextRequest) {
                 projectMaster: true,
                 assignmentWorkers: true,
                 assignmentVehicles: true,
+                assignmentTools: true,
             },
         });
 

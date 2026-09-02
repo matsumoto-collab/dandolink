@@ -22,11 +22,11 @@ const COL = {
     manager: 38, // 担当
     order: 22, // 順番
     customer: 86, // 元請会社名
-    title: 156, // 現場名
+    title: 141, // 現場名
     foreman: 52, // 職長
     workers: 124, // 作業員名簿
     count: 26, // 人数
-    vehicle: 55, // 車両
+    vehicle: 70, // 車両・電動工具（工具は車両名の下に小さく出す）
 } as const;
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -241,7 +241,7 @@ function HeaderRow() {
         ['職長', COL.foreman],
         ['作業員名簿', COL.workers],
         ['人数', COL.count],
-        ['車両', COL.vehicle, true],
+        ['車両・工具', COL.vehicle, true],
     ];
     return (
         <View style={styles.headerRow} fixed>
@@ -257,6 +257,7 @@ function HeaderRow() {
 function DataRow({ row }: { row: AssignmentSheetRow }) {
     const members = row.memberNames.join('　');
     const vehicles = row.vehicleNames.join(' ');
+    const tools = row.toolNames.join(' ');
     const foreman = row.sameForemanAsAbove ? '〃' : row.foremanName;
     return (
         <View style={[styles.dataRow, ...(row.isUnassigned ? [styles.unassignedRow] : [])]} wrap={false}>
@@ -281,9 +282,17 @@ function DataRow({ row }: { row: AssignmentSheetRow }) {
             <Cell width={COL.count} align="center" fontSize={9} bold>
                 {row.memberCount > 0 ? row.memberCount : ''}
             </Cell>
-            <Cell width={COL.vehicle} align="center" last fontSize={fit(vehicles, COL.vehicle, 7.5, 5.5)}>
-                {vehicles}
-            </Cell>
+            {/* 車両（上段）と電動工具（下段・薄く小さく）。工具が無い行は従来どおり車両だけ */}
+            <View style={[styles.cell, styles.cellLast, { width: COL.vehicle, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={{ fontSize: fit(vehicles, COL.vehicle, 7.5, 5.5), textAlign: 'center', color: '#111111' }}>
+                    {vehicles}
+                </Text>
+                {tools !== '' && (
+                    <Text style={{ fontSize: fit(tools, COL.vehicle, 6.5, 5), textAlign: 'center', color: '#444444', marginTop: 1 }}>
+                        {tools}
+                    </Text>
+                )}
+            </View>
         </View>
     );
 }

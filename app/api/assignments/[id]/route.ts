@@ -12,6 +12,7 @@ import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
 import { logger } from '@/lib/logger';
 import { relocateAssignmentWorkItems } from '@/lib/relocateWorkItems';
+import { buildAssignmentToolRows, normalizeToolIds } from '@/lib/assignmentTools';
 import {
     notifyAssignmentMoved,
     notifyAssignmentReassigned,
@@ -138,6 +139,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.isDispatchConfirmed !== undefined && allowed('isDispatchConfirmed')) updateData.isDispatchConfirmed = body.isDispatchConfirmed;
         if (body.confirmedWorkerIds !== undefined && allowed('confirmedWorkerIds')) updateData.confirmedWorkerIds = stringifyJsonField(body.confirmedWorkerIds);
         if (body.confirmedVehicleIds !== undefined && allowed('confirmedVehicleIds')) updateData.confirmedVehicleIds = stringifyJsonField(body.confirmedVehicleIds);
+        if (body.confirmedToolIds !== undefined && allowed('confirmedToolIds')) updateData.confirmedToolIds = stringifyJsonField(normalizeToolIds(body.confirmedToolIds));
         if (body.constructionType !== undefined && allowed('constructionType')) updateData.constructionType = body.constructionType;
         if (body.estimatedHours !== undefined && allowed('estimatedHours')) updateData.estimatedHours = body.estimatedHours;
         if (body.dateStatus !== undefined && allowed('dateStatus')) updateData.dateStatus = body.dateStatus;
@@ -157,11 +159,20 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                 create: Array.isArray(body.vehicles) ? body.vehicles.map((v: string) => ({ vehicleName: v })) : [],
             };
         }
+        // 電動工具は Tool.id で受け取り、当時の名前をスナップショットして持たせる
+        if (body.tools !== undefined && allowed('tools')) {
+            const toolRows = await buildAssignmentToolRows(body.tools);
+            updateData.tools = stringifyJsonField(toolRows.map((t) => t.toolId));
+            updateData.assignmentTools = {
+                deleteMany: {},
+                create: toolRows,
+            };
+        }
 
         const assignment = await prisma.projectAssignment.update({
             where: { id },
             data: updateData,
-            include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
+            include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true, assignmentTools: true },
         });
 
         // 配置を別日へ動かしたら、旧日付に残る作業明細を新日付の日報へ移送（孤児化＝原価二重計上を防止）
@@ -182,12 +193,15 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                     if (body[k] !== undefined && allowed(k)) trackedBody[k] = body[k];
                 }
                 const resolveIds = collectHistoryResolutionIds({ current, body: trackedBody });
-                const [historyUsers, historyVehicles, historyTypes] = await Promise.all([
+                const [historyUsers, historyVehicles, historyTools, historyTypes] = await Promise.all([
                     resolveIds.userIds.length
                         ? prisma.user.findMany({ where: { id: { in: resolveIds.userIds } }, select: { id: true, displayName: true } })
                         : Promise.resolve([]),
                     resolveIds.vehicleIds.length
                         ? prisma.vehicle.findMany({ where: { id: { in: resolveIds.vehicleIds } }, select: { id: true, name: true } })
+                        : Promise.resolve([]),
+                    resolveIds.toolIds.length
+                        ? prisma.tool.findMany({ where: { id: { in: resolveIds.toolIds } }, select: { id: true, name: true } })
                         : Promise.resolve([]),
                     resolveIds.constructionTypeIds.length
                         ? prisma.constructionType.findMany({ where: { id: { in: resolveIds.constructionTypeIds } }, select: { id: true, name: true } })
@@ -199,6 +213,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                     nameMaps: {
                         users: new Map(historyUsers.map((u) => [u.id, u.displayName])),
                         vehicles: new Map(historyVehicles.map((v) => [v.id, v.name])),
+                        tools: new Map(historyTools.map((t) => [t.id, t.name])),
                         constructionTypes: new Map(historyTypes.map((t) => [t.id, t.name])),
                     },
                 });
@@ -311,7 +326,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         let logId: string | null = null;
         const full = await prisma.projectAssignment.findUnique({
             where: { id },
-            include: { assignmentWorkers: true, assignmentVehicles: true, projectMaster: true },
+            include: { assignmentWorkers: true, assignmentVehicles: true, assignmentTools: true, projectMaster: true },
         });
         if (full) {
             // スカラーは Prisma 結果 full から、workers/vehicles 等の配列は formatAssignment から取る。
@@ -322,6 +337,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
                 memberCount: full.memberCount,
                 workers: f.workers,
                 vehicles: f.vehicles,
+                tools: f.tools,
                 meetingTime: full.meetingTime,
                 sortOrder: full.sortOrder,
                 remarks: full.remarks,
@@ -331,6 +347,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
                 isDispatchConfirmed: full.isDispatchConfirmed,
                 confirmedWorkerIds: f.confirmedWorkerIds,
                 confirmedVehicleIds: f.confirmedVehicleIds,
+                confirmedToolIds: f.confirmedToolIds,
                 dateStatus: full.dateStatus,
                 confirmDueDate: full.confirmDueDate ? full.confirmDueDate.toISOString() : null,
             };

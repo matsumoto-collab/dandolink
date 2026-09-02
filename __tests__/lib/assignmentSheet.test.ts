@@ -23,6 +23,11 @@ const vehicleNameMap = new Map<string, string>([
     ['v2', '2tリース'],
 ]);
 
+const toolNameMap = new Map<string, string>([
+    ['t1', 'インパクト #1'],
+    ['t2', '発電機 A'],
+]);
+
 const managerMap = new Map<string, string>([
     ['mgrA', '今井 太郎'],
     ['mgrB', '三生 次郎'],
@@ -52,6 +57,8 @@ const projects: AssignmentSheetProject[] = [
         createdBy: 'mgrA',
         confirmedWorkerIds: ['f1', 'w1', 'w2'], // f1=職長は名簿から除外
         confirmedVehicleIds: ['v1', 'v2'],
+        tools: ['t2'],
+        confirmedToolIds: ['t1'],
         memberCount: 3,
         isDispatchConfirmed: true,
     },
@@ -105,6 +112,7 @@ function build(overrides?: Partial<Parameters<typeof buildAssignmentSheetRows>[0
         allForemen,
         workerNameMap,
         vehicleNameMap,
+        toolNameMap,
         managerMap,
         ctMap,
         isNamesLoaded: true,
@@ -117,6 +125,26 @@ describe('buildAssignmentSheetRows', () => {
         const rows = build();
         // 別日のEは除外。順番は f1(sortOrder昇順: B,A) → f2(C) → 表示順外のp1(D)
         expect(rows.map((r) => r.projectId)).toEqual(['B', 'A', 'C', 'D']);
+    });
+
+    it('電動工具は確定分を優先し、マスタで名前に解決する', () => {
+        const rows = build();
+        const a = rows.find((r) => r.projectId === 'A')!;
+        expect(a.toolNames).toEqual(['インパクト #1']);
+    });
+
+    it('手配確定の工具が無ければ予定の工具を出す', () => {
+        const rows = build({
+            projects: projects.map((p) => (p.id === 'A' ? { ...p, confirmedToolIds: [] } : p)),
+        });
+        const a = rows.find((r) => r.projectId === 'A')!;
+        expect(a.toolNames).toEqual(['発電機 A']);
+    });
+
+    it('工具を選んでいない案件の toolNames は空配列', () => {
+        const rows = build();
+        const b = rows.find((r) => r.projectId === 'B')!;
+        expect(b.toolNames).toEqual([]);
     });
 
     it('職長グループ内の順番(orderInGroup)と〃判定', () => {

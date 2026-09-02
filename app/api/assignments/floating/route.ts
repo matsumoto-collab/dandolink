@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
                 projectMaster: true,
                 assignmentWorkers: true,
                 assignmentVehicles: true,
+                assignmentTools: true,
             },
         });
 

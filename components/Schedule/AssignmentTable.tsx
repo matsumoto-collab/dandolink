@@ -30,7 +30,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const { status } = useSession();
     const { projects, fetchForDateRange, updateProject, isLoading } = useProjects();
     const { displayedForemanIds, allForemen } = useCalendarDisplay();
-    const { constructionTypes } = useMasterData();
+    const { constructionTypes, tools: toolMaster } = useMasterData();
     const cellRemarks = useCalendarStore(selectCellRemarks);
 
     const [workerNameMap, setWorkerNameMap] = useState<Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null; role: string | null }>>(new Map());
@@ -200,6 +200,12 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         return false;
     };
 
+    // 電動工具の ID → 名前（マスタはストアが持っているので追加のフェッチは要らない）
+    const toolNameMap = useMemo(
+        () => new Map(toolMaster.map(t => [t.id, t.name])),
+        [toolMaster]
+    );
+
     const constructionTypeMap = useMemo(() => {
         const map = new Map<string, { name: string; color: string }>();
         constructionTypes.forEach(ct => map.set(ct.id, { name: ct.name, color: ct.color }));
@@ -244,6 +250,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                 allForemen,
                 workerNameMap,
                 vehicleNameMap,
+                toolNameMap,
                 managerMap,
                 ctMap: constructionTypeMap,
                 isNamesLoaded,
@@ -386,6 +393,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                         selectedDate={selectedDate}
                         workerNameMap={workerNameMap}
                         vehicleNameMap={vehicleNameMap}
+                        toolNameMap={toolNameMap}
                         isNamesLoaded={isNamesLoaded}
                         userRole={userRole}
                     />

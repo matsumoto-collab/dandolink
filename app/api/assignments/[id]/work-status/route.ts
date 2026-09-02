@@ -143,11 +143,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 data: type === 'start'
                     ? { workStartedAt: rounded, workStartedComment: comment }
                     : { workEndedAt: rounded, workEndedComment: comment },
-                include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
+                include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true, assignmentTools: true },
             })
             : await prisma.projectAssignment.findUniqueOrThrow({
                 where: { id },
-                include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
+                include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true, assignmentTools: true },
             });
 
         // 2. 担当職長の日報のWorkItemに開始/終了時刻を反映（upsert）

@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DailySchedule, WorkSchedule, LEGACY_CONSTRUCTION_CONTENT_LABELS } from '@/types/calendar';
 import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
+import { isSchedulableTool } from '@/lib/equipment';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useVacation } from '@/hooks/useVacation';
@@ -89,7 +90,7 @@ export default function ProjectForm({
     const { data: session } = useSession();
     const currentUserId = session?.user?.id;
     const { projects } = useProjects();
-    const { vehicles: mockVehicles, constructionTypes, getTotalMembersForDate } = useMasterData();
+    const { vehicles: mockVehicles, tools: toolMaster, constructionTypes, getTotalMembersForDate } = useMasterData();
     const { getForemanName, allForemen } = useCalendarDisplay();
     const { getVacationEmployees } = useVacation();
     const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
@@ -138,6 +139,10 @@ export default function ProjectForm({
         selectedVehicles: initialData?.isDispatchConfirmed && initialData?.confirmedVehicleIds?.length
             ? initialData.confirmedVehicleIds.map(id => mockVehicles.find(v => v.id === id)?.name).filter((n): n is string => !!n)
             : initialData?.trucks || [],
+        // 電動工具は ID で持つ（車両と違い同名の個体があり得るため）
+        selectedToolIds: initialData?.isDispatchConfirmed && initialData?.confirmedToolIds?.length
+            ? initialData.confirmedToolIds
+            : initialData?.tools || [],
         // 工事種別（単一選択 - IDまたはレガシーコードで保存）
         constructionType: initialData?.constructionType || '',
         // 工事内容
@@ -169,6 +174,9 @@ export default function ProjectForm({
             selectedVehicles: initialData?.isDispatchConfirmed && initialData?.confirmedVehicleIds?.length
                 ? initialData.confirmedVehicleIds.map(id => mockVehicles.find(v => v.id === id)?.name).filter((n): n is string => !!n)
                 : initialData?.trucks || [],
+            selectedToolIds: initialData?.isDispatchConfirmed && initialData?.confirmedToolIds?.length
+                ? initialData.confirmedToolIds
+                : initialData?.tools || [],
             constructionType: initialData?.constructionType || '',
             constructionContent: initialData?.constructionContent || '',
             remarks: initialData?.remarks || '',
@@ -373,6 +381,7 @@ export default function ProjectForm({
         assignedEmployeeId: string | null;
         memberCount: number | null;
         vehicles: string[];
+        tools: string[];
         projectMasterId: string;
         projectMaster?: { title?: string | null } | null;
     };
@@ -506,6 +515,84 @@ export default function ProjectForm({
         }));
     };
 
+    // 日付ごとの電動工具の使用マップ（同日の他案件で使われている Tool.id → 件数）
+    const toolUsageByDate = useMemo(() => {
+        const map: Record<string, Record<string, number>> = {};
+        const selfPmId = initialData?.id;
+        rangeAssignments.forEach(a => {
+            if (selfPmId && a.projectMasterId === selfPmId) return;
+            const dateKey = formatDateKey(new Date(a.date));
+            const arr = Array.isArray(a.tools) ? a.tools : [];
+            if (arr.length === 0) return;
+            if (!map[dateKey]) map[dateKey] = {};
+            arr.forEach(id => {
+                if (!id) return;
+                map[dateKey][id] = (map[dateKey][id] ?? 0) + 1;
+            });
+        });
+        return map;
+    }, [rangeAssignments, initialData?.id]);
+
+    // 電動工具の使用状況（同日の他案件で使用中の工具）。車両と違い Tool.id で突き合わせる
+    const toolUsageMap = useMemo(() => {
+        const targetDate = initialData?.startDate || defaultDate || new Date();
+        const dateKey = formatDateKey(targetDate);
+
+        const sameDateProjects = projects.filter(p => {
+            const pDateKey = formatDateKey(p.startDate);
+            return pDateKey === dateKey && p.id !== initialData?.id;
+        });
+
+        const usageMap = new Map<string, { projectTitle: string; foremanName: string }[]>();
+        for (const p of sameDateProjects) {
+            const ids = p.tools || [];
+            const foremanName = getForemanName(p.assignedEmployeeId || '');
+            for (const toolId of ids) {
+                if (!usageMap.has(toolId)) usageMap.set(toolId, []);
+                usageMap.get(toolId)!.push({
+                    projectTitle: p.title,
+                    foremanName: foremanName || '不明',
+                });
+            }
+        }
+        return usageMap;
+    }, [projects, initialData, defaultDate, getForemanName]);
+
+    // 手配確定済みの工具IDセット（同日の確定済み案件から）
+    const confirmedToolIdSet = useMemo(() => {
+        const targetDate = initialData?.startDate || defaultDate || new Date();
+        const dateKey = formatDateKey(targetDate);
+
+        const confirmed = new Set<string>();
+        projects.forEach(p => {
+            const pDateKey = formatDateKey(p.startDate);
+            if (pDateKey === dateKey && p.id !== initialData?.id && p.isDispatchConfirmed) {
+                p.confirmedToolIds?.forEach(id => confirmed.add(id));
+            }
+        });
+        return confirmed;
+    }, [projects, initialData, defaultDate]);
+
+    // 選べる工具（台帳から外した分・廃棄・紛失は隠す）。並びは手配確定済みを先頭に
+    const selectableTools = useMemo(() => {
+        return toolMaster
+            .filter(t => isSchedulableTool(t, formData.selectedToolIds))
+            .sort((a, b) => {
+                const aConfirmed = confirmedToolIdSet.has(a.id) ? 0 : 1;
+                const bConfirmed = confirmedToolIdSet.has(b.id) ? 0 : 1;
+                return aConfirmed - bConfirmed;
+            });
+    }, [toolMaster, confirmedToolIdSet, formData.selectedToolIds]);
+
+    const handleToolToggle = (toolId: string) => {
+        setFormData(prev => ({
+            ...prev,
+            selectedToolIds: prev.selectedToolIds.includes(toolId)
+                ? prev.selectedToolIds.filter(id => id !== toolId)
+                : [...prev.selectedToolIds, toolId]
+        }));
+    };
+
     const handleManagerToggle = (managerName: string) => {
         setFormData(prev => ({
             ...prev,
@@ -612,6 +699,7 @@ export default function ProjectForm({
             workers: workers,
             trucks: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : [],
             vehicles: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : [],
+            tools: formData.selectedToolIds,
             // 工事種別
             constructionType: formData.constructionType,
             // 工事内容
@@ -919,9 +1007,11 @@ export default function ProjectForm({
                                     onChange={setMultiDaySchedules}
                                     foremen={allForemen}
                                     vehicles={mockVehicles}
+                                    tools={selectableTools}
                                     constructionTypes={constructionTypes}
                                     existingDayMap={existingDayMap}
                                     vehicleUsageByDate={vehicleUsageByDate}
+                                    toolUsageByDate={toolUsageByDate}
                                     getTotalMembersForDate={getTotalMembersForDate}
                                     getVacationCountForDate={(dateStr) => getVacationEmployees(dateStr).length}
                                 />
@@ -1087,6 +1177,59 @@ export default function ProjectForm({
                         </p>
                     )}
                 </div>
+
+                {/* 電動工具（チェックボックス） */}
+                {selectableTools.length > 0 && (
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                            電動工具
+                            {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
+                        </label>
+                        <div className={`flex flex-col gap-1.5 max-h-48 overflow-y-auto border border-slate-200 rounded-md p-3 ${useMultiDaySchedule ? 'opacity-50' : ''}`}>
+                            {selectableTools.map(tool => {
+                                const usages = toolUsageMap.get(tool.id);
+                                const isInUse = usages && usages.length > 0;
+                                const isConfirmed = confirmedToolIdSet.has(tool.id);
+
+                                return (
+                                    <label key={tool.id} className={`flex items-center gap-2 p-2 rounded text-sm ${useMultiDaySchedule ? 'cursor-not-allowed' : 'cursor-pointer'} ${isConfirmed || isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-slate-50'}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.selectedToolIds.includes(tool.id)}
+                                            disabled={useMultiDaySchedule}
+                                            onChange={() => handleToolToggle(tool.id)}
+                                            className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500 disabled:cursor-not-allowed"
+                                        />
+                                        <span className="text-slate-700 whitespace-nowrap">{tool.name}</span>
+                                        <span className="text-xs text-slate-400 whitespace-nowrap">{tool.categoryName}</span>
+                                        {isConfirmed ? (
+                                            <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 ml-auto whitespace-nowrap">
+                                                手配確定済
+                                            </span>
+                                        ) : isInUse ? (
+                                            <div className="flex flex-wrap gap-1 ml-auto">
+                                                {usages!.map((u, i) => (
+                                                    <span key={i} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap">
+                                                        {u.foremanName}班 ({u.projectTitle})
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 ml-auto">
+                                                空き
+                                            </span>
+                                        )}
+                                    </label>
+                                );
+                            })}
+                        </div>
+                        {formData.selectedToolIds.length > 0 && (
+                            <p className="text-xs text-slate-500 mt-1">
+                                選択中: {formData.selectedToolIds.length}点
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {/* 備考（当日の配置用） */}
                 <div>

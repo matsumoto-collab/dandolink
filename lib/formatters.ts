@@ -17,11 +17,14 @@ export interface RawAssignment {
     vehicles: string | null;
     confirmedWorkerIds: string | null;
     confirmedVehicleIds: string | null;
+    tools?: string | null;
+    confirmedToolIds?: string | null;
     createdAt: Date;
     updatedAt: Date;
     projectMaster?: RawProjectMasterBase | null;
     assignmentWorkers?: Array<{ workerName: string; workerId?: string | null }>;
     assignmentVehicles?: Array<{ vehicleName: string; vehicleId?: string | null }>;
+    assignmentTools?: Array<{ toolId: string; toolName: string }>;
     // Optional fields present in schema
     memberCount?: number;
     remarks?: string | null;
@@ -97,13 +100,21 @@ export function formatAssignment(a: RawAssignment) {
         ? a.assignmentVehicles.map(v => v.vehicleName)
         : parseJsonField<string[]>(a.vehicles, []);
 
+    // 電動工具は車両と違い ID で持つ（同じ名前の個体があり得るため）。
+    // 名前はマスタからライブ解決するので、ここでは ID の配列だけを返す。
+    const tools = a.assignmentTools && a.assignmentTools.length > 0
+        ? a.assignmentTools.map(t => t.toolId)
+        : parseJsonField<string[]>(a.tools ?? null, []);
+
     return {
         ...a,
         date: a.date.toISOString(),
         workers,
         vehicles,
+        tools,
         confirmedWorkerIds: parseJsonField<string[]>(a.confirmedWorkerIds, []),
         confirmedVehicleIds: parseJsonField<string[]>(a.confirmedVehicleIds, []),
+        confirmedToolIds: parseJsonField<string[]>(a.confirmedToolIds ?? null, []),
         confirmDueDate: a.confirmDueDate ? a.confirmDueDate.toISOString() : null,
         createdAt: a.createdAt.toISOString(),
         updatedAt: a.updatedAt.toISOString(),

@@ -250,6 +250,23 @@ jest.mock('@/lib/prisma', () => ({
             findMany: jest.fn(),
             count: jest.fn(),
         },
+        assignmentTool: {
+            findMany: jest.fn(),
+            count: jest.fn(),
+        },
+        tool: {
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+        },
+        toolCategory: {
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+            create: jest.fn(),
+        },
         scaffoldingSpecPreset: {
             findMany: jest.fn(),
             findUnique: jest.fn(),
