@@ -25,6 +25,14 @@ jest.mock('@/lib/supabase', () => ({
     },
 }));
 
+// マスタの同期は broadcast（postgres_changes ではない）
+const mockOffBroadcast = jest.fn();
+jest.mock('@/lib/broadcastChannel', () => ({
+    initBroadcastChannel: jest.fn(),
+    onBroadcast: jest.fn(() => mockOffBroadcast),
+    sendBroadcast: jest.fn(),
+}));
+
 describe('masterStore', () => {
     beforeEach(() => {
         // Storeをリセット
@@ -216,16 +224,16 @@ describe('masterStore', () => {
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });
 
-        it('setupRealtimeSubscription: should create channels', async () => {
+        it('setupRealtimeSubscription: broadcast を1本購読する', async () => {
             await act(async () => {
                 await useMasterStore.getState().setupRealtimeSubscription();
             });
 
             const state = useMasterStore.getState();
-            expect(state._realtimeChannels).toHaveLength(3); // 3 tables
+            expect(state._realtimeUnsubs).toHaveLength(1);
         });
 
-        it('cleanupRealtimeSubscription: should remove channels', async () => {
+        it('cleanupRealtimeSubscription: 購読を解除する', async () => {
             // First setup
             await act(async () => {
                 await useMasterStore.getState().setupRealtimeSubscription();
@@ -236,7 +244,8 @@ describe('masterStore', () => {
             });
 
             const state = useMasterStore.getState();
-            expect(state._realtimeChannels).toHaveLength(0);
+            expect(state._realtimeUnsubs).toHaveLength(0);
+            expect(mockOffBroadcast).toHaveBeenCalled();
         });
     });
 });

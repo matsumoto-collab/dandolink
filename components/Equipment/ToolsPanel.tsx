@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, Wrench, Plus, RefreshCw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
+import { useMasterStore } from '@/stores/masterStore';
 import { toolStatusLabel } from '@/lib/equipment';
 import { Button } from '@/components/ui/Button';
 import { ToolDetailModal } from './ToolDetailModal';
@@ -49,6 +50,14 @@ export function ToolsPanel({ canEdit }: { canEdit: boolean }) {
     useEffect(() => {
         fetchTools();
     }, [fetchTools]);
+
+    // 台帳で工具を足した/変えたときは、スケジュールの選択肢（マスタ）にも反映する。
+    // 自分の画面は再取得され、他の端末へは broadcast で伝わる。
+    const notifyMasterDataChanged = useMasterStore((state) => state.notifyMasterDataChanged);
+    const refreshAfterChange = useCallback(async () => {
+        await fetchTools();
+        await notifyMasterDataChanged('tool');
+    }, [fetchTools, notifyMasterDataChanged]);
 
     const visible = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -110,7 +119,7 @@ export function ToolsPanel({ canEdit }: { canEdit: boolean }) {
             toast.success('電動工具を登録しました');
             setAddOpen(false);
             setNewTool({ categoryId: '', name: '', maker: '', modelNumber: '', purchaseDate: '', purchasePrice: '' });
-            await fetchTools();
+            await refreshAfterChange();
         } catch (e) {
             logger.error('Failed to add tool:', e);
             toast.error(e instanceof Error ? e.message : '登録に失敗しました');
@@ -319,7 +328,7 @@ export function ToolsPanel({ canEdit }: { canEdit: boolean }) {
                     categories={categories}
                     canEdit={canEdit}
                     onClose={() => setSelectedId(null)}
-                    onChanged={fetchTools}
+                    onChanged={refreshAfterChange}
                 />
             )}
         </div>

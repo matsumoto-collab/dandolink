@@ -1,9 +1,23 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import { ConstructionTypeMaster } from '@/types/calendar';
+import { initBroadcastChannel, onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
 import { Vehicle, MemberCountHistoryEntry, ScheduleTool, ToolCategoryOption } from '@/types/master';
 import { logger } from '@/lib/logger';
+
+/**
+ * マスタ（車両・電動工具・総メンバー数）の変更を他端末へ知らせる broadcast イベント。
+ *
+ * postgres_changes（WAL購読）は使わない: マスタ系のテーブルは Supabase の
+ * supabase_realtime パブリケーションに入っておらず、さらに Vehicle は RLS 有効で
+ * ポリシーが無いため、購読しても変更が届かない（2026-09-02 本番確認）。
+ * 配置・日報などと同じ broadcast に揃えることで、DB 側の設定を変えずに即時反映できる。
+ */
+export const MASTER_DATA_UPDATED = 'master_data_updated';
+
+/** 連続登録で再取得が何度も走らないようにするデバウンス（配置・日報と同じ 500ms） */
+const REFRESH_DEBOUNCE_MS = 500;
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Re-export types for backward compatibility
 export type { Vehicle, Manager, MemberCountHistoryEntry, MasterData, ScheduleTool, ToolCategoryOption } from '@/types/master';
@@ -23,8 +37,8 @@ interface MasterState {
     isLoading: boolean;
     isInitialized: boolean;
 
-    // Realtime
-    _realtimeChannels: RealtimeChannel[];
+    // Realtime（broadcast のリスナー解除関数）
+    _realtimeUnsubs: (() => void)[];
 }
 
 interface MasterActions {
@@ -39,6 +53,12 @@ interface MasterActions {
 
     // Tool operations（実体は機材台帳の Tool。設定画面から追加・改名・削除する）
     fetchTools: () => Promise<void>;
+    /**
+     * この store を経由しない画面（機材台帳など）がマスタを変えたときに呼ぶ。
+     * 自分の画面は再取得し、他の端末へは broadcast で知らせる
+     * （broadcast は self:false なので送信者自身には届かない）。
+     */
+    notifyMasterDataChanged: (kind: 'vehicle' | 'tool' | 'memberCount') => Promise<void>;
     addTool: (name: string, categoryId?: string | null) => Promise<void>;
     updateTool: (id: string, name: string, categoryId?: string | null) => Promise<void>;
     deleteTool: (id: string) => Promise<void>;
@@ -69,7 +89,7 @@ const initialState: MasterState = {
     memberCountHistory: [],
     isLoading: false,
     isInitialized: false,
-    _realtimeChannels: [],
+    _realtimeUnsubs: [],
 };
 
 export const useMasterStore = create<MasterStore>()(
@@ -163,6 +183,7 @@ export const useMasterStore = create<MasterStore>()(
             if (response.ok) {
                 const newVehicle = await response.json();
                 set((state) => ({ vehicles: [...state.vehicles, newVehicle] }));
+                sendBroadcast(MASTER_DATA_UPDATED, { kind: 'vehicle' });
             }
         },
 
@@ -176,6 +197,7 @@ export const useMasterStore = create<MasterStore>()(
                 set((state) => ({
                     vehicles: state.vehicles.map((v) => (v.id === id ? { ...v, name, dailyRate } : v)),
                 }));
+                sendBroadcast(MASTER_DATA_UPDATED, { kind: 'vehicle' });
             }
         },
 
@@ -187,6 +209,7 @@ export const useMasterStore = create<MasterStore>()(
                 set((state) => ({
                     vehicles: state.vehicles.filter((v) => v.id !== id),
                 }));
+                sendBroadcast(MASTER_DATA_UPDATED, { kind: 'vehicle' });
             }
         },
 
@@ -204,6 +227,11 @@ export const useMasterStore = create<MasterStore>()(
             }
         },
 
+        notifyMasterDataChanged: async (kind) => {
+            await get().refreshMasterData();
+            sendBroadcast(MASTER_DATA_UPDATED, { kind });
+        },
+
         addTool: async (name: string, categoryId: string | null = null) => {
             const response = await fetch('/api/master-data/tools', {
                 method: 'POST',
@@ -216,6 +244,7 @@ export const useMasterStore = create<MasterStore>()(
             }
             // 分類が自動作成される場合があるので一覧ごと取り直す
             await get().fetchTools();
+            sendBroadcast(MASTER_DATA_UPDATED, { kind: 'tool' });
         },
 
         updateTool: async (id: string, name: string, categoryId: string | null = null) => {
@@ -230,6 +259,7 @@ export const useMasterStore = create<MasterStore>()(
             }
             const updated: ScheduleTool = await response.json();
             set((state) => ({ tools: state.tools.map((t) => (t.id === id ? updated : t)) }));
+            sendBroadcast(MASTER_DATA_UPDATED, { kind: 'tool' });
         },
 
         deleteTool: async (id: string) => {
@@ -242,6 +272,7 @@ export const useMasterStore = create<MasterStore>()(
             set((state) => ({
                 tools: state.tools.map((t) => (t.id === id ? { ...t, isActive: false } : t)),
             }));
+            sendBroadcast(MASTER_DATA_UPDATED, { kind: 'tool' });
         },
 
         // Member count history
@@ -265,6 +296,7 @@ export const useMasterStore = create<MasterStore>()(
             });
             if (res.ok) {
                 await get().fetchMemberCountHistory();
+                sendBroadcast(MASTER_DATA_UPDATED, { kind: 'memberCount' });
             }
         },
 
@@ -276,6 +308,7 @@ export const useMasterStore = create<MasterStore>()(
             });
             if (res.ok) {
                 await get().fetchMemberCountHistory();
+                sendBroadcast(MASTER_DATA_UPDATED, { kind: 'memberCount' });
             }
         },
 
@@ -287,6 +320,7 @@ export const useMasterStore = create<MasterStore>()(
             });
             if (res.ok) {
                 await get().fetchMemberCountHistory();
+                sendBroadcast(MASTER_DATA_UPDATED, { kind: 'memberCount' });
             }
         },
 
@@ -307,55 +341,36 @@ export const useMasterStore = create<MasterStore>()(
             return result;
         },
 
-        // Realtime subscription
+        // Realtime subscription（broadcast）
+        // 他端末がマスタを変えたら再取得する。postgres_changes ではなく broadcast を使う理由は
+        // MASTER_DATA_UPDATED のコメントを参照（マスタ系はパブリケーションに入っていない）。
         setupRealtimeSubscription: async () => {
-            const existingChannels = get()._realtimeChannels;
-            if (existingChannels.length > 0) return;
+            if (get()._realtimeUnsubs.length > 0) return;
 
             try {
-                const { supabase } = await import('@/lib/supabase');
-                const channels: RealtimeChannel[] = [];
-                // Tool（電動工具）は Supabase の Realtime 対象に入れていないと通知が来ない。
-                // 購読していても害はなく、設定画面での追加・改名は自分の画面には即反映される
-                // （他の端末には次のリロードで反映）。
-                const tables = ['Vehicle', 'Tool', 'SystemSettings', 'ConstructionType', 'MemberCountHistory'];
-
-                tables.forEach(table => {
-                    const channel = supabase
-                        .channel(`master-data-${table.toLowerCase()}-zustand`)
-                        .on(
-                            'postgres_changes',
-                            {
-                                event: '*',
-                                schema: 'public',
-                                table: table,
-                            },
-                            () => {
-                                get().refreshMasterData();
-                            }
-                        )
-                        .subscribe();
-
-                    channels.push(channel);
+                initBroadcastChannel();
+                const off = onBroadcast(MASTER_DATA_UPDATED, () => {
+                    if (refreshTimer) clearTimeout(refreshTimer);
+                    refreshTimer = setTimeout(() => {
+                        refreshTimer = null;
+                        get().refreshMasterData();
+                    }, REFRESH_DEBOUNCE_MS);
                 });
-
-                set({ _realtimeChannels: channels });
+                set({ _realtimeUnsubs: [off] });
             } catch (error) {
-                logger.error('[Zustand] Failed to setup master data realtime subscription:', error);
+                logger.error('[Zustand] Failed to setup master data broadcast subscription:', error);
             }
         },
 
         cleanupRealtimeSubscription: () => {
-            const channels = get()._realtimeChannels;
-            if (channels.length === 0) return;
-
-            import('@/lib/supabase').then(({ supabase }) => {
-                channels.forEach(channel => {
-                    supabase.removeChannel(channel);
-                });
-            });
-
-            set({ _realtimeChannels: [] });
+            const unsubs = get()._realtimeUnsubs;
+            if (unsubs.length === 0) return;
+            unsubs.forEach((off) => off());
+            if (refreshTimer) {
+                clearTimeout(refreshTimer);
+                refreshTimer = null;
+            }
+            set({ _realtimeUnsubs: [] });
         },
 
         reset: () => {
