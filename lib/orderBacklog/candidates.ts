@@ -1,7 +1,8 @@
 /**
  * 受注明細書（信用保証協会様式）の候補抽出（仕様書 §3.6）。
  *
- * 「請求が終わっていない案件」を DB から拾って、画面がそのまま編集できる明細行（円）に落とす。
+ * 「受注が決まっていて、工事もお金もまだ終わっていない案件」＝受注残を DB から拾って、
+ * 画面がそのまま編集できる明細行（円）に落とす。何を外すかは candidateExclusionReason に集約。
  * lib/orderBacklog の他のファイルは prisma を持たない純粋ロジックで、prisma を触るのは
  * このファイルと server.ts だけ。
  *
@@ -26,6 +27,7 @@ import {
 import { parseJsonField } from '@/lib/json-utils';
 import { siteKindFromProject, workKindFromConstructionContent } from '@/lib/orderBacklog/classify';
 import {
+    isWorkFinished,
     proposeProgressRate,
     proposeSchedule,
     proposeStartEndYm,
@@ -63,8 +65,54 @@ export interface OrderBacklogCandidatesResult {
     warnings: OrderBacklogCandidateWarning[];
 }
 
-/** 候補に載せない案件のステータス（中止案件は銀行に出さない）。 */
-const EXCLUDED_PROJECT_STATUS = 'cancelled';
+/** 候補に載せない案件のステータス。中止は銀行に出さない・完了（請求完了で付く）は受注残ではない。 */
+const EXCLUDED_PROJECT_STATUSES = ['cancelled', 'completed'];
+
+/** 請求判断が「請求対象外」の案件も受注残ではない（台風養生など）。 */
+const EXCLUDED_BILLING_DECISION = 'excluded';
+
+/** candidateExclusionReason が見る1案件ぶんの材料。 */
+export interface CandidateExclusionInput {
+    status: string;
+    billingDecision: string | null;
+    /** 基準額（税抜・円）。null＝契約額を決められない（見積も contractAmount も無い） */
+    basisAmount: number | null;
+    /** 請求済み合計（税抜・円） */
+    invoicedAmount: number;
+    /** 契約額（円。taxMode に従った値） */
+    contractAmount: number;
+    /** 既受領（円） */
+    receivedAmount: number;
+    assignments: readonly ProposeAssignment[];
+    /** 基準日 'YYYY-MM-DD' */
+    asOf: string;
+}
+
+export type CandidateExclusionReason =
+    | 'no_assignment' // 配置が無い＝見積だけの未着手案件
+    | 'status' // 中止・完了
+    | 'billing_excluded' // 請求対象外
+    | 'billed_full' // 全額請求済み
+    | 'fully_paid' // 入金済み
+    | 'work_finished' // 工事が終わっている（解体済みで先の予定なし）
+    | 'no_amount'; // 契約額が決められない
+
+/**
+ * 受注明細書の候補から外す理由（null なら載せる）。kei 決定 2026-09-04:
+ * 「入金や工事が終わっている案件」「見積のみ（配置が無い）の案件」は候補に入れない。
+ * 判定順は「載せない理由が確定するもの」から。no_amount を最後にしているのは、
+ * 終わった案件まで「契約額なし」として数えないため（件数を注意書きに出す）。
+ */
+export function candidateExclusionReason(input: CandidateExclusionInput): CandidateExclusionReason | null {
+    if (input.assignments.length === 0) return 'no_assignment';
+    if (EXCLUDED_PROJECT_STATUSES.includes(input.status)) return 'status';
+    if (input.billingDecision === EXCLUDED_BILLING_DECISION) return 'billing_excluded';
+    if (getBillingStatus(input.basisAmount, input.invoicedAmount) === 'full') return 'billed_full';
+    if (input.contractAmount > 0 && input.receivedAmount >= input.contractAmount) return 'fully_paid';
+    if (isWorkFinished(input.assignments, input.asOf)) return 'work_finished';
+    if (input.basisAmount == null) return 'no_amount';
+    return null;
+}
 
 /** 最後の配置がこの月数より前なら「古い案件」として候補から外す。手で足すことはできる。 */
 const STALE_MONTHS = 6;
@@ -141,9 +189,9 @@ export function receivedAmountForProject(
  * 受注明細書の候補行を作る（仕様書 §3.6）。
  *
  * 既定（projectMasterIds なし）の抽出条件:
- * - status が cancelled でない ProjectMaster で、配置が 1 件以上ある
- * - 最後の配置日が 基準日−6か月 以降（古い案件は「案件を追加」から手で足せる）
- * - 請求済み判定が 'full'（基準額 ≤ 請求済み合計・どちらも税抜）でない
+ * - 配置が 1 件以上あり、最後の配置日が 基準日−6か月 以降（古い案件は「案件を追加」から手で足せる）
+ * - candidateExclusionReason が null（中止・完了・請求対象外・全額請求済み・入金済み・
+ *   工事終了・契約額なし のどれでもない）
  *
  * projectMasterIds を渡すとこれらの条件を全て無視して、その案件だけを計算する。
  */
@@ -160,11 +208,14 @@ export async function buildOrderBacklogCandidates(
         where: isManual
             ? { id: { in: manualIds } }
             : {
-                  status: { not: EXCLUDED_PROJECT_STATUS },
+                  status: { notIn: EXCLUDED_PROJECT_STATUSES },
+                  billingDecision: { not: EXCLUDED_BILLING_DECISION },
                   assignments: { some: { date: { gte: staleFrom } } },
               },
         select: {
             id: true,
+            status: true,
+            billingDecision: true,
             title: true,
             name: true,
             honorific: true,
@@ -267,24 +318,36 @@ export async function buildOrderBacklogCandidates(
 
     const warnings: OrderBacklogCandidateWarning[] = [];
     const lines: OrderBacklogLineInput[] = [];
+    let skippedNoAmount = 0;
 
     for (const pm of projects) {
         const projectName = pm.title || pm.name || '(名称未設定)';
         const asg = assignmentsByProject.get(pm.id) ?? [];
-        if (asg.length === 0 && !isManual) continue; // 配置が無い案件は候補にしない
 
         const basis = resolveBillingBasis({
             contractAmount: pm.contractAmount ?? null,
             billingEstimateIds: pm.billingEstimateIds,
             estimates: estimatesByProject.get(pm.id) ?? [],
         });
+        const contractAmount = contractAmountFromBasis(basis.amount, taxMode);
+        const receivedAmount = receivedAmountForProject(invoicesByProject.get(pm.id) ?? [], pm.id);
 
-        // 請求済み（'full'）は候補から外す。手動指定のときは条件を無視する
-        if (!isManual && getBillingStatus(basis.amount, invoicedByProject[pm.id] ?? 0) === 'full') {
-            continue;
+        // 手動指定（案件を追加・入金予定の再提案）は除外条件を見ない＝載せるかは人が決めている
+        if (!isManual) {
+            const reason = candidateExclusionReason({
+                status: pm.status,
+                billingDecision: pm.billingDecision,
+                basisAmount: basis.amount,
+                invoicedAmount: invoicedByProject[pm.id] ?? 0,
+                contractAmount,
+                receivedAmount,
+                assignments: asg,
+                asOf,
+            });
+            if (reason === 'no_amount') skippedNoAmount += 1;
+            if (reason) continue;
         }
 
-        const contractAmount = contractAmountFromBasis(basis.amount, taxMode);
         if (basis.amount == null) {
             warnings.push({
                 projectMasterId: pm.id,
@@ -303,7 +366,6 @@ export async function buildOrderBacklogCandidates(
             });
         }
 
-        const receivedAmount = receivedAmountForProject(invoicesByProject.get(pm.id) ?? [], pm.id);
         const { startYm, endYm } = proposeStartEndYm(asg);
 
         lines.push({
@@ -328,6 +390,15 @@ export async function buildOrderBacklogCandidates(
             excluded: false,
             isManual,
             sortOrder: 0,
+        });
+    }
+
+    // 見積が無い案件は銀行に出す金額が無いので候補から外すが、件数は見えるようにしておく
+    if (skippedNoAmount > 0) {
+        warnings.unshift({
+            projectMasterId: '',
+            projectName: '（候補全体）',
+            message: `契約額が未設定（見積なし）の案件 ${skippedNoAmount} 件は候補に入れていません。必要なら「案件を追加」から載せてください`,
         });
     }
 

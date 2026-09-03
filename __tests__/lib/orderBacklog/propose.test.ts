@@ -1,5 +1,6 @@
 import {
     dueYmFor,
+    isWorkFinished,
     proposeProgressRate,
     proposeSchedule,
     proposeStartEndYm,
@@ -7,6 +8,39 @@ import {
 } from '@/lib/orderBacklog/propose';
 
 const a = (date: string, constructionType: string | null = null): ProposeAssignment => ({ date, constructionType });
+
+describe('isWorkFinished', () => {
+    const ASOF = '2026-06-01';
+
+    it('基準日までの配置が無ければ終わっていない（未着工）', () => {
+        expect(isWorkFinished([], ASOF)).toBe(false);
+        expect(isWorkFinished([a('2026-06-10', '組立')], ASOF)).toBe(false);
+    });
+
+    it('基準日より後に予定が残っていれば終わっていない（解体済みでも次の組立があれば続いている）', () => {
+        expect(isWorkFinished([a('2026-05-10', '組立'), a('2026-07-20', '解体')], ASOF)).toBe(false);
+        expect(isWorkFinished([a('2026-05-10', '組立'), a('2026-05-20', '解体'), a('2026-07-01', '組立')], ASOF)).toBe(false);
+    });
+
+    it('解体まで済んで先の予定が無ければ終わっている', () => {
+        expect(isWorkFinished([a('2026-05-10', '組立'), a('2026-05-20', '解体')], ASOF)).toBe(true);
+        // 基準日当日の解体も「済み」
+        expect(isWorkFinished([a('2026-05-10', '組立'), a('2026-06-01', '解体')], ASOF)).toBe(true);
+        // 種別名が「組立(解体)」のような複合名でも拾う
+        expect(isWorkFinished([a('2026-05-10', '組立(解体)')], ASOF)).toBe(true);
+    });
+
+    it('組立だけ済んで解体が未定なら終わっていない（足場が立ったまま）', () => {
+        expect(isWorkFinished([a('2026-05-10', '組立')], ASOF)).toBe(false);
+        expect(isWorkFinished([a('2026-01-10', '組立')], ASOF)).toBe(false);
+    });
+
+    it('組立/解体の区別が無い単発作業は全部過去なら終わっている', () => {
+        expect(isWorkFinished([a('2026-05-10', null)], ASOF)).toBe(true);
+        expect(isWorkFinished([a('2026-05-10', '養生'), a('2026-05-11', '養生')], ASOF)).toBe(true);
+        expect(isWorkFinished([a('2026-05-10', '養生'), a('2026-06-11', '養生')], ASOF)).toBe(false);
+    });
+});
 
 describe('proposeProgressRate', () => {
     const ASOF = '2026-06-01';
@@ -16,13 +50,17 @@ describe('proposeProgressRate', () => {
         expect(proposeProgressRate([], ASOF)).toBe(0);
     });
 
-    it('基準日までに解体が済んでいれば100', () => {
-        // 先に予定が残っていても、解体が終わっていれば出来高は100
-        expect(proposeProgressRate([a('2026-05-10', '組立'), a('2026-05-20', '解体'), a('2026-07-01', '組立')], ASOF)).toBe(100);
+    it('解体まで済んで先の予定が無ければ100', () => {
+        expect(proposeProgressRate([a('2026-05-10', '組立'), a('2026-05-20', '解体')], ASOF)).toBe(100);
+        expect(proposeProgressRate([a('2026-05-10', null)], ASOF)).toBe(100);
     });
 
-    it('着工済みで先の予定が無ければ100', () => {
-        expect(proposeProgressRate([a('2026-05-10', '組立')], ASOF)).toBe(100);
+    it('解体が済んでいても次の組立が残っていれば50（工事全体としては途中）', () => {
+        expect(proposeProgressRate([a('2026-05-10', '組立'), a('2026-05-20', '解体'), a('2026-07-01', '組立')], ASOF)).toBe(50);
+    });
+
+    it('組立だけ済んで解体が未定なら50（足場が立ったまま＝終わっていない）', () => {
+        expect(proposeProgressRate([a('2026-05-10', '組立')], ASOF)).toBe(50);
     });
 
     it('着工済みで先の予定が残っていれば50', () => {
@@ -30,8 +68,8 @@ describe('proposeProgressRate', () => {
     });
 
     it('基準日当日の配置は「済み」として数える', () => {
-        expect(proposeProgressRate([a('2026-06-01', '組立')], ASOF)).toBe(100);
-        expect(proposeProgressRate([a('2026-06-01', '解体'), a('2026-07-01', '組立')], ASOF)).toBe(100);
+        expect(proposeProgressRate([a('2026-06-01', '組立')], ASOF)).toBe(50);
+        expect(proposeProgressRate([a('2026-05-01', '組立'), a('2026-06-01', '解体')], ASOF)).toBe(100);
     });
 });
 

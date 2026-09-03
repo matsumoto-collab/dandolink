@@ -37,10 +37,26 @@ function findLast(
 }
 
 /**
+ * 基準日時点で工事が終わっているか。候補から外す判定と出来高 100% の判定を同じ物差しにするためここに置く。
+ * - 基準日までの配置が無い → false（未着工）
+ * - 基準日より後の配置がある → false（まだ予定が残っている。解体済みでも次の組立があれば続いている）
+ * - 基準日までに「解体」がある → true（足場を撤去した）
+ * - 「組立」が一度も無い → true（組立/解体の区別が無い単発作業は全部済んだとみなす）
+ * - それ以外＝組立だけ済んで解体が未定 → false（足場が立ったまま。解体の予定が後から入る運用が多い）
+ */
+export function isWorkFinished(assignments: readonly ProposeAssignment[], asOf: string): boolean {
+    const past = assignments.filter((a) => a.date <= asOf);
+    if (past.length === 0) return false;
+    if (assignments.some((a) => a.date > asOf)) return false;
+    if (past.some(isDemolition)) return true;
+    return !past.some(isAssembly);
+}
+
+/**
  * 出来高％の提案（0 / 50 / 100 の3分岐）。
  * - 基準日までに1日も入っていない → 0（まだ着工していない）
- * - 基準日までに解体が済んでいる、または先の予定が無い → 100
- * - それ以外（着工済みで先の予定も残っている） → 50
+ * - 工事が終わっている（isWorkFinished） → 100
+ * - それ以外（着工済み。解体が未定・または先の予定が残っている） → 50
  */
 export function proposeProgressRate(
     assignments: readonly ProposeAssignment[],
@@ -48,9 +64,7 @@ export function proposeProgressRate(
 ): number {
     const past = assignments.filter((a) => a.date <= asOf);
     if (past.length === 0) return 0;
-    const hasFuture = assignments.some((a) => a.date > asOf);
-    if (past.some(isDemolition) || !hasFuture) return 100;
-    return 50;
+    return isWorkFinished(assignments, asOf) ? 100 : 50;
 }
 
 /**
