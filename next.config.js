@@ -45,6 +45,10 @@ const nextConfig = {
             '/api/external/attendance/workbook': [
                 './public/templates/attendance-monthly-template.xlsx',
             ],
+            // 受注明細書（信用保証協会様式）の Excel もサーバーでテンプレートを読む
+            '/api/order-backlog/reports/[id]/xlsx': [
+                './public/templates/order-backlog-template.xlsx',
+            ],
         },
     },
     webpack: (config) => {

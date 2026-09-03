@@ -33,18 +33,22 @@ describe('workKindFromConstructionContent', () => {
 });
 
 describe('siteKindFromProject', () => {
-    it('敬称が様邸・様なら住宅', () => {
+    it('敬称が様邸なら住宅', () => {
         expect(siteKindFromProject({ honorific: '様邸', name: 'A工事' })).toBe('house');
-        expect(siteKindFromProject({ honorific: '様', name: 'A工事' })).toBe('house');
     });
 
-    it('敬称が御中なら住宅ではない', () => {
+    it('敬称「様」だけでは住宅にしない（本番は法人現場にも様が付く）', () => {
+        expect(siteKindFromProject({ honorific: '様', name: '松山中央公園多目的競技場' })).toBe('other');
+        expect(siteKindFromProject({ honorific: '様', title: 'ジブラルタ生命ビル様 仮設工事' })).toBe('other');
         expect(siteKindFromProject({ honorific: '御中', name: 'A工事' })).toBe('other');
     });
 
-    it('敬称が無くても現場名・案件名に「邸」があれば住宅', () => {
+    it('敬称が様・無しでも現場名・案件名に個人宅の語があれば住宅', () => {
         expect(siteKindFromProject({ name: '山田邸' })).toBe('house');
         expect(siteKindFromProject({ honorific: '', title: '山田邸　外壁塗装工事' })).toBe('house');
+        expect(siteKindFromProject({ honorific: '様', name: '松前町戸建て' })).toBe('house');
+        expect(siteKindFromProject({ honorific: '様', name: '吉藤７号地建売' })).toBe('house');
+        expect(siteKindFromProject({ honorific: '様', name: '古三津2丁目の家' })).toBe('house');
     });
 
     it('どこにも手がかりが無ければ他', () => {

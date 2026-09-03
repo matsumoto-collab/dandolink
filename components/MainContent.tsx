@@ -12,7 +12,7 @@ import { isManagerOrAbove } from '@/utils/permissions';
 
 const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
-    'profit-dashboard', 'estimates', 'invoices', 'billing-drafts', 'billing-board',
+    'profit-dashboard', 'estimates', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'material-returns', 'equipment', 'settings', 'chat',
     'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume',
@@ -56,6 +56,9 @@ const BillingDraftListPage = dynamic(() => import('@/app/(finance)/billing-draft
     loading: () => <LoadingSpinner />,
 });
 const BillingBoardPage = dynamic(() => import('@/app/(finance)/billing-board/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const OrderBacklogPage = dynamic(() => import('@/app/(finance)/order-backlog/page'), {
     loading: () => <LoadingSpinner />,
 });
 const CustomersPage = dynamic(() => import('@/app/(master)/customers/page'), {
@@ -214,6 +217,7 @@ export default function MainContent() {
         'invoices': '請求書',
         'billing-drafts': '請求予定',
         'billing-board': '請求待ち',
+        'order-backlog': '受注明細書',
         'partners': '協力会社',
         'customers': '取引先',
         'company': '会社情報',
@@ -339,6 +343,13 @@ export default function MainContent() {
                 }
                 return <BillingBoardPage />;
 
+            case 'order-backlog':
+                // 受注明細書（信用保証協会向け）は admin のみ（kei 決定）
+                if (userRole !== 'admin') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <OrderBacklogPage />;
+
             case 'billing-drafts':
                 if (userRole !== 'admin' && userRole !== 'manager') {
                     return <PlaceholderPage title="アクセス権限がありません" />;
@@ -447,7 +458,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'materials'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
+                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'materials'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}

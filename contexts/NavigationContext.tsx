@@ -12,6 +12,7 @@ export type PageType =
     | 'invoices'         // 請求書
     | 'billing-drafts'   // 請求予定
     | 'billing-board'    // 請求待ち（請求判断ボード）
+    | 'order-backlog'    // 受注明細書（信用保証協会向け）
     | 'partners'         // 協力会社
     | 'customers'        // 顧客管理
     | 'company'          // 自社情報

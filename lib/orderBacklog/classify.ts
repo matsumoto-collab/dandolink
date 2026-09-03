@@ -28,17 +28,21 @@ export interface SiteKindSource {
     title?: string | null;
 }
 
+/** 現場名・案件名に含まれていれば個人宅とみなす語（元ファイルの案件リストで「住宅」に分類されていた名前から） */
+const HOUSE_NAME_PATTERN = /邸|戸建|建売|号地|の家/;
+
 /**
  * 案件から「住宅 / 他」を決める。
  *
- * 敬称が「様邸」「様」なら個人宅。敬称が入っていない案件もあるので、
- * 現場名・案件名に「邸」が含まれていれば住宅として拾う。
+ * 敬称「様邸」は個人宅。**「様」だけでは住宅にしない**＝本番の案件は法人現場にも「様」が付いていて
+ * （御中はほぼ使われていない）、「様」で拾うとほぼ全件が住宅に寄ってしまうため。
+ * 敬称が無い／「様」の案件は、現場名・案件名に「邸」「戸建」「建売」「号地」「の家」があれば住宅。
  */
 export function siteKindFromProject(project: SiteKindSource): SiteKind {
     const honorific = (project.honorific ?? '').trim();
-    if (honorific === '様邸' || honorific === '様') return 'house';
+    if (honorific === '様邸') return 'house';
     const text = `${project.name ?? ''}${project.title ?? ''}`;
-    return text.includes('邸') ? 'house' : 'other';
+    return HOUSE_NAME_PATTERN.test(text) ? 'house' : 'other';
 }
 
 /** bucketKeyFor が見る明細行の最小形。 */
