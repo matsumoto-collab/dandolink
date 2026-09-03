@@ -117,6 +117,8 @@ export interface OrderBacklogSheet {
     /** 26枠ずつに分けたページ。計は最終ページにだけ出す */
     pages: RenderRow[][];
     totals: OrderBacklogTotals;
+    /** 契約額が 0 のため出力から落とした明細の数（除外チェック済みは数えない）。画面で知らせる用 */
+    omittedNoAmountCount: number;
 }
 
 /** buildOrderBacklogSheet が使う設定（保存済みレポートでも未保存の編集中でも渡せる形）。 */
@@ -152,6 +154,8 @@ function scheduleToColumns(schedule: ScheduleMap | null | undefined, baseYm: str
  *
  * 並びは 個別行（契約額の降順・同額は sortOrder）→ 区分行（ORDER_BACKLOG_BUCKETS の順）。
  * 個別行の出来高金額・未受領は **千円ベース** で計算する（Excel の `=E*G` と同じ値になるように）。
+ * 契約額が 0 の行は銀行に出す金額が無いので出力から落とし、件数だけ omittedNoAmountCount に残す
+ * （候補には載せて入力を促す＝kei 2026-09-04。区分の「N件」にも数えない）。
  */
 export function buildOrderBacklogSheet(
     report: OrderBacklogSheetReport,
@@ -159,7 +163,9 @@ export function buildOrderBacklogSheet(
 ): OrderBacklogSheet {
     const baseYm = ymOf(report.asOfDate);
     const columns = monthColumns(report.asOfDate);
-    const { individual, buckets } = aggregateBuckets(lines, {
+    const omittedNoAmountCount = lines.filter((l) => !l.excluded && l.contractAmount <= 0).length;
+    const printable = lines.filter((l) => l.contractAmount > 0);
+    const { individual, buckets } = aggregateBuckets(printable, {
         individualThreshold: report.individualThreshold,
         unreceivedMode: report.unreceivedMode,
     });
@@ -228,5 +234,6 @@ export function buildOrderBacklogSheet(
         rows,
         pages,
         totals,
+        omittedNoAmountCount,
     };
 }

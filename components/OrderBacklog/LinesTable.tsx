@@ -8,10 +8,13 @@ import { ORDER_BACKLOG_BUCKETS, unreceivedAmountYen } from '@/lib/orderBacklog/b
 import { bucketKeyFor } from '@/lib/orderBacklog/classify';
 import type { MonthColumn } from '@/lib/orderBacklog/render';
 import type { OrderBacklogLineInput, UnreceivedMode } from '@/lib/orderBacklog/types';
+import type { OrderBacklogCandidateWarning } from '@/types/orderBacklog';
 
 interface LinesTableProps {
     lines: OrderBacklogLineInput[];
     columns: MonthColumn[];
+    /** 候補作成時の注意書きを案件IDで引けるようにしたもの（見積複数の行を黄色にする） */
+    warningsByProject: Record<string, OrderBacklogCandidateWarning[]>;
     individualThreshold: number;
     unreceivedMode: UnreceivedMode;
     onChangeLine: (index: number, patch: Partial<OrderBacklogLineInput>) => void;
@@ -35,6 +38,7 @@ interface LineRowProps {
     line: OrderBacklogLineInput;
     index: number;
     columns: MonthColumn[];
+    rowWarnings: OrderBacklogCandidateWarning[] | undefined;
     individualThreshold: number;
     unreceivedMode: UnreceivedMode;
     isReproposing: boolean;
@@ -51,6 +55,7 @@ const LineRow = memo(function LineRow({
     line,
     index,
     columns,
+    rowWarnings,
     individualThreshold,
     unreceivedMode,
     isReproposing,
@@ -64,9 +69,19 @@ const LineRow = memo(function LineRow({
     const total = scheduleTotal(line.schedule);
     const gap = total - unreceived;
     const monthValues = foldScheduleToColumns(line.schedule, baseYm);
+    // 契約額 0 は出力に載らない＝赤。見積が複数ある案件は黄（何を契約額にしたか確認してもらう）
+    const noAmount = !line.excluded && line.contractAmount <= 0;
+    const multiEstimate = rowWarnings?.find((w) => w.kind === 'multiple_estimates');
+    const rowClass = line.excluded
+        ? 'bg-slate-50 text-slate-400'
+        : noAmount
+          ? 'bg-red-50 hover:bg-red-100'
+          : multiEstimate
+            ? 'bg-amber-50 hover:bg-amber-100'
+            : 'hover:bg-slate-50';
 
     return (
-        <tr className={line.excluded ? 'bg-slate-50 text-slate-400' : 'hover:bg-slate-50'}>
+        <tr className={rowClass}>
             <td className="px-2 py-1 text-center">
                 <input
                     type="checkbox"
@@ -94,7 +109,27 @@ const LineRow = memo(function LineRow({
                     onChange={(e) => onChangeLine(index, { projectName: e.target.value })}
                     className="w-56 px-1.5 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
                 />
-                {hint && <div className="mt-0.5 text-[10px] text-slate-400">{hint}</div>}
+                {noAmount ? (
+                    <div className="mt-0.5 text-[10px] text-red-600">契約額が 0 のため出力に含まれません</div>
+                ) : (
+                    hint && <div className="mt-0.5 text-[10px] text-slate-400">{hint}</div>
+                )}
+                {noAmount && (
+                    <span
+                        className="inline-block mt-0.5 mr-1 px-1.5 py-0.5 text-[10px] rounded bg-red-100 text-red-700"
+                        title="見積が無いか、どの見積が契約か決まっていません。金額を入力してください"
+                    >
+                        金額未入力
+                    </span>
+                )}
+                {multiEstimate && (
+                    <span
+                        className="inline-block mt-0.5 mr-1 px-1.5 py-0.5 text-[10px] rounded bg-amber-100 text-amber-800 cursor-help"
+                        title={multiEstimate.message}
+                    >
+                        見積複数
+                    </span>
+                )}
                 {line.isManual && (
                     <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[10px] rounded bg-slate-100 text-slate-500">
                         手動追加
@@ -228,6 +263,7 @@ const LineRow = memo(function LineRow({
 export default function LinesTable({
     lines,
     columns,
+    warningsByProject,
     individualThreshold,
     unreceivedMode,
     onChangeLine,
@@ -276,6 +312,7 @@ export default function LinesTable({
                             line={line}
                             index={index}
                             columns={columns}
+                            rowWarnings={line.projectMasterId ? warningsByProject[line.projectMasterId] : undefined}
                             individualThreshold={individualThreshold}
                             unreceivedMode={unreceivedMode}
                             isReproposing={reproposingIndex === index}

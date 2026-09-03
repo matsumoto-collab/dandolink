@@ -5,6 +5,7 @@ import {
     ORDER_BACKLOG_TAX_RATE,
     candidateExclusionReason,
     contractAmountFromBasis,
+    describeEstimateChoice,
     receivedAmountForProject,
     type CandidateExclusionInput,
     type InvoiceWithPayments,
@@ -135,13 +136,50 @@ describe('candidateExclusionReason（候補から外す理由）', () => {
         expect(candidateExclusionReason({ ...base(), assignments: [asg('2026-08-20', null)] })).toBe('work_finished');
     });
 
-    it('契約額が決められない案件は載せない（終わった案件より後に判定＝件数に混ぜない）', () => {
-        expect(candidateExclusionReason({ ...base(), basisAmount: null, contractAmount: 0 })).toBe('no_amount');
+    it('契約額が決められない案件でも載せる（入力忘れの可能性があるため・kei 2026-09-04）。終わった案件・未着手は金額に関係なく載せない', () => {
+        expect(candidateExclusionReason({ ...base(), basisAmount: null, contractAmount: 0 })).toBeNull();
+        expect(candidateExclusionReason({ ...base(), basisAmount: null, contractAmount: 0, assignments: [] })).toBe('no_assignment');
         expect(candidateExclusionReason({
             ...base(),
             basisAmount: null,
             contractAmount: 0,
             assignments: [asg('2026-07-01', '組立'), asg('2026-08-20', '解体')],
         })).toBe('work_finished');
+    });
+});
+
+describe('describeEstimateChoice（見積が複数ある案件の注意書き）', () => {
+    const est = [
+        { id: 'a', subtotal: 1000000 },
+        { id: 'b', subtotal: 900000 },
+    ];
+
+    it('見積が1件以下なら何も言わない', () => {
+        expect(describeEstimateChoice({ amount: 1000000, source: 'single', needsEstimatePick: false }, [est[0]], null)).toBeNull();
+        expect(describeEstimateChoice({ amount: null, source: 'none', needsEstimatePick: false }, [], null)).toBeNull();
+    });
+
+    it('どれが契約か未選択なら「契約額は 0」と選び方を案内する（金額は大きい順・税抜）', () => {
+        const msg = describeEstimateChoice({ amount: null, source: 'none', needsEstimatePick: true }, est, null);
+        expect(msg).toContain('見積が2件（税抜 1,000,000円／900,000円）');
+        expect(msg).toContain('契約額は 0');
+        expect(msg).toContain('請求待ちボード');
+    });
+
+    it('請求待ちボードで1件選んでいればそれを使ったと言う', () => {
+        const msg = describeEstimateChoice({ amount: 900000, source: 'picked', needsEstimatePick: false }, est, ['b']);
+        expect(msg).toContain('選んだ 900,000円 を契約額');
+        expect(msg).not.toContain('合算');
+    });
+
+    it('複数選んで合算していたら合算であることを強く知らせる（190万は誤りの可能性）', () => {
+        const msg = describeEstimateChoice({ amount: 1900000, source: 'picked', needsEstimatePick: false }, est, ['a', 'b']);
+        expect(msg).toContain('2件を合算して 1,900,000円');
+        expect(msg).toContain('どちらか1件が契約額');
+    });
+
+    it('案件の契約金額があればそれを使ったと言う', () => {
+        const msg = describeEstimateChoice({ amount: 950000, source: 'contract', needsEstimatePick: false }, est, null);
+        expect(msg).toContain('案件の契約金額 950,000円');
     });
 });

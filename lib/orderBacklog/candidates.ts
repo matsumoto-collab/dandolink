@@ -22,6 +22,7 @@ import {
     getBillingStatus,
     invoicedAmountForProject,
     resolveBillingBasis,
+    type BillingBasisResolution,
     type InvoiceForBillingSummary,
 } from '@/lib/billing/billingStatus';
 import { parseJsonField } from '@/lib/json-utils';
@@ -42,11 +43,63 @@ import type { OrderBacklogLineInput, TaxMode } from '@/lib/orderBacklog/types';
  */
 export const ORDER_BACKLOG_TAX_RATE = 0.1;
 
-/** 候補から外れた・値が埋まらなかった案件の注意書き（画面にそのまま出す）。 */
+/**
+ * 注意書きの種類。画面はこれで行を強調する
+ * （no_amount=赤・multiple_estimates=黄。no_due_preset は件数だけまとめて出す）。
+ */
+export type OrderBacklogWarningKind = 'no_amount' | 'multiple_estimates' | 'no_due_preset';
+
+/** 値が埋まらなかった・確認してほしい案件の注意書き（画面にそのまま出す）。 */
 export interface OrderBacklogCandidateWarning {
     projectMasterId: string;
     projectName: string;
+    kind: OrderBacklogWarningKind;
     message: string;
+}
+
+/** describeEstimateChoice が見る見積1件ぶん（税抜小計）。 */
+export interface EstimateChoiceSource {
+    id: string;
+    subtotal: number;
+}
+
+const yenLabel = (n: number | null | undefined) => `${Math.round(n ?? 0).toLocaleString()}円`;
+
+/**
+ * 1案件に見積が複数あるときの注意書き（1件以下なら null）。
+ * kei 2026-09-04: 「A見積100万・B見積90万のように同じ工事で少し違う見積を作ることがある。
+ * 契約額は190万ではなくどちらか。そういう案件は目立つようにしてほしい」。
+ * 金額の出どころ（resolveBillingBasis の source）ごとに、何を契約額にしたかを書く。
+ */
+export function describeEstimateChoice(
+    basis: BillingBasisResolution,
+    estimates: readonly EstimateChoiceSource[],
+    pickedIds: unknown,
+): string | null {
+    if (estimates.length < 2) return null;
+    const amounts = [...estimates]
+        .sort((a, b) => b.subtotal - a.subtotal)
+        .map((e) => yenLabel(e.subtotal))
+        .join('／');
+    const head = `見積が${estimates.length}件（税抜 ${amounts}）。`;
+    const picked = new Set(
+        Array.isArray(pickedIds) ? pickedIds.filter((v): v is string => typeof v === 'string') : [],
+    );
+    const pickedCount = estimates.filter((e) => picked.has(e.id)).length;
+
+    switch (basis.source) {
+        case 'picked':
+            return pickedCount >= 2
+                ? `${head}選んだ${pickedCount}件を合算して ${yenLabel(basis.amount)} にしています。同じ工事の見積なら合算ではなくどちらか1件が契約額です`
+                : `${head}請求待ちボードで選んだ ${yenLabel(basis.amount)} を契約額にしています`;
+        case 'contract':
+            return `${head}案件の契約金額 ${yenLabel(basis.amount)} を使っています`;
+        case 'single':
+            // 2件以上あるときは single にならない（0円の下書きを除いた1件のときだけ）＝その1件を使っている
+            return `${head}金額のある ${yenLabel(basis.amount)} を契約額にしています`;
+        default:
+            return `${head}どれが契約か決まっていないため契約額は 0 です。金額を入力するか、請求待ちボードで基準の見積を選んでください`;
+    }
 }
 
 export interface BuildOrderBacklogCandidatesParams {
@@ -94,14 +147,13 @@ export type CandidateExclusionReason =
     | 'billing_excluded' // 請求対象外
     | 'billed_full' // 全額請求済み
     | 'fully_paid' // 入金済み
-    | 'work_finished' // 工事が終わっている（解体済みで先の予定なし）
-    | 'no_amount'; // 契約額が決められない
+    | 'work_finished'; // 工事が終わっている（解体済みで先の予定なし）
 
 /**
  * 受注明細書の候補から外す理由（null なら載せる）。kei 決定 2026-09-04:
  * 「入金や工事が終わっている案件」「見積のみ（配置が無い）の案件」は候補に入れない。
- * 判定順は「載せない理由が確定するもの」から。no_amount を最後にしているのは、
- * 終わった案件まで「契約額なし」として数えないため（件数を注意書きに出す）。
+ * 契約額が決められない案件は **外さない**（入力忘れの可能性があるので載せて目立たせる。
+ * 契約額 0 のままなら出力には含まれない＝render 側で落とす）。
  */
 export function candidateExclusionReason(input: CandidateExclusionInput): CandidateExclusionReason | null {
     if (input.assignments.length === 0) return 'no_assignment';
@@ -110,7 +162,6 @@ export function candidateExclusionReason(input: CandidateExclusionInput): Candid
     if (getBillingStatus(input.basisAmount, input.invoicedAmount) === 'full') return 'billed_full';
     if (input.contractAmount > 0 && input.receivedAmount >= input.contractAmount) return 'fully_paid';
     if (isWorkFinished(input.assignments, input.asOf)) return 'work_finished';
-    if (input.basisAmount == null) return 'no_amount';
     return null;
 }
 
@@ -191,7 +242,7 @@ export function receivedAmountForProject(
  * 既定（projectMasterIds なし）の抽出条件:
  * - 配置が 1 件以上あり、最後の配置日が 基準日−6か月 以降（古い案件は「案件を追加」から手で足せる）
  * - candidateExclusionReason が null（中止・完了・請求対象外・全額請求済み・入金済み・
- *   工事終了・契約額なし のどれでもない）
+ *   工事終了 のどれでもない）。契約額が決められない案件も載せる（注意書きで目立たせる）
  *
  * projectMasterIds を渡すとこれらの条件を全て無視して、その案件だけを計算する。
  */
@@ -318,16 +369,16 @@ export async function buildOrderBacklogCandidates(
 
     const warnings: OrderBacklogCandidateWarning[] = [];
     const lines: OrderBacklogLineInput[] = [];
-    let skippedNoAmount = 0;
 
     for (const pm of projects) {
         const projectName = pm.title || pm.name || '(名称未設定)';
         const asg = assignmentsByProject.get(pm.id) ?? [];
 
+        const projectEstimates = estimatesByProject.get(pm.id) ?? [];
         const basis = resolveBillingBasis({
             contractAmount: pm.contractAmount ?? null,
             billingEstimateIds: pm.billingEstimateIds,
-            estimates: estimatesByProject.get(pm.id) ?? [],
+            estimates: projectEstimates,
         });
         const contractAmount = contractAmountFromBasis(basis.amount, taxMode);
         const receivedAmount = receivedAmountForProject(invoicesByProject.get(pm.id) ?? [], pm.id);
@@ -344,15 +395,20 @@ export async function buildOrderBacklogCandidates(
                 assignments: asg,
                 asOf,
             });
-            if (reason === 'no_amount') skippedNoAmount += 1;
             if (reason) continue;
         }
 
-        if (basis.amount == null) {
+        // 見積が複数ある案件は、何を契約額にしたかを必ず知らせる（合算していたら特に）
+        const estimateNote = describeEstimateChoice(basis, projectEstimates, pm.billingEstimateIds);
+        if (estimateNote) {
+            warnings.push({ projectMasterId: pm.id, projectName, kind: 'multiple_estimates', message: estimateNote });
+        } else if (basis.amount == null) {
+            // 見積も contractAmount も無い。入力忘れの可能性があるので候補には載せて目立たせる（kei 2026-09-04）
             warnings.push({
                 projectMasterId: pm.id,
                 projectName,
-                message: '契約額が未設定（見積なし）',
+                kind: 'no_amount',
+                message: '契約額が未設定（見積が無い）。金額を入力してください。0 のままだと出力に含まれません',
             });
         }
 
@@ -362,6 +418,7 @@ export async function buildOrderBacklogCandidates(
             warnings.push({
                 projectMasterId: pm.id,
                 projectName,
+                kind: 'no_due_preset',
                 message: '入金サイト未設定（翌月末で計算）',
             });
         }
@@ -390,15 +447,6 @@ export async function buildOrderBacklogCandidates(
             excluded: false,
             isManual,
             sortOrder: 0,
-        });
-    }
-
-    // 見積が無い案件は銀行に出す金額が無いので候補から外すが、件数は見えるようにしておく
-    if (skippedNoAmount > 0) {
-        warnings.unshift({
-            projectMasterId: '',
-            projectName: '（候補全体）',
-            message: `契約額が未設定（見積なし）の案件 ${skippedNoAmount} 件は候補に入れていません。必要なら「案件を追加」から載せてください`,
         });
     }
 

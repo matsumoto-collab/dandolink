@@ -210,3 +210,25 @@ describe('buildOrderBacklogSheet', () => {
         expect(buildOrderBacklogSheet(report(), []).pages).toEqual([[]]);
     });
 });
+
+describe('buildOrderBacklogSheet: 契約額 0 の明細', () => {
+    const report = { asOfDate: '2026-06-01', individualThreshold: 1000000, unreceivedMode: 'remaining' as const };
+
+    it('契約額 0 の行は出力にも区分の件数にも入れず、件数だけ知らせる', () => {
+        const sheet = buildOrderBacklogSheet(report, [
+            line({ projectName: '金額あり', contractAmount: 300000, sortOrder: 0 }),
+            line({ projectName: '金額なし', contractAmount: 0, sortOrder: 1 }),
+            line({ projectName: '金額なし除外済み', contractAmount: 0, excluded: true, sortOrder: 2 }),
+        ]);
+        expect(sheet.omittedNoAmountCount).toBe(1);
+        expect(sheet.rows).toHaveLength(1);
+        expect(sheet.rows[0].kind).toBe('bucket');
+        expect(sheet.rows[0].top).toBe('その他仮設工事　1件');
+        expect(sheet.totals.contractK).toBe(300);
+    });
+
+    it('全部に金額があれば 0 件', () => {
+        const sheet = buildOrderBacklogSheet(report, [line({ contractAmount: 2000000 })]);
+        expect(sheet.omittedNoAmountCount).toBe(0);
+    });
+});

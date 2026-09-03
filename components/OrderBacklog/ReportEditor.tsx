@@ -47,6 +47,18 @@ interface ReportEditorProps {
     onExportPdf: () => void;
 }
 
+/** 注意書きを案件IDで引ける形にする（明細行の色分け用）。 */
+function groupWarningsByProject(
+    warnings: OrderBacklogCandidateWarning[],
+): Record<string, OrderBacklogCandidateWarning[]> {
+    const map: Record<string, OrderBacklogCandidateWarning[]> = {};
+    for (const w of warnings) {
+        if (!w.projectMasterId) continue;
+        (map[w.projectMasterId] ??= []).push(w);
+    }
+    return map;
+}
+
 const labelClass = 'block text-[11px] font-medium text-slate-500 mb-1';
 const inputClass =
     'w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-teal-500 focus:border-teal-500';
@@ -71,6 +83,10 @@ export default function ReportEditor({
     onExportPdf,
 }: ReportEditorProps) {
     const columns = useMemo(() => monthColumns(state.asOfDate), [state.asOfDate]);
+    const warningsByProject = useMemo(() => groupWarningsByProject(warnings), [warnings]);
+    // 入金サイト未設定は案件の数だけ出て他の注意が埋もれるので件数にまとめ、それ以外を個別に出す
+    const noDuePresetCount = useMemo(() => warnings.filter((w) => w.kind === 'no_due_preset').length, [warnings]);
+    const listedWarnings = useMemo(() => warnings.filter((w) => w.kind !== 'no_due_preset'), [warnings]);
 
     const sheetReport = useMemo(
         () => ({
@@ -241,9 +257,14 @@ export default function ReportEditor({
                             <AlertTriangle className="w-3.5 h-3.5" />
                             候補作成時の注意（{warnings.length}件）
                         </div>
-                        <ul className="space-y-0.5 max-h-32 overflow-y-auto">
-                            {warnings.map((w, i) => (
-                                <li key={`${w.projectMasterId}-${i}`}>
+                        <ul className="space-y-0.5 max-h-40 overflow-y-auto">
+                            {noDuePresetCount > 0 && (
+                                <li className="text-amber-700">
+                                    入金サイト未設定の顧客の案件 {noDuePresetCount} 件は翌月末で計算しています（取引先の編集画面で設定できます）
+                                </li>
+                            )}
+                            {listedWarnings.map((w, i) => (
+                                <li key={`${w.projectMasterId}-${i}`} className={w.kind === 'no_amount' ? 'text-red-700' : ''}>
                                     {w.projectName}: {w.message}
                                 </li>
                             ))}
@@ -255,6 +276,7 @@ export default function ReportEditor({
             <LinesTable
                 lines={state.lines}
                 columns={columns}
+                warningsByProject={warningsByProject}
                 individualThreshold={state.individualThreshold}
                 unreceivedMode={state.unreceivedMode}
                 onChangeLine={onChangeLine}

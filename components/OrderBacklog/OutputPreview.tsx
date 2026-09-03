@@ -30,6 +30,11 @@ export default function OutputPreview({ report, lines }: OutputPreviewProps) {
                     {sheet.pages.length > 1 && ` ・ ${sheet.pages.length}ページ（${ROWS_PER_PAGE}行/ページ）`}
                 </span>
             </div>
+            {sheet.omittedNoAmountCount > 0 && (
+                <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-xs text-red-700">
+                    契約額が 0 の明細 {sheet.omittedNoAmountCount} 行は出力に含めていません。明細で金額を入力するか、除外にチェックしてください
+                </div>
+            )}
             <div className="overflow-x-auto">
                 <table className="min-w-max text-xs">
                     <thead className="bg-slate-100 text-slate-600">
