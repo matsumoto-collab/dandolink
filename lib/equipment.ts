@@ -119,3 +119,68 @@ export function isSchedulableTool(
 export function toolStatusLabel(value: string): string {
     return TOOL_STATUSES.find((s) => s.value === value)?.label ?? value;
 }
+
+/**
+ * 電動工具の利用実績。完全削除してよいかの判断に使う。
+ * 記録が1件でもあるものを物理削除すると、手配表・使用履歴の表示が
+ * ID のままになったり空欄になったりするので消させない（＝台帳から外す方を使ってもらう）。
+ */
+export interface ToolUsageCounts {
+    /** 現在の状態（持出中のものは消させない） */
+    status?: string | null;
+    /** スケジュール（配置）で選ばれた件数 */
+    assignmentCount: number;
+    /** 持出し・返却・状態変更の記録の件数 */
+    checkoutLogCount: number;
+    /** 整備・修理の履歴の件数 */
+    maintenanceCount: number;
+}
+
+/** 電動工具を完全に削除できない理由（空配列なら消してよい）。 */
+export function toolHardDeleteBlockers(usage: ToolUsageCounts): string[] {
+    const reasons: string[] = [];
+    if ((usage.status ?? '') === 'checked_out') reasons.push('持出中です');
+    if (usage.assignmentCount > 0) reasons.push(`現場の予定で${usage.assignmentCount}件使われています`);
+    if (usage.checkoutLogCount > 0) reasons.push(`持出し・返却の記録が${usage.checkoutLogCount}件あります`);
+    if (usage.maintenanceCount > 0) reasons.push(`整備・修理の履歴が${usage.maintenanceCount}件あります`);
+    return reasons;
+}
+
+/** 分類にぶら下がっている工具の数。 */
+export interface ToolCategoryUsageCounts {
+    /** 台帳に出ている（isActive=true）工具の数 */
+    activeToolCount: number;
+    /** 台帳から外した（isActive=false）工具の数 */
+    inactiveToolCount: number;
+}
+
+/**
+ * 分類を一覧から外せない理由（空配列なら外してよい）。
+ * 使っている工具が残っている分類を隠すと、その工具の分類を選び直せなくなるので止める。
+ */
+export function toolCategorySoftDeleteBlockers(counts: ToolCategoryUsageCounts): string[] {
+    return counts.activeToolCount > 0
+        ? [`この分類の工具が${counts.activeToolCount}台あります`]
+        : [];
+}
+
+/**
+ * 分類を完全に削除できない理由（空配列なら消してよい）。
+ * Tool.categoryId は必須なので、外した工具も含めて1台でも残っていたら消せない。
+ */
+export function toolCategoryHardDeleteBlockers(counts: ToolCategoryUsageCounts): string[] {
+    const total = counts.activeToolCount + counts.inactiveToolCount;
+    if (total === 0) return [];
+    return counts.activeToolCount > 0
+        ? [`この分類の工具が${total}台あります`]
+        : [`台帳から外した工具が${total}台残っています`];
+}
+
+/** 削除できないときのメッセージ（API と画面で同じ文言にする）。 */
+export function describeDeleteBlockers(
+    subject: string,
+    reasons: readonly string[],
+    predicate = '削除できません'
+): string {
+    return `${subject}は${predicate}（${reasons.join('／')}）`;
+}

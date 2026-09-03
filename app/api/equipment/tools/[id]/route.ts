@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, notFoundResponse, serverErrorResponse, deleteSuccessResponse } from '@/lib/api/utils';
-import { canEditEquipment } from '@/lib/equipment';
+import { canEditEquipment, describeDeleteBlockers, toolHardDeleteBlockers } from '@/lib/equipment';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -39,8 +39,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if ('categoryId' in body) {
             const categoryId = str(body.categoryId, 100);
             if (!categoryId) return errorResponse('分類を選んでください', 400);
-            const category = await prisma.toolCategory.findUnique({ where: { id: categoryId }, select: { id: true } });
+            const category = await prisma.toolCategory.findUnique({ where: { id: categoryId }, select: { id: true, isActive: true } });
             if (!category) return errorResponse('分類が見つかりません', 400);
+            // 一覧から外した分類へは移せない（今その分類にいる工具を、分類を変えずに保存するのは許す）
+            if (!category.isActive && categoryId !== current.categoryId) {
+                return errorResponse('その分類は一覧から外されています', 400);
+            }
             data.categoryId = categoryId;
         }
         if ('name' in body) {
@@ -64,21 +68,55 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 /**
- * 電動工具を台帳から外す。
- * 持出しの履歴・整備の履歴を残すため物理削除はせず isActive=false にする
- * （画面では「使わなくなった工具も表示」で見える）。
+ * 電動工具を台帳から削除する。
+ *
+ * 既定（?mode 指定なし）は論理削除＝ isActive=false にするだけ。持出しの履歴・整備の履歴・
+ * 過去の配置に残る工具名を壊さないため（画面では「使わなくなった工具も表示」で見える）。
+ *
+ * ?mode=hard は間違えて登録した分の消去用で、記録が1件でも残っているものは 400 で弾く。
  */
-export async function DELETE(_request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
         if (!canEditEquipment(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
-        const current = await prisma.tool.findUnique({ where: { id }, select: { id: true } });
+        const current = await prisma.tool.findUnique({ where: { id }, select: { id: true, name: true, status: true } });
         if (!current) return notFoundResponse('電動工具');
 
-        await prisma.tool.update({ where: { id }, data: { isActive: false } });
+        const hard = new URL(request.url).searchParams.get('mode') === 'hard';
+        if (!hard) {
+            await prisma.tool.update({ where: { id }, data: { isActive: false } });
+            return deleteSuccessResponse('電動工具');
+        }
+
+        // 予定（ProjectAssignment.tools / confirmedToolIds）は Tool.id の JSON 配列を文字列で持っているため、
+        // AssignmentTool の行に加えて文字列としても探す（保存経路の取りこぼし対策。ID は uuid なので誤検出しない）。
+        const [assignmentToolCount, assignmentJsonCount, checkoutLogCount, maintenanceCount] = await Promise.all([
+            prisma.assignmentTool.count({ where: { toolId: id } }),
+            prisma.projectAssignment.count({
+                where: { OR: [{ tools: { contains: id } }, { confirmedToolIds: { contains: id } }] },
+            }),
+            prisma.toolCheckoutLog.count({ where: { toolId: id } }),
+            prisma.equipmentMaintenanceRecord.count({ where: { targetType: 'tool', targetId: id } }),
+        ]);
+
+        const blockers = toolHardDeleteBlockers({
+            status: current.status,
+            // 同じ配置が両方に出るので多い方を件数とする
+            assignmentCount: Math.max(assignmentToolCount, assignmentJsonCount),
+            checkoutLogCount,
+            maintenanceCount,
+        });
+        if (blockers.length > 0) {
+            return errorResponse(
+                `${describeDeleteBlockers(`「${current.name}」`, blockers)}。「台帳から外す」をお使いください`,
+                400,
+            );
+        }
+
+        await prisma.tool.delete({ where: { id } });
         return deleteSuccessResponse('電動工具');
     } catch (error) {
         return serverErrorResponse('電動工具の削除', error);

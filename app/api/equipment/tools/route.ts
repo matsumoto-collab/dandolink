@@ -32,7 +32,9 @@ export async function GET() {
         if (!canViewEquipment(session!.user)) return errorResponse('権限がありません', 403);
 
         const [categories, tools, stats] = await Promise.all([
-            prisma.toolCategory.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] }),
+            // 分類は isActive を問わず全件返し、選択肢に出すかは画面側で絞る
+            // （一覧から外した分類に属する工具を開いたとき、分類が空欄にならないようにするため）
+            prisma.toolCategory.findMany({ orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }] }),
             prisma.tool.findMany({
                 orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
                 include: { category: { select: { id: true, name: true } } },
@@ -113,8 +115,8 @@ export async function POST(request: NextRequest) {
         if (!categoryId) return errorResponse('分類を選んでください', 400);
         if (!name) return errorResponse('名前（管理番号）を入力してください', 400);
 
-        const category = await prisma.toolCategory.findUnique({ where: { id: categoryId }, select: { id: true } });
-        if (!category) return errorResponse('分類が見つかりません', 400);
+        const category = await prisma.toolCategory.findUnique({ where: { id: categoryId }, select: { id: true, isActive: true } });
+        if (!category || !category.isActive) return errorResponse('分類が見つかりません', 400);
 
         const last = await prisma.tool.findFirst({ where: { categoryId }, orderBy: { sortOrder: 'desc' }, select: { sortOrder: true } });
         const created = await prisma.tool.create({

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import { TOOL_STATUSES, toolStatusLabel } from '@/lib/equipment';
@@ -39,6 +39,7 @@ export function ToolDetailModal({ tool, categories, canEdit, onClose, onChanged 
         note: tool.note ?? '',
     });
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const [logs, setLogs] = useState<ToolLog[]>([]);
     const [logsLoading, setLogsLoading] = useState(false);
@@ -113,6 +114,64 @@ export function ToolDetailModal({ tool, categories, canEdit, onClose, onChanged 
             toast.error(e instanceof Error ? e.message : '保存に失敗しました');
         } finally {
             setSaving(false);
+        }
+    };
+
+    // 一覧から外した分類でも、今その工具が属しているなら選択肢に残す（分類が空欄にならないように）
+    const selectableCategories = useMemo(
+        () => categories.filter((c) => c.isActive || c.id === tool.categoryId),
+        [categories, tool.categoryId],
+    );
+
+    /** 台帳から外す（論理削除）／完全に削除（?mode=hard）。どちらも成功したら閉じる。 */
+    const runDelete = async (query: string, successMessage: string) => {
+        setDeleting(true);
+        try {
+            const res = await fetch(`/api/equipment/tools/${tool.id}${query}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const err = await res.json().catch(() => null);
+                throw new Error(err?.error || '削除に失敗しました');
+            }
+            toast.success(successMessage);
+            onChanged();
+            onClose();
+        } catch (e) {
+            logger.error('Failed to delete tool:', e);
+            toast.error(e instanceof Error ? e.message : '削除に失敗しました');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const removeFromLedger = () => {
+        if (!window.confirm(`「${tool.name}」を台帳から外します。\nスケジュールの選択肢からは消えますが、これまでの手配表・使用履歴・整備の記録はそのまま残ります。よろしいですか？`)) return;
+        runDelete('', '台帳から外しました');
+    };
+
+    const deletePermanently = () => {
+        if (!window.confirm(`「${tool.name}」を完全に削除します。\n元に戻せません。使った記録が残っている工具は削除できません。よろしいですか？`)) return;
+        runDelete('?mode=hard', '完全に削除しました');
+    };
+
+    const restoreToLedger = async () => {
+        setDeleting(true);
+        try {
+            const res = await fetch(`/api/equipment/tools/${tool.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isActive: true }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => null);
+                throw new Error(err?.error || '戻せませんでした');
+            }
+            toast.success('台帳に戻しました');
+            onChanged();
+        } catch (e) {
+            logger.error('Failed to restore tool:', e);
+            toast.error(e instanceof Error ? e.message : '戻せませんでした');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -222,7 +281,7 @@ export function ToolDetailModal({ tool, categories, canEdit, onClose, onChanged 
                                         disabled={!canEdit}
                                         className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-500"
                                     >
-                                        {categories.map((c) => (
+                                        {selectableCategories.map((c) => (
                                             <option key={c.id} value={c.id}>{c.name}</option>
                                         ))}
                                     </select>
@@ -248,6 +307,30 @@ export function ToolDetailModal({ tool, categories, canEdit, onClose, onChanged 
                             {canEdit && (
                                 <div className="flex justify-end">
                                     <Button variant="primary" onClick={saveProfile} isLoading={saving}>保存</Button>
+                                </div>
+                            )}
+
+                            {canEdit && (
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                    <div className="text-xs font-medium text-slate-700">この工具を台帳から削除</div>
+                                    <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                                        「台帳から外す」は一覧とスケジュールの選択肢から消えるだけで、これまでの手配表・使用履歴・整備の記録はそのまま残ります。<br />
+                                        「完全に削除」は間違えて登録した分の消去用です。使った記録が1件でもある工具は削除できません。
+                                    </p>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {tool.isActive ? (
+                                            <Button variant="secondary" size="sm" onClick={removeFromLedger} disabled={deleting}>
+                                                台帳から外す
+                                            </Button>
+                                        ) : (
+                                            <Button variant="secondary" size="sm" onClick={restoreToLedger} disabled={deleting}>
+                                                台帳に戻す
+                                            </Button>
+                                        )}
+                                        <Button variant="danger" size="sm" leftIcon={<Trash2 className="h-4 w-4" />} onClick={deletePermanently} disabled={deleting}>
+                                            完全に削除
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                         </div>

@@ -10,6 +10,10 @@ import {
     maintenanceCategoryLabel,
     toolStatusLabel,
     isSchedulableTool,
+    toolHardDeleteBlockers,
+    toolCategorySoftDeleteBlockers,
+    toolCategoryHardDeleteBlockers,
+    describeDeleteBlockers,
 } from '@/lib/equipment';
 
 // 判定を決定的にするため「今日」を固定して渡す（実装は既定で JST の今日を使う）
@@ -143,5 +147,82 @@ describe('isSchedulableTool', () => {
         expect(isSchedulableTool(tool({ isActive: false }), ['t1'])).toBe(true);
         expect(isSchedulableTool(tool({ status: 'disposed' }), ['t1'])).toBe(true);
         expect(isSchedulableTool(tool({ isActive: false }), ['t9'])).toBe(false);
+    });
+});
+
+describe('toolHardDeleteBlockers', () => {
+    const usage = (over: Partial<Parameters<typeof toolHardDeleteBlockers>[0]> = {}) => ({
+        status: 'in_stock', assignmentCount: 0, checkoutLogCount: 0, maintenanceCount: 0, ...over,
+    });
+
+    it('記録が1件も無ければ完全に削除できる', () => {
+        expect(toolHardDeleteBlockers(usage())).toEqual([]);
+        // status を渡さなくても止めない
+        expect(toolHardDeleteBlockers({ assignmentCount: 0, checkoutLogCount: 0, maintenanceCount: 0 })).toEqual([]);
+    });
+
+    it('持出中は削除できない', () => {
+        expect(toolHardDeleteBlockers(usage({ status: 'checked_out' }))).toEqual(['持出中です']);
+    });
+
+    it('廃棄・紛失でも記録が無ければ削除できる（状態では止めない）', () => {
+        expect(toolHardDeleteBlockers(usage({ status: 'disposed' }))).toEqual([]);
+        expect(toolHardDeleteBlockers(usage({ status: 'lost' }))).toEqual([]);
+    });
+
+    it('現場で使われていたら件数つきで理由を返す', () => {
+        expect(toolHardDeleteBlockers(usage({ assignmentCount: 3 }))).toEqual(['現場の予定で3件使われています']);
+    });
+
+    it('持出しの記録・整備の履歴も削除を止める', () => {
+        expect(toolHardDeleteBlockers(usage({ checkoutLogCount: 2 }))).toEqual(['持出し・返却の記録が2件あります']);
+        expect(toolHardDeleteBlockers(usage({ maintenanceCount: 1 }))).toEqual(['整備・修理の履歴が1件あります']);
+    });
+
+    it('理由が複数あるときは全部返す', () => {
+        expect(
+            toolHardDeleteBlockers({ status: 'checked_out', assignmentCount: 1, checkoutLogCount: 1, maintenanceCount: 1 })
+        ).toHaveLength(4);
+    });
+});
+
+describe('toolCategorySoftDeleteBlockers', () => {
+    it('使っている工具が無ければ一覧から外せる', () => {
+        expect(toolCategorySoftDeleteBlockers({ activeToolCount: 0, inactiveToolCount: 0 })).toEqual([]);
+        // 台帳から外した工具だけなら外してよい
+        expect(toolCategorySoftDeleteBlockers({ activeToolCount: 0, inactiveToolCount: 5 })).toEqual([]);
+    });
+
+    it('使っている工具が残っていたら外せない', () => {
+        expect(toolCategorySoftDeleteBlockers({ activeToolCount: 2, inactiveToolCount: 0 }))
+            .toEqual(['この分類の工具が2台あります']);
+    });
+});
+
+describe('toolCategoryHardDeleteBlockers', () => {
+    it('工具が1台も無いときだけ完全に削除できる', () => {
+        expect(toolCategoryHardDeleteBlockers({ activeToolCount: 0, inactiveToolCount: 0 })).toEqual([]);
+    });
+
+    it('使っている工具があるときは合計台数で止める', () => {
+        expect(toolCategoryHardDeleteBlockers({ activeToolCount: 2, inactiveToolCount: 3 }))
+            .toEqual(['この分類の工具が5台あります']);
+    });
+
+    it('台帳から外した工具だけでも完全削除は止める（categoryId は必須のため）', () => {
+        expect(toolCategoryHardDeleteBlockers({ activeToolCount: 0, inactiveToolCount: 1 }))
+            .toEqual(['台帳から外した工具が1台残っています']);
+    });
+});
+
+describe('describeDeleteBlockers', () => {
+    it('理由を並べて1文にする', () => {
+        expect(describeDeleteBlockers('「インパクト#1」', ['持出中です', '整備・修理の履歴が1件あります']))
+            .toBe('「インパクト#1」は削除できません（持出中です／整備・修理の履歴が1件あります）');
+    });
+
+    it('操作名を差し替えられる（分類を一覧から外すとき）', () => {
+        expect(describeDeleteBlockers('分類「丸ノコ」', ['この分類の工具が2台あります'], '一覧から外せません'))
+            .toBe('分類「丸ノコ」は一覧から外せません（この分類の工具が2台あります）');
     });
 });

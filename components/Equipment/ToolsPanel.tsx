@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, Wrench, Plus, RefreshCw, X } from 'lucide-react';
+import { Search, Wrench, Plus, RefreshCw, Tags, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import { useMasterStore } from '@/stores/masterStore';
 import { toolStatusLabel } from '@/lib/equipment';
 import { Button } from '@/components/ui/Button';
+import { ToolCategoryManagerModal } from './ToolCategoryManagerModal';
 import { ToolDetailModal } from './ToolDetailModal';
 import { EquipmentTool, ToolCategory, fmtDate, fmtYen } from './types';
 
@@ -28,6 +29,7 @@ export function ToolsPanel({ canEdit }: { canEdit: boolean }) {
     const [showInactive, setShowInactive] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [addOpen, setAddOpen] = useState(false);
+    const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [newTool, setNewTool] = useState({ categoryId: '', name: '', maker: '', modelNumber: '', purchaseDate: '', purchasePrice: '' });
     const [newCategory, setNewCategory] = useState('');
@@ -71,6 +73,19 @@ export function ToolsPanel({ canEdit }: { canEdit: boolean }) {
                 return hay.includes(q);
             });
     }, [tools, query, categoryId, showInactive]);
+
+    // 登録フォームで選べるのは一覧に出している分類だけ。
+    // 絞り込みには、一覧から外した分類でもその工具が残っていれば出す（探せなくならないように）。
+    const activeCategories = useMemo(() => categories.filter((c) => c.isActive), [categories]);
+    const filterCategories = useMemo(
+        () => categories.filter((c) => c.isActive || tools.some((t) => t.categoryId === c.id)),
+        [categories, tools],
+    );
+
+    // 選んでいた分類が消えた／外れたときは絞り込みを解除する
+    useEffect(() => {
+        if (categoryId && !filterCategories.some((c) => c.id === categoryId)) setCategoryId('');
+    }, [categoryId, filterCategories]);
 
     const addCategory = async () => {
         const name = newCategory.trim();
@@ -149,7 +164,7 @@ export function ToolsPanel({ canEdit }: { canEdit: boolean }) {
                     className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                 >
                     <option value="">すべての分類</option>
-                    {categories.map((c) => (
+                    {filterCategories.map((c) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                 </select>
@@ -170,6 +185,11 @@ export function ToolsPanel({ canEdit }: { canEdit: boolean }) {
                     <RefreshCw className="h-4 w-4" />
                     更新
                 </button>
+                {canEdit && (
+                    <Button variant="secondary" size="sm" leftIcon={<Tags className="h-4 w-4" />} onClick={() => setCategoryManagerOpen(true)}>
+                        分類を管理
+                    </Button>
+                )}
                 {canEdit && (
                     <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setAddOpen((v) => !v)}>
                         工具を追加
@@ -194,7 +214,7 @@ export function ToolsPanel({ canEdit }: { canEdit: boolean }) {
                                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                             >
                                 <option value="">選択してください</option>
-                                {categories.map((c) => (
+                                {activeCategories.map((c) => (
                                     <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
                             </select>
@@ -320,6 +340,15 @@ export function ToolsPanel({ canEdit }: { canEdit: boolean }) {
                         </button>
                     ))}
                 </div>
+            )}
+
+            {categoryManagerOpen && canEdit && (
+                <ToolCategoryManagerModal
+                    categories={categories}
+                    tools={tools}
+                    onClose={() => setCategoryManagerOpen(false)}
+                    onChanged={refreshAfterChange}
+                />
             )}
 
             {selected && (
