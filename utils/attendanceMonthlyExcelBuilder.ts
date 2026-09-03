@@ -9,14 +9,22 @@
  * ブラウザ・Node の双方から使えるよう、このモジュールは DOM API と react-pdf に依存しない。
  * （テンプレのバイト列は呼び出し側が用意する）
  */
-import JSZip from 'jszip';
 // 集計の型は react-pdf 非依存のモジュールから取る（サーバーからも使うため）
 import type { AttendanceMonthlyPdfData } from '@/utils/attendanceMonthlyData';
-
-/** テンプレのシート（元ブックの先頭シート）のパス */
-const BASE_SHEET_PATH = 'xl/worksheets/sheet1.xml';
-const BASE_SHEET_RELS_PATH = 'xl/worksheets/_rels/sheet1.xml.rels';
-const BASE_PRINTER_SETTINGS_PATH = 'xl/printerSettings/printerSettings1.bin';
+// セル書き換え・シート複製は受注明細書と共通（utils/xlsxTemplate.ts）
+import {
+    EMPTY,
+    buildWorkbookFromTemplate,
+    num,
+    openXlsxTemplate,
+    sanitizeSheetName,
+    setCell,
+    setCells,
+    text,
+    textOrEmpty,
+    uniqueSheetName,
+    type CellValue,
+} from '@/utils/xlsxTemplate';
 
 /** 日別行は 5〜35 行目（1行目=day1）。31日ぶん確保されている */
 const FIRST_DAY_ROW = 5;
@@ -36,17 +44,6 @@ export interface AttendanceExcelSheetInput {
 }
 
 // ---------------------------------------------------------------- 小物
-
-function escapeXml(value: string): string {
-    return value
-        // eslint-disable-next-line no-control-regex
-        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
-}
 
 /** PDF側は全角マイナス（−）を使うが、Excelでは半角に揃える */
 export function normalizeMinusSign(value: string): string {
@@ -68,82 +65,14 @@ export function excelSerialFromDate(year: number, month: number, day: number): n
     return Math.round((Date.UTC(year, month - 1, day) - EXCEL_EPOCH_UTC) / 86400000);
 }
 
-/** シート名に使えない文字を除去し、31文字以内に収める */
-export function sanitizeSheetName(name: string): string {
-    const cleaned = name.replace(/[\\/?*[\]:]/g, '').trim();
-    const truncated = cleaned.slice(0, 31).trim();
-    return truncated || '出勤簿';
-}
-
-/** 同名シートが既にある場合に " (2)" 等を付けて一意化（31文字以内を維持） */
-export function uniqueSheetName(base: string, used: Set<string>): string {
-    if (!used.has(base)) {
-        used.add(base);
-        return base;
-    }
-    for (let i = 2; ; i++) {
-        const suffix = ` (${i})`;
-        const name = `${base.slice(0, 31 - suffix.length).trim()}${suffix}`;
-        if (!used.has(name)) {
-            used.add(name);
-            return name;
-        }
-    }
-}
-
 // ---------------------------------------------------------------- セル書き換え
 
-type CellValue =
-    /** 数値（日付・時刻シリアルを含む） */
-    | { kind: 'number'; value: number }
-    /** インライン文字列（sharedStrings を汚さない） */
-    | { kind: 'text'; value: string }
-    /** 空セル（スタイルだけ残す） */
-    | { kind: 'empty' };
-
-const EMPTY: CellValue = { kind: 'empty' };
-const num = (value: number): CellValue => ({ kind: 'number', value });
-const text = (value: string): CellValue => ({ kind: 'text', value });
-/** 空文字なら空セル、それ以外は文字列セル */
-const textOrEmpty = (value: string): CellValue => (value ? text(value) : EMPTY);
 /** "h:mm" が実値なら時刻シリアル、空・0 なら空セル */
 function timeSerialOrEmpty(value: string, { allowZero = false } = {}): CellValue {
     const min = parseHmToMinutes(value);
     if (min === null) return EMPTY;
     if (min === 0 && !allowZero) return EMPTY;
     return num(min / MINUTES_PER_DAY);
-}
-
-/**
- * セル1個を差し替える。s属性（スタイル）は必ず保持し、数式（<f>）は落とす。
- * テンプレに存在しないセル参照は無視する。
- */
-export function setCell(xml: string, ref: string, value: CellValue): string {
-    const re = new RegExp(`<c r="${ref}"([^>]*?)(/>|>[\\s\\S]*?</c>)`);
-    const m = re.exec(xml);
-    if (!m) return xml;
-    const styleMatch = /\ss="(\d+)"/.exec(m[1]);
-    const style = styleMatch ? ` s="${styleMatch[1]}"` : '';
-
-    let replacement: string;
-    if (value.kind === 'empty') {
-        replacement = `<c r="${ref}"${style}/>`;
-    } else if (value.kind === 'number') {
-        replacement = `<c r="${ref}"${style}><v>${value.value}</v></c>`;
-    } else {
-        replacement = `<c r="${ref}"${style} t="inlineStr"><is><t xml:space="preserve">${escapeXml(
-            value.value
-        )}</t></is></c>`;
-    }
-    return xml.slice(0, m.index) + replacement + xml.slice(m.index + m[0].length);
-}
-
-function setCells(xml: string, cells: Record<string, CellValue>): string {
-    let out = xml;
-    for (const [ref, value] of Object.entries(cells)) {
-        out = setCell(out, ref, value);
-    }
-    return out;
 }
 
 // ---------------------------------------------------------------- シート1枚の値埋め
@@ -227,11 +156,6 @@ export function fillSheetXml(
 
 // ---------------------------------------------------------------- ブック組み立て
 
-/** definedNames などでシート名を参照するときの引用（' は '' にエスケープ） */
-function quoteSheetName(name: string): string {
-    return `'${escapeXml(name.replace(/'/g, "''"))}'`;
-}
-
 /**
  * テンプレ xlsx のバイト列と各人のデータから、xlsx のバイト列を組み立てる。
  * sheets の配列順どおりにシートを並べる（1人=1シート）。
@@ -244,89 +168,14 @@ export async function buildAttendanceWorkbook(
 ): Promise<ArrayBuffer> {
     if (sheets.length === 0) throw new Error('出力する対象者が選択されていません');
 
-    const zip = await JSZip.loadAsync(templateBytes);
-    const baseSheetXml = await zip.file(BASE_SHEET_PATH)!.async('string');
-    const baseSheetRels = await zip.file(BASE_SHEET_RELS_PATH)!.async('string');
-    const basePrinterSettings = await zip.file(BASE_PRINTER_SETTINGS_PATH)?.async('uint8array');
-
+    const template = await openXlsxTemplate(templateBytes);
     const usedNames = new Set<string>();
-    const sheetNames = sheets.map((s) => uniqueSheetName(sanitizeSheetName(s.userName), usedNames));
-
-    sheets.forEach((sheet, index) => {
-        const n = index + 1;
-        const sheetPath = `xl/worksheets/sheet${n}.xml`;
-        zip.file(sheetPath, fillSheetXml(baseSheetXml, year, month, sheet.userName, sheet.data));
-
-        if (n > 1) {
-            // 2枚目以降はシート付随パーツ（印刷設定）も複製する
-            const printerName = `printerSettings${n}.bin`;
-            if (basePrinterSettings) {
-                zip.file(`xl/printerSettings/${printerName}`, basePrinterSettings);
-            }
-            zip.file(
-                `xl/worksheets/_rels/sheet${n}.xml.rels`,
-                baseSheetRels.replace(/printerSettings\d+\.bin/, printerName)
-            );
-        }
-    });
-
-    // --- workbook.xml（シート一覧・印刷範囲）
-    let workbookXml = await zip.file('xl/workbook.xml')!.async('string');
-    const sheetTags = sheetNames
-        .map((name, i) => `<sheet name="${escapeXml(name)}" sheetId="${i + 1}" r:id="rIdSheet${i + 1}"/>`)
-        .join('');
-    workbookXml = workbookXml.replace(/<sheets>[\s\S]*?<\/sheets>/, `<sheets>${sheetTags}</sheets>`);
-
-    const definedNames = sheetNames
-        .map(
-            (name, i) =>
-                `<definedName name="_xlnm.Print_Area" localSheetId="${i}">${quoteSheetName(
-                    name
-                )}!$A$1:$M$40</definedName>`
-        )
-        .join('');
-    if (/<definedNames>[\s\S]*?<\/definedNames>/.test(workbookXml)) {
-        workbookXml = workbookXml.replace(
-            /<definedNames>[\s\S]*?<\/definedNames>/,
-            `<definedNames>${definedNames}</definedNames>`
-        );
-    } else {
-        workbookXml = workbookXml.replace('<calcPr', `<definedNames>${definedNames}</definedNames><calcPr`);
-    }
-    zip.file('xl/workbook.xml', workbookXml);
-
-    // --- workbook.xml.rels（シートのリレーション）
-    let workbookRels = await zip.file('xl/_rels/workbook.xml.rels')!.async('string');
-    workbookRels = workbookRels.replace(
-        /<Relationship\b[^>]*Type="[^"]*\/worksheet"[^>]*\/>/g,
-        ''
+    return buildWorkbookFromTemplate(
+        template,
+        sheets.map((sheet) => ({
+            name: uniqueSheetName(sanitizeSheetName(sheet.userName, '出勤簿'), usedNames),
+            xml: fillSheetXml(template.baseSheetXml, year, month, sheet.userName, sheet.data),
+        })),
+        { printAreaRef: '$A$1:$M$40' }
     );
-    const relTags = sheetNames
-        .map(
-            (_name, i) =>
-                `<Relationship Id="rIdSheet${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${
-                    i + 1
-                }.xml"/>`
-        )
-        .join('');
-    workbookRels = workbookRels.replace('</Relationships>', `${relTags}</Relationships>`);
-    zip.file('xl/_rels/workbook.xml.rels', workbookRels);
-
-    // --- [Content_Types].xml（2枚目以降の Override を追加）
-    let contentTypes = await zip.file('[Content_Types].xml')!.async('string');
-    const overrides = sheetNames
-        .slice(1)
-        .map(
-            (_name, i) =>
-                `<Override PartName="/xl/worksheets/sheet${
-                    i + 2
-                }.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
-        )
-        .join('');
-    if (overrides) {
-        contentTypes = contentTypes.replace('</Types>', `${overrides}</Types>`);
-        zip.file('[Content_Types].xml', contentTypes);
-    }
-
-    return zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
 }

@@ -291,22 +291,25 @@ model AssignmentTool {
 }
 
 model Customer {
-  id             String   @id @default(uuid())
-  name           String
-  shortName      String?
-  contactPersons String?
-  email          String?
-  phone          String?
-  fax            String?
-  postalCode     String?
-  address        String?
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  updatedBy      String?
-  honorific      String   @default("御中")
-  closingDay     Int      @default(0) // 請求の締め日。0=末締め、それ以外は締め日(5/10/15/20/25)
-  billingDrafts  BillingDraft[]
+  id               String   @id @default(uuid())
+  name             String
+  shortName        String?
+  contactPersons   String?
+  email            String?
+  phone            String?
+  fax              String?
+  postalCode       String?
+  address          String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  updatedBy        String?
+  honorific        String   @default("御中")
+  closingDay       Int      @default(0) // 請求の締め日。0=末締め、それ以外は締め日(5/10/15/20/25)
+  /// 入金サイト。請求書の期日プリセット（lib/closingDay.ts DueDatePreset）と同じ値:
+  /// 'nextMonthEnd' | 'secondMonth10' | 'secondMonth15'。null は 'nextMonthEnd' 扱い
+  paymentDuePreset String?
+  billingDrafts    BillingDraft[]
 
   @@index([name])
   @@index([createdAt])
@@ -2909,5 +2912,78 @@ model CardStatementLine {
   @@index([statementId])
   @@index([status])
   @@index([expenseCategoryId])
+  @@schema("public")
+}
+
+/// 受注明細書（信用保証協会向け）の提出1回分。金額は全て円で持ち、出力時に千円へ丸める。
+/// 保存した内容がそのまま提出物になるため、候補の自動計算結果ではなく手直し後の値を全て持つ。
+model OrderBacklogReport {
+  id String @id @default(uuid())
+
+  /// 基準日（「令和8年6月1日現在」）
+  asOfDate DateTime @db.Date
+  /// 任意の呼び名（例: 2026年6月 ○○銀行）
+  title    String?
+
+  /// 申込人。空欄＝様式に手書きする運用
+  applicantName       String?
+  /// この金額以上（円）は個別行として出す。未満は8区分へ集約する
+  individualThreshold Int    @default(1000000)
+  /// 'remaining'=契約額−出来高金額 | 'unpaid'=出来高金額−既受領
+  unreceivedMode      String @default("remaining")
+  /// 'inclusive'=税込 | 'exclusive'=税抜（契約額の出し方）
+  taxMode             String @default("inclusive")
+
+  notes         String?
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lines OrderBacklogReportLine[]
+
+  @@index([asOfDate])
+  @@schema("public")
+}
+
+/// 受注明細書の1案件ぶん。区分集約（その他仮設工事 N件…）は保存せず表示時に計算する。
+model OrderBacklogReportLine {
+  id        String @id @default(uuid())
+  reportId  String
+  sortOrder Int    @default(0)
+
+  /// 論理FK（案件を消しても提出済みの行は残す）
+  projectMasterId String?
+  customerName    String
+  projectName     String
+
+  /// 'temp'=仮設工事 | 'new'=新築工事
+  workKind String @default("temp")
+  /// 'house'=住宅 | 'other'=他
+  siteKind String @default("other")
+
+  /// 契約額（円）
+  contractAmount Int     @default(0)
+  /// 着工の年月 "2026-05"
+  startYm        String?
+  /// 完成予定の年月 "2026-08"
+  endYm          String?
+  /// 出来高（0〜100）
+  progressRate   Int     @default(0)
+  /// 既受領金額（円）
+  receivedAmount Int     @default(0)
+  /// 入金予定。{ "2026-06": 4600000, "2026-07": 2300000, "later": 0 } 円。キーは YYYY-MM か 'later'
+  schedule       Json?
+
+  /// 候補から外した（出力に出さない・集約にも入れない）
+  excluded Boolean @default(false)
+  /// 検索から手で足した行
+  isManual Boolean @default(false)
+  note     String?
+
+  report OrderBacklogReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([projectMasterId])
   @@schema("public")
 }

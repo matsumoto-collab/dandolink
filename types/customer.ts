@@ -1,3 +1,5 @@
+import type { DueDatePreset } from '@/lib/closingDay';
+
 // 担当者情報
 export interface ContactPerson {
     id: string;
@@ -17,6 +19,8 @@ export interface Customer {
     shortName?: string;        // 略称
     honorific: string;         // 敬称（御中/様）
     closingDay?: number;       // 請求の締め日（0=末締め、それ以外は5/10/15/20/25等）
+    // 入金サイト（締め日から何日後に入金されるか）。null/未設定は 'nextMonthEnd'（翌月末）扱い
+    paymentDuePreset?: DueDatePreset | null;
     contactPersons: ContactPerson[]; // 担当者（複数）
     email?: string;            // 代表メールアドレス
     phone?: string;            // 代表電話番号

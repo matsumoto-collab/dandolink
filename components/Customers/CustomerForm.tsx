@@ -6,7 +6,7 @@ import { Plus, Trash2, Search, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePostalCodeAutofill } from '@/hooks/usePostalCodeAutofill';
 import { Button } from '@/components/ui/Button';
-import { CLOSING_DAY_OPTIONS, closingDayLabel } from '@/lib/closingDay';
+import { CLOSING_DAY_OPTIONS, closingDayLabel, DUE_DATE_PRESETS, type DueDatePreset } from '@/lib/closingDay';
 import LineLinkModal from '@/components/Customers/LineLinkModal';
 
 interface CustomerFormProps {
@@ -23,6 +23,7 @@ export default function CustomerForm({ initialData, customerId, onSubmit, onCanc
         shortName: initialData?.shortName || '',
         honorific: initialData?.honorific || '御中',
         closingDay: initialData?.closingDay ?? 0,
+        paymentDuePreset: initialData?.paymentDuePreset ?? null,
         // 担当者IDが無い旧データにも安定IDを付与（連携にはID必須・Reactキーの安定化も兼ねる）
         contactPersons: (initialData?.contactPersons || []).map((c, i) =>
             c.id ? c : { ...c, id: `contact-${Date.now()}-${i}` }
@@ -191,7 +192,7 @@ export default function CustomerForm({ initialData, customerId, onSubmit, onCanc
                 </div>
             </div>
 
-            {/* 請求の締め日 */}
+            {/* 請求の締め日・入金サイト */}
             <div className="grid grid-cols-3 gap-4">
                 <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -209,9 +210,32 @@ export default function CustomerForm({ initialData, customerId, onSubmit, onCanc
                         ))}
                     </select>
                 </div>
-                <div className="col-span-2 flex items-end">
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        入金サイト
+                    </label>
+                    <select
+                        value={formData.paymentDuePreset ?? ''}
+                        // 空文字は「未設定」＝DBには null で入れる（読む側は翌月末として扱う）
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                paymentDuePreset: (e.target.value || null) as DueDatePreset | null,
+                            })
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                        <option value="">未設定（翌月末扱い）</option>
+                        {DUE_DATE_PRESETS.map((p) => (
+                            <option key={p.key} value={p.key}>
+                                {p.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex items-end">
                     <p className="text-xs text-slate-500 pb-2">
-                        請求書をまとめる締め日です。請求待ちボードがこの締め日で期間（前月＋1日〜当月締め日）を区切ります。
+                        請求書をまとめる締め日と、その締め分の入金日です。締め日は請求待ちボードの期間（前月＋1日〜当月締め日）に、入金サイトは受注明細書の入金予定に使います。
                     </p>
                 </div>
             </div>

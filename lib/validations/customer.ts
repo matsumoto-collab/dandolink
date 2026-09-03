@@ -26,6 +26,11 @@ export const createCustomerSchema = z.object({
         .min(0, '締め日が不正です')
         .max(28, '締め日は28日以内で指定してください')
         .optional(),
+    // 入金サイト。lib/closingDay.ts の DueDatePreset と同じ値。null/未指定は「翌月末」扱い
+    paymentDuePreset: z
+        .enum(['nextMonthEnd', 'secondMonth10', 'secondMonth15'], { message: '入金サイトが不正です' })
+        .optional()
+        .nullable(),
     contactPersons: z.array(contactPersonSchema).optional().nullable(),
     email: z.string().email('有効なメールアドレスを入力してください').or(z.literal('')).optional().nullable(),
     phone: phoneSchema,
