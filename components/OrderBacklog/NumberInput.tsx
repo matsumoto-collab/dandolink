@@ -15,10 +15,19 @@ interface NumberInputProps {
     disabled?: boolean;
 }
 
+/** 全角数字（日本語入力がオンのまま打った「５００」）を半角に直す。全角カンマ・全角スペースも落とす。 */
+export function normalizeNumericText(raw: string): string {
+    return raw
+        .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+        .replace(/[，、　\s,]/g, '');
+}
+
 /**
  * 数値入力。`type="number"` はスマホで一度空にすると 0 に戻る事故があるため、
  * 既存方針どおり `type="text" inputMode="numeric"` を使う。
  * 入力中は生の文字列を保持し、フォーカスを外したら整形した値に戻す。
+ * PC では inputMode が IME を切ってくれないので、全角で打たれた数字も受け付ける
+ * （半角以外を捨てると「金額を入れても 0 に戻る」ように見える）。
  */
 export default function NumberInput({
     id,
@@ -37,7 +46,7 @@ export default function NumberInput({
     const display = draft ?? formatted;
 
     const commit = (raw: string) => {
-        const digits = raw.replace(/[^0-9]/g, '');
+        const digits = normalizeNumericText(raw).replace(/[^0-9]/g, '');
         const parsed = digits === '' ? 0 : Number(digits);
         let next = Number.isFinite(parsed) ? Math.trunc(parsed) : 0;
         if (next < min) next = min;

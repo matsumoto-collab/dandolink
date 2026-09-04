@@ -213,7 +213,7 @@ const LineRow = memo(function LineRow({
                         onChange={(v) =>
                             onChangeLine(index, { schedule: setScheduleColumn(line.schedule, columns, ci, v) })
                         }
-                        className="w-24"
+                        className="w-[5.5rem]"
                     />
                 </td>
             ))}
@@ -280,9 +280,12 @@ export default function LinesTable({
     }
 
     return (
-        <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
+        // 行が 100〜200 になるので、表そのものを縦横スクロールする枡にする。
+        // 横スクロールバーが表の最下部（画面の外）に隠れて「右端が見えない」状態にならないように、
+        // 高さを画面の 6 割に抑え、見出し行は固定する。
+        <div className="overflow-auto max-h-[60vh] border border-slate-200 rounded-lg bg-white">
             <table className="min-w-max text-xs">
-                <thead className="bg-slate-100 text-slate-600">
+                <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10 shadow-[0_1px_0_0_rgb(226_232_240)]">
                     <tr>
                         <th className="px-2 py-2 font-medium whitespace-nowrap">除外</th>
                         <th className="px-2 py-2 font-medium whitespace-nowrap">符号</th>
