@@ -311,7 +311,9 @@ export default function LinesTable({
                 <tbody className="divide-y divide-slate-100">
                     {lines.map((line, index) => (
                         <LineRow
-                            key={line.id ?? line.projectMasterId ?? `row-${index}`}
+                            // 保存すると行の id は作り直される（全置換）ので、案件IDを優先して行の同一性を保つ
+                            // ＝保存直後に全行が再マウントされてスクロール位置や入力中の状態が飛ばない
+                            key={line.projectMasterId ?? line.id ?? `row-${index}`}
                             line={line}
                             index={index}
                             columns={columns}

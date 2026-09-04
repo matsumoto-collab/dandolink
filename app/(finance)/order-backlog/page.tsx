@@ -98,6 +98,9 @@ export default function OrderBacklogPage() {
 
     // 二重送信ガード（state だけだと連打がすり抜けるので ref の同期ロックを使う）
     const savingRef = useRef(false);
+    // 保存の通信中に打った手直しを、返ってきたサーバーの行で上書きしないために「いまの編集状態」を常に持つ
+    const editorRef = useRef<OrderBacklogEditorState | null>(null);
+    editorRef.current = editor;
 
     const loadReports = useCallback(async () => {
         setIsListLoading(true);
@@ -312,9 +315,27 @@ export default function OrderBacklogPage() {
             );
             if (!res.ok) throw new Error(await errorMessage(res, '保存に失敗しました'));
             const saved = (await res.json()) as OrderBacklogReportDetail;
-            setEditor((prev) => (prev ? { ...prev, id: saved.report.id, lines: saved.lines } : prev));
-            setIsDirty(false);
-            toast.success('保存しました');
+
+            // 通信中に別の行を打っていたら、その手直しを消さずに残す（消すと「保存したら 0 に戻った」ように見える）。
+            // 行は同じ順で返ってくるので、案件が一致する行には新しい id だけ写す。
+            const latest = editorRef.current;
+            const editedDuringSave = !!latest && latest.lines !== editor.lines;
+            setEditor((prev) => {
+                if (!prev) return prev;
+                if (!editedDuringSave) return { ...prev, id: saved.report.id, lines: saved.lines };
+                const sameShape =
+                    prev.lines.length === saved.lines.length &&
+                    prev.lines.every((l, i) => l.projectMasterId === saved.lines[i].projectMasterId);
+                const lines = sameShape ? prev.lines.map((l, i) => ({ ...l, id: saved.lines[i].id })) : prev.lines;
+                return { ...prev, id: saved.report.id, lines };
+            });
+            setIsDirty(editedDuringSave);
+            const withAmount = saved.lines.filter((l) => !l.excluded && l.contractAmount > 0).length;
+            toast.success(
+                editedDuringSave
+                    ? `保存しました（${saved.lines.length}行）。保存中に直した分はまだ未保存です`
+                    : `保存しました（${saved.lines.length}行・金額入力 ${withAmount}行）`,
+            );
             await loadReports();
         } catch (e) {
             logger.error('[order-backlog] 保存に失敗', e);
