@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText, Smile, MoreHorizontal, Trash2, Pencil, SmilePlus, CalendarDays } from 'lucide-react';
+import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText, Smile, MoreHorizontal, Trash2, Pencil, SmilePlus, CalendarDays, PictureInPicture2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
@@ -101,14 +101,22 @@ interface ChatRoomViewProps {
      * （ドッキング表示）が指定する。未指定同士が同時に立つと購読が片方外れる。
      */
     realtimeKey?: string;
+    /**
+     * ウインドウ／画面端パネルの中に描画されているか。
+     * true のときは「ウインドウ」ボタンを出さない（すでにウインドウ表示中のため）。
+     */
+    isFloating?: boolean;
 }
 
-export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway, realtimeKey }: ChatRoomViewProps) {
+export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway, realtimeKey, isFloating }: ChatRoomViewProps) {
     const { data: session } = useSession();
     const router = useRouter();
-    const { setActivePage } = useNavigation();
+    const pathname = usePathname();
+    const { activePage, setActivePage } = useNavigation();
     const canInvite = session?.user?.role !== 'partner';
     const isDesktop = useMediaQuery('(min-width: 1024px)');
+    // 「ウインドウ」ボタンの表示判定。iPad縦(768px)も対象に含める
+    const isWideScreen = useMediaQuery('(min-width: 768px)');
     const rawMessages = useChatStore((s) => s.messagesByRoom[roomId]);
     const rawHasMore = useChatStore((s) => s.hasMoreByRoom[roomId]);
     const messages = rawMessages ?? EMPTY_MESSAGES;
@@ -225,6 +233,25 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
         params.set('chatRoomId', roomId);
         router.push(`/?${params.toString()}`);
     }, [onNavigateAway, setActivePage, router, roomId]);
+
+    /**
+     * 「ウインドウ」→ チャットを画面内のフローティングウインドウへ移す。
+     * ウインドウを出すのはトップ(/)のメイン画面だけなので、そこに居ないときは
+     * スケジュール画面へ移してから出す（遷移は /?page= 経由）。
+     *   - チャット画面: 同じルームを二重に開かないためパネルを出さない仕様
+     *   - /project-masters など別ルート: そもそもパネルが描画されない
+     */
+    const openInFloatingWindow = useCallback(() => {
+        onNavigateAway?.();
+        const store = useChatStore.getState();
+        // 「ウインドウ」を押したのだから、以前「右端に固定」を選んでいてもウインドウ表示で出す
+        store.setChatPanelMode('floating');
+        store.setDockedRoom(roomId);
+        if (activePage === 'chat' || pathname !== '/') {
+            setActivePage('schedule');
+            router.push('/?page=schedule');
+        }
+    }, [onNavigateAway, roomId, activePage, pathname, setActivePage, router]);
 
     // 入力欄からフォーカスが外れたときの候補ポップオーバー閉じ判定。
     // ポップオーバー内の検索欄へフォーカスが移った場合は閉じない（閉じると検索できない）。
@@ -484,6 +511,18 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
                             </p>
                         )}
                     </div>
+                    {!isFloating && isWideScreen === true && (
+                        <button
+                            type="button"
+                            onClick={openInFloatingWindow}
+                            className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            aria-label="チャットをウインドウで開く"
+                            title="チャットをウインドウで開く"
+                        >
+                            <PictureInPicture2 className="w-4 h-4" />
+                            <span>ウインドウ</span>
+                        </button>
+                    )}
                     {showScheduleButton && (
                         <div className="relative flex-shrink-0">
                             <button

@@ -122,8 +122,9 @@ const PartnerWorkVolumePage = dynamic(() => import('./PartnerWorkVolume/PartnerW
 const ScheduleHistoryPanel = dynamic(() => import('./Calendar/ScheduleHistoryPanel'), {
     loading: () => <LoadingSpinner />,
 });
-// スケジュールを見ながらチャットを返信するためのドッキングパネル（チャット画面以外で表示）
-const DockedChatPanel = dynamic(() => import('./Chat/DockedChatPanel'), { ssr: false });
+// スケジュールを見ながらチャットを返信するためのパネル（チャット画面以外で表示）。
+// PC・iPad は移動/リサイズできるウインドウか右端固定、スマホはボトムシート
+const FloatingChatPanel = dynamic(() => import('./Chat/FloatingChatPanel'), { ssr: false });
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -154,6 +155,7 @@ export default function MainContent() {
     } | null>(null);
     const handleJumpConsumed = useCallback(() => setJumpRequest(null), []);
     const dockedRoomId = useChatStore((s) => s.dockedRoomId);
+    const chatPanelMode = useChatStore((s) => s.chatPanelMode);
 
     // 通知などからのディープリンク:
     //   ?page=schedule&view=assignment    → 手配表タブを開く
@@ -483,7 +485,10 @@ export default function MainContent() {
 
     // チャット画面ではドッキング表示しない（同じルームを二重に開かないため）。
     // dockedRoomId 自体は保持するので、他ページへ移ると再び出る
-    const isChatDocked = activePage !== 'chat' && !!dockedRoomId;
+    const isChatPanelOpen = activePage !== 'chat' && !!dockedRoomId;
+    // 本文を右へ寄せるのは「右端に固定」表示のときだけ（ウインドウ表示は重ねて出す）。
+    // 閾値はパネル側と同じ md:(768px以上)。lg: はアスペクト比条件付きで iPad が外れるため使わない
+    const isChatDocked = isChatPanelOpen && chatPanelMode === 'docked';
 
     return (
         <>
@@ -494,8 +499,8 @@ export default function MainContent() {
                 left-0 right-0 pt-16
 
                 /* Desktop: Offset by sidebar width, no top padding */
-                /* ドッキング中は右側380pxぶん本文を寄せる（モバイルは重ね表示） */
-                lg:left-48 lg:pt-0 ${isChatDocked ? 'lg:right-[380px]' : 'lg:right-0'}
+                /* 右端固定のドッキング中は768px以上で右側380pxぶん本文を寄せる（スマホは重ね表示） */
+                lg:left-48 lg:pt-0 ${isChatDocked ? 'md:right-[380px]' : 'lg:right-0'}
 
                 pwa-main-safe
             `}>
@@ -506,7 +511,7 @@ export default function MainContent() {
                 </div>
             </main>
 
-            {isChatDocked && <DockedChatPanel />}
+            {isChatPanelOpen && <FloatingChatPanel />}
 
             {/* サイドバー折りたたみ中のフローティング展開ボタン (デスクトップのみ) */}
             {isSidebarCollapsed && (

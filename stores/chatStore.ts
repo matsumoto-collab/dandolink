@@ -2,11 +2,27 @@ import { create } from 'zustand';
 import { logger } from '@/lib/logger';
 import type { ChatRoomSummary, ChatMessage, MessageReaction } from '@/types/chat';
 
+/** チャット画面以外での表示形式（自由に動かせるウインドウ / 右端に固定） */
+export type ChatPanelMode = 'floating' | 'docked';
+
+const CHAT_PANEL_MODE_KEY = 'dandolink:chatPanelMode';
+
+function loadChatPanelMode(): ChatPanelMode {
+    if (typeof window === 'undefined') return 'floating';
+    try {
+        return window.localStorage.getItem(CHAT_PANEL_MODE_KEY) === 'docked' ? 'docked' : 'floating';
+    } catch {
+        return 'floating';
+    }
+}
+
 interface ChatState {
     rooms: ChatRoomSummary[];
     activeRoomId: string | null;
     /** チャット画面以外でも右側/下部に貼り付けて表示するルーム（スケジュールを見ながら返信する用） */
     dockedRoomId: string | null;
+    /** 上記の表示形式（PC・iPad のみ。スマホは常にボトムシート） */
+    chatPanelMode: ChatPanelMode;
     messagesByRoom: Record<string, ChatMessage[]>;
     hasMoreByRoom: Record<string, boolean>;
     totalUnread: number;
@@ -19,6 +35,7 @@ interface ChatActions {
     fetchUnreadCount: () => Promise<void>;
     setActiveRoom: (roomId: string | null) => void;
     setDockedRoom: (roomId: string | null) => void;
+    setChatPanelMode: (mode: ChatPanelMode) => void;
     fetchMessages: (roomId: string, opts?: { before?: string }) => Promise<void>;
     sendMessage: (
         roomId: string,
@@ -53,6 +70,7 @@ const initialState: ChatState = {
     rooms: [],
     activeRoomId: null,
     dockedRoomId: null,
+    chatPanelMode: 'floating',
     messagesByRoom: {},
     hasMoreByRoom: {},
     totalUnread: 0,
@@ -62,6 +80,7 @@ const initialState: ChatState = {
 
 export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     ...initialState,
+    chatPanelMode: loadChatPanelMode(),
 
     fetchRooms: async () => {
         set({ isLoadingRooms: true });
@@ -94,6 +113,15 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     setActiveRoom: (roomId) => set({ activeRoomId: roomId }),
 
     setDockedRoom: (roomId) => set({ dockedRoomId: roomId }),
+
+    setChatPanelMode: (mode) => {
+        set({ chatPanelMode: mode });
+        try {
+            window.localStorage.setItem(CHAT_PANEL_MODE_KEY, mode);
+        } catch {
+            /* localStorage 不可の環境は保存しないだけ */
+        }
+    },
 
     fetchMessages: async (roomId, opts) => {
         set({ isLoadingMessages: true });
@@ -411,5 +439,6 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
         }
     },
 
-    reset: () => set(initialState),
+    // 表示形式は端末ごとの好みなのでログアウト等でも保存値から復元する
+    reset: () => set({ ...initialState, chatPanelMode: loadChatPanelMode() }),
 }));
