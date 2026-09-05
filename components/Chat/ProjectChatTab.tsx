@@ -9,6 +9,8 @@ import toast from 'react-hot-toast';
 
 interface ProjectChatTabProps {
     projectId: string;
+    /** チャットから予定へ飛ぶ直前に呼ばれる（親モーダルを閉じる用） */
+    onNavigateAway?: () => void;
 }
 
 interface MemberInfo {
@@ -26,11 +28,12 @@ interface UserOption {
 /**
  * 案件詳細モーダルのチャットタブ。
  *  - 既存ルームがあればそのまま開く
- *  - 無ければセットアップ画面: デフォルトメンバー（managers + 確定メンバー
- *    + admin + 自分）にチェックを付けた状態で表示。任意で除外・追加してから
- *    「作成」を押すと ensure-room (POST) でルーム生成
+ *  - 無ければセットアップ画面: 候補メンバー（managers + 確定メンバー
+ *    + admin + 自分）を並べ、初期チェックは「自分だけ」（API の defaultSelectedIds。
+ *    呼びたい人を毎回明示的に選ぶ運用・kei指示 2026-09-05）。協力業者は編集不可なので
+ *    候補全員のまま。任意で選択・追加してから「作成」を押すと ensure-room (POST) でルーム生成
  */
-export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
+export default function ProjectChatTab({ projectId, onNavigateAway }: ProjectChatTabProps) {
     const { data: session } = useSession();
     const [roomId, setRoomId] = useState<string | null>(null);
     const [setupMembers, setSetupMembers] = useState<MemberInfo[] | null>(null);
@@ -58,7 +61,11 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
                 } else {
                     const members: MemberInfo[] = data.members ?? [];
                     setSetupMembers(members);
-                    setSelectedIds(new Set(data.suggestedMemberIds ?? members.map((m: MemberInfo) => m.userId)));
+                    // 初期チェックは API が決める（編集できる人＝自分だけ／協力業者＝候補全員）。
+                    // 古いレスポンス互換のため無ければ従来どおり候補全員。
+                    setSelectedIds(new Set(
+                        data.defaultSelectedIds ?? data.suggestedMemberIds ?? members.map((m: MemberInfo) => m.userId)
+                    ));
                     setCanEditMembers(data.canEditMembers !== false);
                 }
             } catch (e) {
@@ -132,7 +139,7 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
     if (roomId) {
         return (
             <div className="h-[60vh] min-h-[400px] border border-slate-200 rounded-xl overflow-hidden">
-                <ChatRoomView roomId={roomId} myUserId={session?.user?.id} />
+                <ChatRoomView roomId={roomId} myUserId={session?.user?.id} onNavigateAway={onNavigateAway} />
             </div>
         );
     }
@@ -153,8 +160,9 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
                     <h3 className="text-sm font-semibold text-slate-900">参加メンバーを確認</h3>
                 </div>
                 <p className="text-xs text-slate-500">
-                    案件マスタの管理者・手配確定メンバー・管理者を初期メンバーとして提案しています。
-                    必要に応じてチェックを外したり、メンバーを追加してから作成してください。
+                    {canEditMembers
+                        ? '案件の担当者・手配確定メンバー・管理者を候補として並べています。最初は自分だけが選ばれた状態なので、呼びたい人にチェックを付けてから作成してください。候補にいない人は「追加」から選べます。'
+                        : '案件の担当者と自分でチャットを作成します。'}
                 </p>
             </div>
 

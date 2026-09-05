@@ -47,6 +47,8 @@ export async function GET(req: NextRequest) {
                             { customerName: { contains: q, mode: 'insensitive' } },
                             { customerShortName: { contains: q, mode: 'insensitive' } },
                             { siteShortName: { contains: q, mode: 'insensitive' } },
+                            // 住所（ProjectMasterに siteAddress は無く location が現場住所）
+                            { location: { contains: q, mode: 'insensitive' } },
                         ]
                         : undefined,
                 },
@@ -55,11 +57,12 @@ export async function GET(req: NextRequest) {
                     title: true,
                     name: true,
                     honorific: true,
+                    customerName: true,
                     customerShortName: true,
                     siteShortName: true,
                 },
                 orderBy: { updatedAt: 'desc' },
-                take: 20,
+                take: 30,
             });
             const items = projects.map((p) => {
                 const projectPart =
@@ -69,7 +72,12 @@ export async function GET(req: NextRequest) {
                 const label = p.customerShortName
                     ? `${p.customerShortName} ${projectPart}`.trim()
                     : projectPart;
-                return { id: p.id, label, sub: '' };
+                // 右側の薄い文字は元請名。ラベルの略称と同じ文字列なら重複するので出さない
+                const sub =
+                    p.customerName && p.customerName !== p.customerShortName
+                        ? p.customerName
+                        : '';
+                return { id: p.id, label, sub };
             });
             return NextResponse.json(
                 { items },

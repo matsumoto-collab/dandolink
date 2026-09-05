@@ -181,7 +181,8 @@ export default function ProjectModal({
                                 <span className="hidden md:inline">案件マスタを編集</span>
                             </button>
                         )}
-                        {!readOnly && !isEditMode && initialData?.id && onDelete && (
+                        {/* チャット表示中は「削除」「見積書を作成」を出さない（メンバー選択画面を消す操作と誤認されるため） */}
+                        {!readOnly && !isEditMode && !showChat && initialData?.id && onDelete && (
                             <button
                                 onClick={handleDelete}
                                 title="削除"
@@ -201,7 +202,7 @@ export default function ProjectModal({
                                 <span className="hidden md:inline">見積書</span>
                             </button>
                         )}
-                        {!readOnly && !isEditMode && onCreateEstimate && (
+                        {!readOnly && !isEditMode && !showChat && onCreateEstimate && (
                             <button
                                 onClick={onCreateEstimate}
                                 title="見積書を作成"
@@ -226,7 +227,7 @@ export default function ProjectModal({
                 {/* コンテンツ */}
                 <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
                     {initialData?.id && showChat && initialData?.projectMasterId ? (
-                        <ProjectChatTab projectId={initialData.projectMasterId} />
+                        <ProjectChatTab projectId={initialData.projectMasterId} onNavigateAway={onClose} />
                     ) : initialData?.id && (!isEditMode || readOnly) ? (
                         // 既存案件の閲覧モード（readOnlyの場合は常に閲覧モード）
                         <ProjectDetailView

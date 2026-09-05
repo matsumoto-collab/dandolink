@@ -7,9 +7,12 @@ import { requireAuth, serverErrorResponse, notFoundResponse } from '@/lib/api/ut
  *
  * 案件チャットの状態を返す。
  *  - 既存ルームがあれば { roomId, members: [...] }
- *  - 無ければ { roomId: null, suggestedMemberIds: [...], members: [...] }
+ *  - 無ければ { roomId: null, suggestedMemberIds: [...], defaultSelectedIds: [...], members: [...] }
  *      suggested は managerIds + 全アサイン assignedEmployeeId + confirmedWorkerIds
- *      + 全admin + 自分。クライアント側で初期チェック状態として使う
+ *      + 全admin + 自分。候補一覧として画面に並べる。
+ *      defaultSelectedIds は初期チェック状態。編集できる人（協力業者以外）は
+ *      「自分だけ」＝呼びたい人を毎回明示的に選ぶ運用（kei指示 2026-09-05）。
+ *      協力業者はメンバーを編集できないので候補全員のまま。
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
     try {
@@ -90,10 +93,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pro
             select: { id: true, displayName: true, role: true },
         });
 
+        // 自分を先頭に並べる（初期状態で唯一チェックが付いている行が一番上に来る）
+        validUsers.sort((a, b) => (a.id === userId ? -1 : b.id === userId ? 1 : 0));
+        const suggestedMemberIds = validUsers.map((u) => u.id);
+
         return NextResponse.json({
             roomId: null,
             canEditMembers: !isPartner,
-            suggestedMemberIds: validUsers.map((u) => u.id),
+            selfUserId: userId,
+            suggestedMemberIds,
+            defaultSelectedIds: isPartner ? suggestedMemberIds : suggestedMemberIds.filter((id) => id === userId),
             members: validUsers.map((u) => ({
                 userId: u.id,
                 displayName: u.displayName,
