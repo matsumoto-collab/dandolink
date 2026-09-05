@@ -88,6 +88,7 @@ export async function GET(_req: NextRequest) {
                 constructionType: true,
                 workStartedAt: true,
                 workEndedAt: true,
+                sortOrder: true,
                 projectMaster: {
                     select: {
                         id: true,
@@ -102,16 +103,38 @@ export async function GET(_req: NextRequest) {
                     },
                 },
             },
-            orderBy: [{ date: 'asc' }, { meetingTime: 'asc' }],
+            // 週間カレンダーのセル内と同じ並び（/api/assignments と同じ orderBy）。meetingTime 順にすると食い違う
+            orderBy: [{ date: 'asc' }, { sortOrder: 'asc' }],
         });
 
         const foremanIds = new Set<string>();
         assignments.forEach((a) => foremanIds.add(a.assignedEmployeeId));
         const foremenList = await prisma.user.findMany({
             where: { id: { in: Array.from(foremanIds) } },
-            select: { id: true, displayName: true },
+            select: { id: true, displayName: true, dispatchSortOrder: true },
         });
         const foremenMap = new Map(foremenList.map((f) => [f.id, f.displayName]));
+
+        // 「他班に手配」で職長が混在するときは、カレンダーの職長行と同じ順（手配表示順 → 名前順）でまとめる。
+        // 自社の班は職長が1人なので sortOrder 順だけが効く。
+        const foremanRank = new Map<string, number>();
+        [...foremenList]
+            .sort((a, b) => {
+                const oa = a.dispatchSortOrder ?? Number.MAX_SAFE_INTEGER;
+                const ob = b.dispatchSortOrder ?? Number.MAX_SAFE_INTEGER;
+                if (oa !== ob) return oa - ob;
+                return a.displayName.localeCompare(b.displayName, 'ja');
+            })
+            .forEach((f, idx) => foremanRank.set(f.id, idx));
+        // 日付 → 職長行の順 → セル内の sortOrder。同順位は DB の並び（date, sortOrder）を保つ（Array.sort は安定）
+        const orderedAssignments = [...assignments].sort((a, b) => {
+            const d = a.date.getTime() - b.date.getTime();
+            if (d !== 0) return d;
+            const fa = foremanRank.get(a.assignedEmployeeId) ?? Number.MAX_SAFE_INTEGER;
+            const fb = foremanRank.get(b.assignedEmployeeId) ?? Number.MAX_SAFE_INTEGER;
+            if (fa !== fb) return fa - fb;
+            return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+        });
 
         const workerIdSet = new Set<string>();
         assignments.forEach((a) => {
@@ -125,7 +148,7 @@ export async function GET(_req: NextRequest) {
         const workerMap = new Map(workersList.map((w) => [w.id, w.displayName]));
 
         const filtered: PartnerScheduleAssignment[] = [];
-        for (const a of assignments) {
+        for (const a of orderedAssignments) {
             const confirmedIds = parseJsonField<string[]>(a.confirmedWorkerIds, []);
             const isOwnTeam = a.assignedEmployeeId === scopeCompanyId;
             const memberInThisTeam = confirmedIds.some((id) => memberIds.has(id));
