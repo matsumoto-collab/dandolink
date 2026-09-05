@@ -243,10 +243,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
      */
     const openInFloatingWindow = useCallback(() => {
         onNavigateAway?.();
-        const store = useChatStore.getState();
-        // 「ウインドウ」を押したのだから、以前「右端に固定」を選んでいてもウインドウ表示で出す
-        store.setChatPanelMode('floating');
-        store.setDockedRoom(roomId);
+        useChatStore.getState().setDockedRoom(roomId);
         if (activePage === 'chat' || pathname !== '/') {
             setActivePage('schedule');
             router.push('/?page=schedule');

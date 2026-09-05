@@ -5,8 +5,8 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Search, Plus, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
-import type { ChatRoomSummary } from '@/types/chat';
 import ChatRoomView from './ChatRoomView';
+import ChatRoomList, { filterRooms } from './ChatRoomList';
 
 interface UserOption {
     id: string;
@@ -58,15 +58,7 @@ export default function ChatPage() {
         }
     }, [searchParams, setActiveRoom, router, pathname]);
 
-    const filteredRooms = useMemo(() => {
-        if (!search.trim()) return rooms;
-        const q = search.toLowerCase();
-        return rooms.filter((r) => {
-            const title = roomTitle(r, myUserId);
-            return title.toLowerCase().includes(q) ||
-                (r.lastMessagePreview ?? '').toLowerCase().includes(q);
-        });
-    }, [rooms, search, myUserId]);
+    const filteredRooms = useMemo(() => filterRooms(rooms, search, myUserId), [rooms, search, myUserId]);
 
     return (
         <div className="flex h-full min-h-0 -m-4 sm:-m-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -97,52 +89,14 @@ export default function ChatPage() {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                    {isLoadingRooms && rooms.length === 0 && (
-                        <div className="p-8 text-center text-sm text-slate-400">読み込み中...</div>
-                    )}
-                    {!isLoadingRooms && filteredRooms.length === 0 && (
-                        <div className="p-8 text-center text-sm text-slate-400">
-                            チャットがありません<br />「+」から新規作成
-                        </div>
-                    )}
-                    <ul className="divide-y divide-slate-200">
-                        {filteredRooms.map((room) => (
-                            <li key={room.id}>
-                                <button
-                                    onClick={() => setActiveRoom(room.id)}
-                                    className={`w-full text-left px-3 py-3 hover:bg-white transition-colors ${activeRoomId === room.id ? 'bg-white' : ''}`}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${room.type === 'project' ? 'bg-sky-500' : 'bg-slate-400'}`}>
-                                            {room.type === 'project' ? '案' : roomTitle(room, myUserId).charAt(0)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-semibold text-slate-900 truncate flex-1">
-                                                    {roomTitle(room, myUserId)}
-                                                </span>
-                                                {room.lastMessageAt && (
-                                                    <span className="text-[11px] text-slate-400 flex-shrink-0">
-                                                        {formatTime(room.lastMessageAt)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-xs text-slate-500 truncate flex-1">
-                                                    {room.lastMessagePreview || '（メッセージなし）'}
-                                                </span>
-                                                {room.unreadCount > 0 && (
-                                                    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-semibold flex-shrink-0">
-                                                        {room.unreadCount > 99 ? '99+' : room.unreadCount}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+                    <ChatRoomList
+                        rooms={filteredRooms}
+                        activeRoomId={activeRoomId}
+                        onSelect={setActiveRoom}
+                        myUserId={myUserId}
+                        isLoading={isLoadingRooms && rooms.length === 0}
+                        emptyMessage={<>チャットがありません<br />「+」から新規作成</>}
+                    />
                 </div>
             </aside>
 
@@ -173,26 +127,6 @@ export default function ChatPage() {
             )}
         </div>
     );
-}
-
-function roomTitle(room: ChatRoomSummary, myUserId: string | undefined): string {
-    if (room.name) return room.name;
-    if (room.type === 'dm') {
-        const other = room.members.find((m) => m.userId !== myUserId);
-        return other?.displayName || 'ダイレクトメッセージ';
-    }
-    const others = room.members.filter((m) => m.userId !== myUserId);
-    return others.map((m) => m.displayName).slice(0, 3).join(', ') || 'グループ';
-}
-
-function formatTime(d: string | Date): string {
-    const date = typeof d === 'string' ? new Date(d) : d;
-    const now = new Date();
-    const sameDay = date.toDateString() === now.toDateString();
-    if (sameDay) {
-        return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-    }
-    return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 interface NewRoomModalProps {

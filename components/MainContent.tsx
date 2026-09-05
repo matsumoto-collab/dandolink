@@ -155,7 +155,6 @@ export default function MainContent() {
     } | null>(null);
     const handleJumpConsumed = useCallback(() => setJumpRequest(null), []);
     const dockedRoomId = useChatStore((s) => s.dockedRoomId);
-    const chatPanelMode = useChatStore((s) => s.chatPanelMode);
 
     // 通知などからのディープリンク:
     //   ?page=schedule&view=assignment    → 手配表タブを開く
@@ -483,12 +482,10 @@ export default function MainContent() {
         }
     };
 
-    // チャット画面ではドッキング表示しない（同じルームを二重に開かないため）。
-    // dockedRoomId 自体は保持するので、他ページへ移ると再び出る
+    // チャット画面ではチャットウインドウを出さない（同じルームを二重に開かないため）。
+    // dockedRoomId 自体は保持するので、他ページへ移ると再び出る。
+    // ウインドウ／ボトムシートは本文に重ねて出すので、本文側のレイアウトは変えない
     const isChatPanelOpen = activePage !== 'chat' && !!dockedRoomId;
-    // 本文を右へ寄せるのは「右端に固定」表示のときだけ（ウインドウ表示は重ねて出す）。
-    // 閾値はパネル側と同じ md:(768px以上)。lg: はアスペクト比条件付きで iPad が外れるため使わない
-    const isChatDocked = isChatPanelOpen && chatPanelMode === 'docked';
 
     return (
         <>
@@ -499,8 +496,7 @@ export default function MainContent() {
                 left-0 right-0 pt-16
 
                 /* Desktop: Offset by sidebar width, no top padding */
-                /* 右端固定のドッキング中は768px以上で右側380pxぶん本文を寄せる（スマホは重ね表示） */
-                lg:left-48 lg:pt-0 ${isChatDocked ? 'md:right-[380px]' : 'lg:right-0'}
+                lg:left-48 lg:right-0 lg:pt-0
 
                 pwa-main-safe
             `}>
