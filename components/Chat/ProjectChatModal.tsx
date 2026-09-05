@@ -30,7 +30,7 @@ export default function ProjectChatModal({ projectId, title, onClose }: ProjectC
                     </button>
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden p-3">
-                    <ProjectChatTab projectId={projectId} />
+                    <ProjectChatTab projectId={projectId} onNavigateAway={onClose} />
                 </div>
             </div>
         </div>

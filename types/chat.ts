@@ -71,3 +71,29 @@ export interface ChatMessage {
     reads: MessageRead[];
     reactions?: MessageReaction[];
 }
+
+/**
+ * 案件チャットのヘッダー「予定」ボタンで出す配置（予定）1件。
+ * GET /api/chat/rooms/[roomId]/schedule のレスポンス items の要素。
+ */
+export interface ProjectScheduleItem {
+    id: string;
+    /** JST の YYYY-MM-DD */
+    dateKey: string;
+    foremanName: string;
+    memberCount: number;
+    estimatedHours: number;
+    constructionTypeName: string | null;
+    isDispatchConfirmed: boolean;
+    /** 日付が仮押さえ（dateStatus === 'tentative'） */
+    isTentative: boolean;
+    meetingTime: string | null;
+}
+
+/** GET /api/chat/rooms/[roomId]/schedule のレスポンス */
+export interface ProjectScheduleResponse {
+    projectMasterId: string;
+    /** JST の今日（YYYY-MM-DD）。過去/今後の判定に使う */
+    todayKey: string;
+    items: ProjectScheduleItem[];
+}

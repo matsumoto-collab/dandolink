@@ -1,15 +1,18 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText, Smile, MoreHorizontal, Trash2, Pencil, SmilePlus } from 'lucide-react';
+import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText, Smile, MoreHorizontal, Trash2, Pencil, SmilePlus, CalendarDays } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useNavigation } from '@/contexts/NavigationContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import InviteMembersModal from './InviteMembersModal';
 import { logger } from '@/lib/logger';
 import toast from 'react-hot-toast';
 import { useChatStore } from '@/stores/chatStore';
 import { useChatRealtime } from '@/hooks/useChatRealtime';
-import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
+import type { ChatRoomSummary, ChatMessage, ProjectScheduleItem, ProjectScheduleResponse } from '@/types/chat';
 import {
     detectMentionTrigger,
     filterActiveMentions,
@@ -24,6 +27,9 @@ import MentionSuggestPopover from './MentionSuggestPopover';
 import { REACTION_EMOJIS } from '@/lib/chat/reactions';
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
+
+/** 週間カレンダー画面を持たないロール（「予定」ボタンを出さない） */
+const ROLES_WITHOUT_CALENDAR = ['worker', 'partner', 'partner_member', 'accountant'];
 
 const PRESET_STAMPS: { emoji: string; text: string }[] = [
     { emoji: '👍', text: '了解しました' },
@@ -85,10 +91,22 @@ interface ChatRoomViewProps {
     myUserId: string | undefined;
     /** モバイル用「戻る」ボタン。省略時は非表示（埋込モード） */
     onBack?: () => void;
+    /**
+     * 予定へジャンプする直前に呼ばれる。モーダル内に埋め込まれている場合は
+     * 親モーダルを閉じるために使う（閉じないとカレンダーが裏に隠れたままになる）。
+     */
+    onNavigateAway?: () => void;
+    /**
+     * Realtime チャンネル名の接尾辞。同じルームを2箇所で同時に開く呼び出し元
+     * （ドッキング表示）が指定する。未指定同士が同時に立つと購読が片方外れる。
+     */
+    realtimeKey?: string;
 }
 
-export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
+export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway, realtimeKey }: ChatRoomViewProps) {
     const { data: session } = useSession();
+    const router = useRouter();
+    const { setActivePage } = useNavigation();
     const canInvite = session?.user?.role !== 'partner';
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const rawMessages = useChatStore((s) => s.messagesByRoom[roomId]);
@@ -125,6 +143,13 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
     const [pendingAttachments, setPendingAttachments] = useState<UploadedAttachment[]>([]);
     const [uploadingCount, setUploadingCount] = useState(0);
     const [showStamps, setShowStamps] = useState(false);
+    // 案件チャットの「予定」ポップオーバー
+    const [showSchedule, setShowSchedule] = useState(false);
+    const [scheduleItems, setScheduleItems] = useState<ProjectScheduleItem[]>([]);
+    const [scheduleTodayKey, setScheduleTodayKey] = useState('');
+    const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
+    const [scheduleError, setScheduleError] = useState(false);
+    const [showPastSchedule, setShowPastSchedule] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
     const [nameInput, setNameInput] = useState('');
     const [isSavingName, setIsSavingName] = useState(false);
@@ -134,8 +159,87 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const lastMessageIdRef = useRef<string | null>(null);
     const lastReadIdRef = useRef<string | null>(null);
+    // メンション候補ポップオーバー内（検索欄など）を押している最中フラグ。
+    // relatedTarget が取れない環境向けの補完（300ms で自動解除＝取りこぼしを残さない）
+    const popoverHoldRef = useRef(false);
 
-    useChatRealtime(roomId);
+    useChatRealtime(roomId, realtimeKey);
+
+    // 「予定」ボタンの表示条件: 案件チャットで、週間カレンダーを持つロールのときだけ
+    const myRoleLower = (session?.user?.role ?? '').toLowerCase();
+    const canViewSchedule = !ROLES_WITHOUT_CALENDAR.includes(myRoleLower);
+    const showScheduleButton = canViewSchedule && room?.type === 'project' && !!room?.projectMasterId;
+
+    // ポップオーバーを開いたときに取得（deps はプリミティブのみ）
+    useEffect(() => {
+        if (!showSchedule) return;
+        let cancelled = false;
+        setIsLoadingSchedule(true);
+        setScheduleError(false);
+        (async () => {
+            try {
+                const res = await fetch(`/api/chat/rooms/${roomId}/schedule`, { cache: 'no-store' });
+                if (!res.ok) throw new Error('schedule fetch failed');
+                const data: ProjectScheduleResponse = await res.json();
+                if (cancelled) return;
+                setScheduleItems(data.items ?? []);
+                setScheduleTodayKey(data.todayKey ?? '');
+            } catch (e) {
+                logger.error('[chat] fetch schedule', e);
+                if (!cancelled) setScheduleError(true);
+            } finally {
+                if (!cancelled) setIsLoadingSchedule(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [showSchedule, roomId]);
+
+    // ルームが切り替わったらポップオーバーは畳む
+    useEffect(() => {
+        setShowSchedule(false);
+        setShowPastSchedule(false);
+    }, [roomId]);
+
+    const pastScheduleItems = useMemo(
+        () => scheduleItems.filter((it) => scheduleTodayKey && it.dateKey < scheduleTodayKey),
+        [scheduleItems, scheduleTodayKey]
+    );
+    const upcomingScheduleItems = useMemo(
+        () => scheduleItems.filter((it) => !scheduleTodayKey || it.dateKey >= scheduleTodayKey),
+        [scheduleItems, scheduleTodayKey]
+    );
+
+    /**
+     * 予定の行クリック → 週間カレンダーのその日へジャンプし、チャットは画面端にドッキングする。
+     * 遷移は NavigationContext 直接更新 + router.push の二段構え（通知ディープリンクと同じ規約）。
+     */
+    const navigateToSchedule = useCallback((item: ProjectScheduleItem) => {
+        setShowSchedule(false);
+        onNavigateAway?.();
+        setActivePage('schedule');
+        const params = new URLSearchParams();
+        params.set('page', 'schedule');
+        params.set('view', 'calendar');
+        params.set('date', item.dateKey);
+        params.set('assignmentId', item.id);
+        params.set('chatRoomId', roomId);
+        router.push(`/?${params.toString()}`);
+    }, [onNavigateAway, setActivePage, router, roomId]);
+
+    // 入力欄からフォーカスが外れたときの候補ポップオーバー閉じ判定。
+    // ポップオーバー内の検索欄へフォーカスが移った場合は閉じない（閉じると検索できない）。
+    const onComposerBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+        const next = e.relatedTarget as HTMLElement | null;
+        if (next && typeof next.closest === 'function' && next.closest('[data-mention-popover]')) return;
+        setTimeout(() => {
+            if (popoverHoldRef.current) return;
+            setMentionTrigger(null);
+        }, 100);
+    };
+    const holdPopover = () => {
+        popoverHoldRef.current = true;
+        setTimeout(() => { popoverHoldRef.current = false; }, 300);
+    };
 
     // 初期ロード + ルーム情報が無ければルーム一覧も取得
     useEffect(() => {
@@ -380,11 +484,88 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             </p>
                         )}
                     </div>
+                    {showScheduleButton && (
+                        <div className="relative flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setShowSchedule((v) => !v)}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium ${
+                                    showSchedule ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                                aria-label="この案件の予定"
+                            >
+                                <CalendarDays className="w-4 h-4" />
+                                <span>予定</span>
+                            </button>
+                            {showSchedule && (
+                                <>
+                                    <div className="fixed inset-0 z-20" onClick={() => setShowSchedule(false)} />
+                                    <div className="absolute z-30 top-full right-0 mt-2 w-[19rem] max-w-[85vw] bg-white rounded-xl shadow-lg border border-slate-200 p-2">
+                                        <p className="px-1 pb-1.5 text-[11px] font-semibold text-slate-500">
+                                            この案件の予定（タップでカレンダーへ）
+                                        </p>
+                                        {isLoadingSchedule ? (
+                                            <div className="flex items-center justify-center py-6">
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-teal-500" />
+                                            </div>
+                                        ) : scheduleError ? (
+                                            <p className="px-1 py-4 text-center text-xs text-rose-600">
+                                                予定を取得できませんでした
+                                            </p>
+                                        ) : (
+                                            <div className="max-h-72 overflow-y-auto">
+                                                {pastScheduleItems.length > 0 && (
+                                                    <>
+                                                        {showPastSchedule && (
+                                                            <ul className="space-y-1 mb-1">
+                                                                {pastScheduleItems.map((it) => (
+                                                                    <ScheduleRow
+                                                                        key={it.id}
+                                                                        item={it}
+                                                                        isPast
+                                                                        onClick={() => navigateToSchedule(it)}
+                                                                    />
+                                                                ))}
+                                                            </ul>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowPastSchedule((v) => !v)}
+                                                            className="w-full text-center py-1 mb-1 text-[11px] text-slate-500 hover:text-slate-700 underline"
+                                                        >
+                                                            {showPastSchedule
+                                                                ? '過去の予定を隠す'
+                                                                : `過去の予定を表示（${pastScheduleItems.length}件）`}
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {upcomingScheduleItems.length > 0 ? (
+                                                    <ul className="space-y-1">
+                                                        {upcomingScheduleItems.map((it) => (
+                                                            <ScheduleRow
+                                                                key={it.id}
+                                                                item={it}
+                                                                onClick={() => navigateToSchedule(it)}
+                                                            />
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p className="px-1 py-4 text-center text-xs text-slate-400">
+                                                        今後の予定はありません
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
                     {room && room.type !== 'dm' && (
                         <button
                             type="button"
                             onClick={() => setShowMembers((v) => !v)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100"
                             aria-label="参加メンバー"
                         >
                             <Users className="w-4 h-4" />
@@ -531,20 +712,22 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             value={text}
                             onChange={onTextChange}
                             onKeyDown={onKeyDown}
-                            onBlur={() => setTimeout(() => setMentionTrigger(null), 100)}
+                            onBlur={onComposerBlur}
                             rows={2}
                             placeholder="メッセージを入力"
                             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm resize-none max-h-40"
                             style={{ minHeight: 64 }}
                         />
                         {mentionTrigger && (
-                            <MentionSuggestPopover
-                                trigger={mentionTrigger.trigger}
-                                query={mentionTrigger.query}
-                                roomId={roomId}
-                                onSelect={onSelectMention}
-                                onClose={() => setMentionTrigger(null)}
-                            />
+                            <div data-mention-popover onMouseDown={holdPopover} onTouchStart={holdPopover}>
+                                <MentionSuggestPopover
+                                    trigger={mentionTrigger.trigger}
+                                    query={mentionTrigger.query}
+                                    roomId={roomId}
+                                    onSelect={onSelectMention}
+                                    onClose={() => setMentionTrigger(null)}
+                                />
+                            </div>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -648,20 +831,22 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             value={text}
                             onChange={onTextChange}
                             onKeyDown={onKeyDown}
-                            onBlur={() => setTimeout(() => setMentionTrigger(null), 100)}
+                            onBlur={onComposerBlur}
                             rows={1}
                             placeholder="メッセージを入力（Shift+Enterで送信）"
                             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm resize-none max-h-32"
                             style={{ minHeight: 44 }}
                         />
                         {mentionTrigger && (
-                            <MentionSuggestPopover
-                                trigger={mentionTrigger.trigger}
-                                query={mentionTrigger.query}
-                                roomId={roomId}
-                                onSelect={onSelectMention}
-                                onClose={() => setMentionTrigger(null)}
-                            />
+                            <div data-mention-popover onMouseDown={holdPopover} onTouchStart={holdPopover}>
+                                <MentionSuggestPopover
+                                    trigger={mentionTrigger.trigger}
+                                    query={mentionTrigger.query}
+                                    roomId={roomId}
+                                    onSelect={onSelectMention}
+                                    onClose={() => setMentionTrigger(null)}
+                                />
+                            </div>
                         )}
                     </div>
                     <button
@@ -675,6 +860,56 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                 </div>
             </div>
         </div>
+    );
+}
+
+/** 'YYYY-MM-DD' → 「9/8(月)」 */
+function formatScheduleDateLabel(dateKey: string): string {
+    const [y, m, d] = dateKey.split('-').map(Number);
+    if (!y || !m || !d) return dateKey;
+    const date = new Date(y, m - 1, d);
+    return `${formatDate(date, 'short')}(${getDayOfWeekString(date, 'short')})`;
+}
+
+interface ScheduleRowProps {
+    item: ProjectScheduleItem;
+    isPast?: boolean;
+    onClick: () => void;
+}
+
+/** 「予定」ポップオーバーの1行 */
+function ScheduleRow({ item, isPast = false, onClick }: ScheduleRowProps) {
+    return (
+        <li>
+            <button
+                type="button"
+                onClick={onClick}
+                className={`w-full text-left px-2 py-2 rounded-lg hover:bg-slate-50 ${isPast ? 'opacity-60' : ''}`}
+            >
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-bold text-slate-900">
+                        {formatScheduleDateLabel(item.dateKey)}
+                    </span>
+                    <span className="text-xs text-slate-700 truncate">{item.foremanName}</span>
+                    {item.isTentative && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+                            仮
+                        </span>
+                    )}
+                    {item.isDispatchConfirmed && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700 ring-1 ring-teal-200">
+                            手配済
+                        </span>
+                    )}
+                </div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+                    <span>{item.memberCount}人 · {item.estimatedHours}h</span>
+                    {item.constructionTypeName && (
+                        <span className="truncate">{item.constructionTypeName}</span>
+                    )}
+                </div>
+            </button>
+        </li>
     );
 }
 

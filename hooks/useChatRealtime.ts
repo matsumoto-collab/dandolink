@@ -9,15 +9,19 @@ import { logger } from '@/lib/logger';
 /**
  * アクティブルームのメッセージ Realtime 購読 + ルーム一覧の未読更新。
  * INSERT は単件差分更新、その他（UPDATE/DELETE）はルーム再取得。
+ *
+ * @param channelKey 同じルームを同時に2箇所で開く場合（例: ドッキング表示＋案件詳細モーダル）の
+ *   チャンネル名の接尾辞。useRealtimeSubscription は同名チャンネルを毎回新規生成するため、
+ *   同名が2本になると片方の unmount でもう片方の購読も外れる。呼び出し元ごとに別名にして回避する。
  */
-export function useChatRealtime(roomId: string | null) {
+export function useChatRealtime(roomId: string | null, channelKey?: string) {
     const fetchMessages = useChatStore((s) => s.fetchMessages);
     const fetchRooms = useChatStore((s) => s.fetchRooms);
     const upsertMessage = useChatStore((s) => s.upsertMessage);
 
     useRealtimeSubscription({
         table: 'Message',
-        channelName: roomId ? `chat-room-${roomId}` : 'chat-room-disabled',
+        channelName: roomId ? `chat-room-${roomId}${channelKey ? `-${channelKey}` : ''}` : 'chat-room-disabled',
         enabled: !!roomId,
         debounceMs: 500,
         onDataChange: (payload: RealtimePayload) => {
@@ -150,10 +154,14 @@ export function useChatRoomsRealtime(enabled: boolean, myUserId: string | undefi
         // グループ削除: 開いていたら閉じて通知し、一覧から除去
         const offDeleted = onBroadcast('chat:room-deleted', (payload) => {
             const deletedId = (payload as { roomId?: string }).roomId;
-            const { activeRoomId, setActiveRoom } = useChatStore.getState();
+            const { activeRoomId, setActiveRoom, dockedRoomId, setDockedRoom } = useChatStore.getState();
             if (deletedId && activeRoomId === deletedId) {
                 setActiveRoom(null);
                 toast('このグループは削除されました', { position: 'bottom-center' });
+            }
+            // ドッキング表示中のルームが消えた場合もパネルを閉じる（activeRoomId と同じ扱い）
+            if (deletedId && dockedRoomId === deletedId) {
+                setDockedRoom(null);
             }
             fetchRooms();
         });

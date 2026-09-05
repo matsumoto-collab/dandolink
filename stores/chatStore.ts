@@ -5,6 +5,8 @@ import type { ChatRoomSummary, ChatMessage, MessageReaction } from '@/types/chat
 interface ChatState {
     rooms: ChatRoomSummary[];
     activeRoomId: string | null;
+    /** チャット画面以外でも右側/下部に貼り付けて表示するルーム（スケジュールを見ながら返信する用） */
+    dockedRoomId: string | null;
     messagesByRoom: Record<string, ChatMessage[]>;
     hasMoreByRoom: Record<string, boolean>;
     totalUnread: number;
@@ -16,6 +18,7 @@ interface ChatActions {
     fetchRooms: () => Promise<void>;
     fetchUnreadCount: () => Promise<void>;
     setActiveRoom: (roomId: string | null) => void;
+    setDockedRoom: (roomId: string | null) => void;
     fetchMessages: (roomId: string, opts?: { before?: string }) => Promise<void>;
     sendMessage: (
         roomId: string,
@@ -49,6 +52,7 @@ interface ChatActions {
 const initialState: ChatState = {
     rooms: [],
     activeRoomId: null,
+    dockedRoomId: null,
     messagesByRoom: {},
     hasMoreByRoom: {},
     totalUnread: 0,
@@ -88,6 +92,8 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     },
 
     setActiveRoom: (roomId) => set({ activeRoomId: roomId }),
+
+    setDockedRoom: (roomId) => set({ dockedRoomId: roomId }),
 
     fetchMessages: async (roomId, opts) => {
         set({ isLoadingMessages: true });
@@ -390,6 +396,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
                     hasMoreByRoom,
                     totalUnread,
                     activeRoomId: s.activeRoomId === roomId ? null : s.activeRoomId,
+                    dockedRoomId: s.dockedRoomId === roomId ? null : s.dockedRoomId,
                 };
             });
             // 別端末・他メンバーへ通知

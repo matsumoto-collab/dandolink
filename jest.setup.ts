@@ -254,6 +254,28 @@ jest.mock('@/lib/prisma', () => ({
             findMany: jest.fn(),
             count: jest.fn(),
         },
+        constructionType: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+        },
+        chatRoom: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+        },
+        chatMember: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+            create: jest.fn(),
+            upsert: jest.fn(),
+            update: jest.fn(),
+            updateMany: jest.fn(),
+        },
         tool: {
             findMany: jest.fn(),
             findUnique: jest.fn(),

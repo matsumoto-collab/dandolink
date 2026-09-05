@@ -326,7 +326,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                         </Suspense>
                     ) : activeTab === 'chat' ? (
                         <Suspense fallback={<div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-500"></div></div>}>
-                            <ProjectChatTab projectId={pm.id} />
+                            <ProjectChatTab projectId={pm.id} onNavigateAway={onClose} />
                         </Suspense>
                     ) : (
                         <ProjectMasterDetailPanel pm={pm} hideFinancials={readOnly} />

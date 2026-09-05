@@ -39,6 +39,14 @@ export default function ChatPage() {
         fetchUnreadCount();
     }, [fetchRooms, fetchUnreadCount]);
 
+    // スケジュール画面にドッキングしていたルームがあれば、チャット画面に来たときはそれを開く
+    // （ドッキングパネルはチャット画面では出ないので、続きがすぐ見えるように）。
+    // 初回マウント時のみ。URL の roomId 指定がある場合は下の効果が上書きする。
+    useEffect(() => {
+        const { activeRoomId: current, dockedRoomId: docked, setActiveRoom: activate } = useChatStore.getState();
+        if (!current && docked) activate(docked);
+    }, []);
+
     useEffect(() => {
         const rid = searchParams?.get('roomId');
         if (rid) {

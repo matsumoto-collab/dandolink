@@ -9,6 +9,7 @@ import { ChevronRight } from 'lucide-react';
 import { ScheduleView } from './Schedule/ScheduleViewTabs';
 import ScheduleToolbar from './Schedule/ScheduleToolbar';
 import { isManagerOrAbove } from '@/utils/permissions';
+import { useChatStore } from '@/stores/chatStore';
 
 const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
@@ -121,6 +122,8 @@ const PartnerWorkVolumePage = dynamic(() => import('./PartnerWorkVolume/PartnerW
 const ScheduleHistoryPanel = dynamic(() => import('./Calendar/ScheduleHistoryPanel'), {
     loading: () => <LoadingSpinner />,
 });
+// スケジュールを見ながらチャットを返信するためのドッキングパネル（チャット画面以外で表示）
+const DockedChatPanel = dynamic(() => import('./Chat/DockedChatPanel'), { ssr: false });
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -142,10 +145,21 @@ export default function MainContent() {
     const pathname = usePathname();
 
     const [scheduleView, setScheduleView] = useState<ScheduleView>('calendar');
+    // 週間カレンダーの特定日へジャンプする依頼（チャットの「予定」から）。
+    // nonce は「同じ日付を連続で要求されても再ジャンプする」ための使い捨て番号
+    const [jumpRequest, setJumpRequest] = useState<{
+        date: string;
+        assignmentId: string | null;
+        nonce: number;
+    } | null>(null);
+    const handleJumpConsumed = useCallback(() => setJumpRequest(null), []);
+    const dockedRoomId = useChatStore((s) => s.dockedRoomId);
 
     // 通知などからのディープリンク:
     //   ?page=schedule&view=assignment    → 手配表タブを開く
     //   ?page=project-masters&pmId=...    → 案件詳細モーダルを開く（page側で処理）
+    //   ?page=schedule&view=calendar&date=YYYY-MM-DD&assignmentId=...&chatRoomId=...
+    //                                     → その日のカレンダーへジャンプ＋チャットをドッキング
     // page/view は処理後にURLから除去するが、pmId/scrollTo/pmEdit が含まれる場合は
     // 遷移先ページ側の URL 掃除に一任する（親子で同時に router.replace すると
     // 子→親の順で後勝ちになり、モバイルで pmId が URL に残って残像表示を引き起こすため）。
@@ -162,12 +176,32 @@ export default function MainContent() {
             setScheduleView(viewParam);
             consumed = true;
         }
+        // 特定の予定（配置）へジャンプ。overview/assignment 表示中でもカレンダーに切り替える
+        const dateParam = searchParams?.get('date');
+        if (pageParam === 'schedule' && dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+            setScheduleView('calendar');
+            setJumpRequest({
+                date: dateParam,
+                assignmentId: searchParams?.get('assignmentId') ?? null,
+                nonce: Date.now(),
+            });
+            consumed = true;
+        }
+        // スケジュールを見ながら返信できるように、チャットを画面端へドッキングする
+        const chatRoomIdParam = searchParams?.get('chatRoomId');
+        if (chatRoomIdParam) {
+            useChatStore.getState().setDockedRoom(chatRoomIdParam);
+            consumed = true;
+        }
         const hasChildDeepLinkParams =
             searchParams?.has('pmId') || searchParams?.has('scrollTo') || searchParams?.has('pmEdit');
         if (consumed && !hasChildDeepLinkParams) {
             const next = new URLSearchParams(searchParams?.toString() || '');
             next.delete('page');
             next.delete('view');
+            next.delete('date');
+            next.delete('assignmentId');
+            next.delete('chatRoomId');
             const qs = next.toString();
             router.replace(qs ? `${pathname}?${qs}` : pathname);
         }
@@ -300,6 +334,8 @@ export default function MainContent() {
                                 <WeeklyCalendar
                                     onNavigationReady={handleNavigationReady}
                                     onSearchReady={handleSearchReady}
+                                    jumpRequest={jumpRequest}
+                                    onJumpConsumed={handleJumpConsumed}
                                 />
                             ) : scheduleView === 'overview' ? (
                                 <OverviewCalendar onNavigationReady={handleNavigationReady} />
@@ -445,25 +481,32 @@ export default function MainContent() {
         }
     };
 
+    // チャット画面ではドッキング表示しない（同じルームを二重に開かないため）。
+    // dockedRoomId 自体は保持するので、他ページへ移ると再び出る
+    const isChatDocked = activePage !== 'chat' && !!dockedRoomId;
+
     return (
         <>
-            <main className="
+            <main className={`
                 fixed top-0 bottom-0 bg-slate-50 overflow-auto
 
                 /* Mobile: Full width with top padding for header */
                 left-0 right-0 pt-16
 
                 /* Desktop: Offset by sidebar width, no top padding */
-                lg:left-48 lg:pt-0 lg:right-0
+                /* ドッキング中は右側380pxぶん本文を寄せる（モバイルは重ね表示） */
+                lg:left-48 lg:pt-0 ${isChatDocked ? 'lg:right-[380px]' : 'lg:right-0'}
 
                 pwa-main-safe
-            ">
+            `}>
                 <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'materials'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}
                 </div>
             </main>
+
+            {isChatDocked && <DockedChatPanel />}
 
             {/* サイドバー折りたたみ中のフローティング展開ボタン (デスクトップのみ) */}
             {isSidebarCollapsed && (

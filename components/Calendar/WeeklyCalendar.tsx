@@ -61,9 +61,15 @@ interface WeeklyCalendarProps {
     partnerId?: string;
     onNavigationReady?: (nav: CalendarNavigation) => void;
     onSearchReady?: (openSearch: () => void) => void;
+    /**
+     * 外部（チャットの「予定」など）からの特定日ジャンプ依頼。
+     * nonce は使い捨て番号で、同じ日付を続けて要求されても再ジャンプできるようにするためのもの。
+     */
+    jumpRequest?: { date: string; assignmentId: string | null; nonce: number } | null;
+    onJumpConsumed?: () => void;
 }
 
-export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavigationReady, onSearchReady }: WeeklyCalendarProps) {
+export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavigationReady, onSearchReady, jumpRequest, onJumpConsumed }: WeeklyCalendarProps) {
     const { data: session, status } = useSession();
     const { projects, addProject, updateProject, updateProjects, demoteToFloating, deleteProject, restoreAssignment, restoreDeletedAssignment, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
     const { getTotalMembersForDate } = useMasterData();
@@ -361,6 +367,24 @@ useEffect(() => { setIsMounted(true); }, []);
             clearTimeout(t);
         };
     }, [highlightedEventId, projects]);
+
+    // 外部からのジャンプ依頼を消化（検索パネルからのジャンプと同じ handleSearchJump を再利用）。
+    // nonce を ref で覚えて同じ依頼を二重に消化しないようにする
+    const consumedJumpNonceRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (!jumpRequest || !isMounted) return;
+        if (consumedJumpNonceRef.current === jumpRequest.nonce) return;
+        consumedJumpNonceRef.current = jumpRequest.nonce;
+        const [y, m, d] = jumpRequest.date.split('-').map(Number);
+        if (!y || !m || !d) return;
+        const target = new Date(y, m - 1, d);
+        if (jumpRequest.assignmentId) {
+            handleSearchJump(target, jumpRequest.assignmentId);
+        } else {
+            goToDate(target);
+        }
+        onJumpConsumed?.();
+    }, [jumpRequest, isMounted, handleSearchJump, goToDate, onJumpConsumed]);
 
     // ナビゲーション関数を親に公開
     useEffect(() => {
