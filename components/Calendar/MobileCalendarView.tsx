@@ -13,6 +13,7 @@ import { resolveEventVehicleNames, resolveEventToolNames } from './vehicleNames'
 import VacationSelector from './VacationSelector';
 import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
 import FloatingLane, { getFloatingSummaryForDate } from './FloatingLane';
+import DateJumpButton from './DateJumpPopover';
 import dynamic from 'next/dynamic';
 
 const ProjectChatModal = dynamic(() => import('@/components/Chat/ProjectChatModal'), { ssr: false });
@@ -34,6 +35,10 @@ interface MobileCalendarViewProps {
     goToPreviousDay: () => void;
     goToNextDay: () => void;
     goToToday: () => void;
+    /** 日付指定ポップオーバーで選ばれた日へジャンプする（協力会社モードでは渡さない） */
+    handleJumpToDate?: (date: Date) => void;
+    /** 表示中の週の月曜（日付指定ポップオーバーの初期表示・ハイライト用） */
+    currentDate?: Date;
     /** 週送り/日送りの可否（協力会社モードの閲覧範囲制限）。false でボタンを無効表示にする */
     canGoPrevWeek?: boolean;
     canGoNextWeek?: boolean;
@@ -374,6 +379,8 @@ function MobileCalendarView({
     goToPreviousDay,
     goToNextDay,
     goToToday,
+    handleJumpToDate,
+    currentDate,
     canGoPrevWeek = true,
     canGoNextWeek = true,
     canGoPrevDay = true,
@@ -600,6 +607,15 @@ function MobileCalendarView({
                         >
                             {weekLabel}
                         </button>
+                        {handleJumpToDate && currentDate && (
+                            <DateJumpButton
+                                variant="compact"
+                                currentDate={currentDate}
+                                onSelect={handleJumpToDate}
+                                iconClassName={isLandscape ? 'w-3.5 h-3.5' : 'w-4 h-4'}
+                                buttonClassName={isLandscape ? 'p-0.5' : 'p-1.5'}
+                            />
+                        )}
                         {handleOpenSearch && (
                             <button
                                 onClick={handleOpenSearch}

@@ -3,6 +3,7 @@
 import React from 'react';
 import { Search, History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarDays, Sparkles } from 'lucide-react';
 import { ScheduleView } from './ScheduleViewTabs';
+import DateJumpButton from '@/components/Calendar/DateJumpPopover';
 
 interface ScheduleToolbarProps {
     activeView: ScheduleView;
@@ -11,7 +12,13 @@ interface ScheduleToolbarProps {
     onNextWeek?: () => void;
     onPrevDay?: () => void;
     onNextDay?: () => void;
+    onPrevMonth?: () => void;
+    onNextMonth?: () => void;
     onToday?: () => void;
+    /** 日付指定ポップオーバーで選ばれた日へジャンプする */
+    onJumpToDate?: (date: Date) => void;
+    /** 表示中の週の月曜（日付指定ポップオーバーの初期表示・ハイライト用） */
+    currentDate?: Date;
     onOpenSearch?: () => void;
     onOpenHistory?: () => void;
     /** AI照会モーダル（班別空き・仮予定・浮き）を開く。社員のみ渡す（partner系には渡さない） */
@@ -32,7 +39,11 @@ export default function ScheduleToolbar({
     onNextWeek,
     onPrevDay,
     onNextDay,
+    onPrevMonth,
+    onNextMonth,
     onToday,
+    onJumpToDate,
+    currentDate,
     onOpenSearch,
     onOpenHistory,
     onOpenAiAssistant,
@@ -42,7 +53,7 @@ export default function ScheduleToolbar({
     const showDateNav = activeView !== 'assignment' && !!onPrevWeek && !!onNextWeek && !!onToday;
 
     // 週移動セグメント内の矢印ボタン共通クラス
-    const navArrow = 'h-10 grid place-items-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors';
+    const navArrow = 'h-10 inline-flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors';
 
     return (
         <div className="flex-shrink-0 mb-1 flex items-center justify-between gap-2">
@@ -70,29 +81,46 @@ export default function ScheduleToolbar({
                 })}
             </div>
 
-            {/* 中央: 日付ナビ（デスクトップのみ。一体型セグメント。モバイルは MobileCalendarView の内蔵ナビを使う） */}
+            {/* 中央: 日付ナビ（デスクトップのみ。一体型セグメント＋日付指定。モバイルは MobileCalendarView の内蔵ナビを使う） */}
             {showDateNav ? (
-                <div className="hidden lg:inline-flex items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden divide-x divide-slate-100">
-                    <button onClick={onPrevWeek} className={`${navArrow} px-3`} aria-label="1週間前" title="1週間前">
-                        <ChevronsLeft className="w-4 h-4" />
-                    </button>
-                    {onPrevDay && (
-                        <button onClick={onPrevDay} className={`${navArrow} px-2.5`} aria-label="1日前" title="1日前">
-                            <ChevronLeft className="w-4 h-4" />
+                <div className="hidden lg:flex items-center gap-1.5">
+                    <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden divide-x divide-slate-100 flex-shrink-0">
+                        {onPrevMonth && (
+                            <button onClick={onPrevMonth} className={`${navArrow} px-2.5 gap-1 flex-shrink-0 whitespace-nowrap`} aria-label="1ヶ月前" title="1ヶ月前">
+                                <ChevronsLeft className="w-3.5 h-3.5" />
+                                <span className="text-xs font-semibold">1ヶ月</span>
+                            </button>
+                        )}
+                        <button onClick={onPrevWeek} className={`${navArrow} px-3`} aria-label="1週間前" title="1週間前">
+                            <ChevronsLeft className="w-4 h-4" />
                         </button>
-                    )}
-                    <button onClick={onToday} className="h-10 px-5 inline-flex items-center gap-2 text-slate-800 hover:bg-slate-50 transition-colors">
-                        <CalendarDays className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-semibold tracking-tight">{weekLabel || '今週'}</span>
-                    </button>
-                    {onNextDay && (
-                        <button onClick={onNextDay} className={`${navArrow} px-2.5`} aria-label="1日後" title="1日後">
-                            <ChevronRight className="w-4 h-4" />
+                        {onPrevDay && (
+                            <button onClick={onPrevDay} className={`${navArrow} px-2.5`} aria-label="1日前" title="1日前">
+                                <ChevronLeft className="w-4 h-4" />
+                            </button>
+                        )}
+                        <button onClick={onToday} className="h-10 px-5 inline-flex items-center gap-2 text-slate-800 hover:bg-slate-50 transition-colors whitespace-nowrap flex-shrink-0">
+                            <CalendarDays className="w-4 h-4 text-slate-400" />
+                            <span className="text-sm font-semibold tracking-tight">{weekLabel || '今週'}</span>
                         </button>
+                        {onNextDay && (
+                            <button onClick={onNextDay} className={`${navArrow} px-2.5`} aria-label="1日後" title="1日後">
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        )}
+                        <button onClick={onNextWeek} className={`${navArrow} px-3`} aria-label="1週間後" title="1週間後">
+                            <ChevronsRight className="w-4 h-4" />
+                        </button>
+                        {onNextMonth && (
+                            <button onClick={onNextMonth} className={`${navArrow} px-2.5 gap-1 flex-shrink-0 whitespace-nowrap`} aria-label="1ヶ月後" title="1ヶ月後">
+                                <span className="text-xs font-semibold">1ヶ月</span>
+                                <ChevronsRight className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                    {onJumpToDate && currentDate && (
+                        <DateJumpButton variant="toolbar" currentDate={currentDate} onSelect={onJumpToDate} />
                     )}
-                    <button onClick={onNextWeek} className={`${navArrow} px-3`} aria-label="1週間後" title="1週間後">
-                        <ChevronsRight className="w-4 h-4" />
-                    </button>
                 </div>
             ) : (
                 <div className="hidden lg:block" />

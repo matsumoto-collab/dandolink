@@ -292,7 +292,7 @@ useEffect(() => { setIsMounted(true); }, []);
         }
     }, [handleDemoteToFloating, updateProjectWithConflictHandling]);
 
-    const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToDate } = useCalendar(events);
+    const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToPreviousMonth, goToNextMonth, goToToday, goToDate } = useCalendar(events);
 
     // 協力会社モード: 閲覧できる範囲を「3ヶ月前〜4週先」に制限する（kei指示 2026-07-22/2026-08-17）。
     // 表示開始日が今週の月曜から何日先か(−91〜28日)で判定する。日送りは表示窓を1日ずらす機能
@@ -392,9 +392,9 @@ useEffect(() => { setIsMounted(true); }, []);
     // ナビゲーション関数を親に公開
     useEffect(() => {
         if (onNavigationReady) {
-            onNavigationReady({ goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday });
+            onNavigationReady({ goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToPreviousMonth, goToNextMonth, goToDate, currentDate });
         }
-    }, [onNavigationReady, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday]);
+    }, [onNavigationReady, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToPreviousMonth, goToNextMonth, goToDate, currentDate]);
 
     // 検索オープナーを親に公開（ScheduleToolbar から呼ばれる）
     useEffect(() => {
@@ -901,6 +901,8 @@ useEffect(() => { setIsMounted(true); }, []);
                     goToPreviousDay={navGoToPreviousDay}
                     goToNextDay={navGoToNextDay}
                     goToToday={goToToday}
+                    handleJumpToDate={partnerMode ? undefined : goToDate}
+                    currentDate={currentDate}
                     canGoPrevWeek={canGoPrevWeek}
                     canGoNextWeek={canGoNextWeek}
                     canGoPrevDay={canGoPrevDay}

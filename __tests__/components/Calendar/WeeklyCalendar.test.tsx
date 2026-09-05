@@ -86,7 +86,10 @@ jest.mock('@/hooks/useCalendar', () => ({
         goToNextWeek: mockGoToNextWeek,
         goToPreviousDay: jest.fn(),
         goToNextDay: jest.fn(),
+        goToPreviousMonth: jest.fn(),
+        goToNextMonth: jest.fn(),
         goToToday: jest.fn(),
+        goToDate: jest.fn(),
     }),
 }));
 
@@ -124,6 +127,11 @@ jest.mock('@/utils/dateUtils', () => ({
     formatDate: () => '1/1',
     getDayOfWeekString: () => 'Mon',
     addDays: (d: Date, _n: number) => d, // simplified
+    // 日付指定ポップオーバー(DateJumpPopover)が参照するもの
+    addMonths: (d: Date, _n: number) => d, // simplified
+    isHoliday: () => false,
+    isSameDay: () => false,
+    isToday: () => false,
 }));
 
 describe('WeeklyCalendar', () => {

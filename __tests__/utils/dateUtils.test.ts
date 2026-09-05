@@ -7,6 +7,7 @@ import {
     addDays,
     isToday,
     addWeeks,
+    addMonths,
     getFirstDayOfMonth,
     getLastDayOfMonth,
 } from '@/utils/dateUtils';
@@ -189,6 +190,63 @@ describe('dateUtils', () => {
             const firstDay = getFirstDayOfMonth(date);
             expect(firstDay.getDate()).toBe(1);
             expect(firstDay.getMonth()).toBe(5);
+        });
+    });
+
+    describe('addMonths', () => {
+        it('should clamp to the last day of the target month (1/31 + 1 month in a leap year)', () => {
+            const date = new Date(2024, 0, 31); // 2024年1月31日（閏年）
+            const result = addMonths(date, 1);
+            expect(result.getFullYear()).toBe(2024);
+            expect(result.getMonth()).toBe(1); // 2月
+            expect(result.getDate()).toBe(29);
+        });
+
+        it('should clamp to the last day of the target month (3/31 - 1 month in a leap year)', () => {
+            const date = new Date(2024, 2, 31); // 2024年3月31日
+            const result = addMonths(date, -1);
+            expect(result.getFullYear()).toBe(2024);
+            expect(result.getMonth()).toBe(1); // 2月
+            expect(result.getDate()).toBe(29);
+        });
+
+        it('should clamp to 2/28 in a non-leap year (1/31 + 1 month)', () => {
+            const date = new Date(2023, 0, 31); // 2023年1月31日（平年）
+            const result = addMonths(date, 1);
+            expect(result.getFullYear()).toBe(2023);
+            expect(result.getMonth()).toBe(1);
+            expect(result.getDate()).toBe(28);
+        });
+
+        it('should return the same day of the next year when adding 12 months', () => {
+            const date = new Date(2026, 8, 5); // 2026年9月5日
+            const result = addMonths(date, 12);
+            expect(result.getFullYear()).toBe(2027);
+            expect(result.getMonth()).toBe(8);
+            expect(result.getDate()).toBe(5);
+        });
+
+        it('should cross the year boundary when subtracting 13 months', () => {
+            const date = new Date(2026, 8, 5); // 2026年9月5日
+            const result = addMonths(date, -13);
+            expect(result.getFullYear()).toBe(2025);
+            expect(result.getMonth()).toBe(7); // 8月
+            expect(result.getDate()).toBe(5);
+        });
+
+        it('should keep the time part', () => {
+            const date = new Date(2026, 0, 15, 10, 30, 45);
+            const result = addMonths(date, 2);
+            expect(result.getHours()).toBe(10);
+            expect(result.getMinutes()).toBe(30);
+            expect(result.getSeconds()).toBe(45);
+        });
+
+        it('should not mutate the original date', () => {
+            const date = new Date(2024, 0, 31);
+            const before = date.getTime();
+            addMonths(date, 1);
+            expect(date.getTime()).toBe(before);
         });
     });
 

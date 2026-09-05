@@ -212,6 +212,25 @@ export function addDays(date: Date, days: number): Date {
 }
 
 /**
+ * 月を加算/減算
+ * 月末は繰り上げずに丸める（例: 1/31 の +1ヶ月 → 2/29 or 2/28、3/31 の −1ヶ月 → 2/29）。
+ * 時刻成分はそのまま維持する。
+ * @param date 基準となる日付
+ * @param months 加算する月数（負の値で減算）
+ * @returns 新しい日付
+ */
+export function addMonths(date: Date, months: number): Date {
+    const newDate = new Date(date);
+    const day = newDate.getDate();
+    // 先に1日へ寄せてから月を動かすことで、setMonth の繰り上がりを防ぐ
+    newDate.setDate(1);
+    newDate.setMonth(newDate.getMonth() + months);
+    const lastDay = new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0).getDate();
+    newDate.setDate(Math.min(day, lastDay));
+    return newDate;
+}
+
+/**
  * "HH:MM" 形式の開始/終了時刻から差分を分単位で算出。
  * 終了時刻が開始時刻より前の場合は翌日扱いで24時間を加算する（夜間作業対応）。
  * 不正な入力（NaN等）は0を返す。

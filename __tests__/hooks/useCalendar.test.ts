@@ -81,6 +81,67 @@ describe('useCalendar', () => {
         expect(result.current.currentDate.toISOString()).toContain('2024-01-15');
     });
 
+    it('should navigate to next month (snapped to the Monday of that week)', () => {
+        const { result } = renderHook(() => useCalendar());
+
+        act(() => {
+            result.current.goToNextMonth();
+        });
+
+        // 2024-01-15 + 1ヶ月 = 2024-02-15(木) → その週の月曜 = 2024-02-12
+        expect(result.current.currentDate.getFullYear()).toBe(2024);
+        expect(result.current.currentDate.getMonth()).toBe(1);
+        expect(result.current.currentDate.getDate()).toBe(12);
+    });
+
+    it('should navigate to previous month (snapped to the Monday of that week)', () => {
+        const { result } = renderHook(() => useCalendar());
+
+        act(() => {
+            result.current.goToPreviousMonth();
+        });
+
+        // 2024-01-15 - 1ヶ月 = 2023-12-15(金) → その週の月曜 = 2023-12-11
+        expect(result.current.currentDate.getFullYear()).toBe(2023);
+        expect(result.current.currentDate.getMonth()).toBe(11);
+        expect(result.current.currentDate.getDate()).toBe(11);
+    });
+
+    it('should jump to an arbitrary date snapped to Monday', () => {
+        const { result } = renderHook(() => useCalendar());
+
+        act(() => {
+            result.current.goToDate(new Date('2024-03-07T00:00:00.000Z'));
+        });
+
+        // 2024-03-07(木) → その週の月曜 = 2024-03-04
+        expect(result.current.currentDate.getFullYear()).toBe(2024);
+        expect(result.current.currentDate.getMonth()).toBe(2);
+        expect(result.current.currentDate.getDate()).toBe(4);
+    });
+
+    it('should keep navigation function references stable across renders', () => {
+        const { result, rerender } = renderHook(() => useCalendar());
+
+        const before = {
+            goToNextWeek: result.current.goToNextWeek,
+            goToPreviousWeek: result.current.goToPreviousWeek,
+            goToNextMonth: result.current.goToNextMonth,
+            goToPreviousMonth: result.current.goToPreviousMonth,
+            goToToday: result.current.goToToday,
+            goToDate: result.current.goToDate,
+        };
+
+        rerender();
+
+        expect(result.current.goToNextWeek).toBe(before.goToNextWeek);
+        expect(result.current.goToPreviousWeek).toBe(before.goToPreviousWeek);
+        expect(result.current.goToNextMonth).toBe(before.goToNextMonth);
+        expect(result.current.goToPreviousMonth).toBe(before.goToPreviousMonth);
+        expect(result.current.goToToday).toBe(before.goToToday);
+        expect(result.current.goToDate).toBe(before.goToDate);
+    });
+
     it('should calculate weekDays correctly', () => {
         const { result } = renderHook(() => useCalendar());
 

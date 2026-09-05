@@ -13,6 +13,7 @@ import { useChatStore } from '@/stores/chatStore';
 import { useScheduleJumpStore } from '@/stores/scheduleJumpStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CHAT_WINDOW_MEDIA_QUERY, isChatWindowViewport } from '@/lib/chatWindow';
+import type { CalendarNavigation } from '@/types/calendar';
 
 const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
@@ -235,14 +236,8 @@ export default function MainContent() {
         setActivePage('schedule');
         setScheduleView('calendar');
     }, [jumpRequest, setActivePage]);
-    const [calendarNav, setCalendarNav] = useState<{
-        goToPreviousWeek: () => void;
-        goToNextWeek: () => void;
-        goToPreviousDay: () => void;
-        goToNextDay: () => void;
-        goToToday: () => void;
-    } | null>(null);
-    const handleNavigationReady = useCallback((nav: typeof calendarNav) => {
+    const [calendarNav, setCalendarNav] = useState<CalendarNavigation | null>(null);
+    const handleNavigationReady = useCallback((nav: CalendarNavigation) => {
         setCalendarNav(nav);
     }, []);
     const [openSearch, setOpenSearch] = useState<(() => void) | null>(null);
@@ -353,7 +348,11 @@ export default function MainContent() {
                             onNextWeek={calendarNav?.goToNextWeek}
                             onPrevDay={calendarNav?.goToPreviousDay}
                             onNextDay={calendarNav?.goToNextDay}
+                            onPrevMonth={calendarNav?.goToPreviousMonth}
+                            onNextMonth={calendarNav?.goToNextMonth}
                             onToday={calendarNav?.goToToday}
+                            onJumpToDate={calendarNav?.goToDate}
+                            currentDate={calendarNav?.currentDate}
                             onOpenSearch={scheduleView === 'calendar' && openSearch ? openSearch : undefined}
                             onOpenHistory={canViewHistory ? () => setIsHistoryOpen(true) : undefined}
                             onOpenAiAssistant={canUseAiAssistant ? () => setIsAiAssistantOpen(true) : undefined}

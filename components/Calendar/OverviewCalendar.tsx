@@ -31,15 +31,15 @@ export default function OverviewCalendar({ onNavigationReady }: OverviewCalendar
     const [isMounted, setIsMounted] = useState(false);
     const events: CalendarEvent[] = useMemo(() => projects as CalendarEvent[], [projects]);
 
-    const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday } = useCalendar(events);
+    const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToPreviousMonth, goToNextMonth, goToToday, goToDate } = useCalendar(events);
 
     useEffect(() => { setIsMounted(true); }, []);
 
     useEffect(() => {
         if (onNavigationReady) {
-            onNavigationReady({ goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday });
+            onNavigationReady({ goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToPreviousMonth, goToNextMonth, goToDate, currentDate });
         }
-    }, [onNavigationReady, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday]);
+    }, [onNavigationReady, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToPreviousMonth, goToNextMonth, goToDate, currentDate]);
 
     useEffect(() => {
         if (status === 'authenticated' && isMounted) {

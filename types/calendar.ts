@@ -5,6 +5,12 @@ export interface CalendarNavigation {
     goToPreviousDay: () => void;
     goToNextDay: () => void;
     goToToday: () => void;
+    goToPreviousMonth: () => void;
+    goToNextMonth: () => void;
+    /** 任意の日付を含む週へ移動（月曜にスナップ） */
+    goToDate: (date: Date) => void;
+    /** 表示中の週の月曜（日付指定ポップオーバーの初期表示・ハイライト用） */
+    currentDate: Date;
 }
 
 // プロジェクトステータス型
