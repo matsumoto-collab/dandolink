@@ -11,6 +11,7 @@ import InviteMembersModal from './InviteMembersModal';
 import { logger } from '@/lib/logger';
 import toast from 'react-hot-toast';
 import { useChatStore } from '@/stores/chatStore';
+import { useScheduleJumpStore } from '@/stores/scheduleJumpStore';
 import { useChatRealtime } from '@/hooks/useChatRealtime';
 import type { ChatRoomSummary, ChatMessage, ProjectScheduleItem, ProjectScheduleResponse } from '@/types/chat';
 import {
@@ -30,6 +31,13 @@ const EMPTY_MESSAGES: ChatMessage[] = [];
 
 /** 週間カレンダー画面を持たないロール（「予定」ボタンを出さない） */
 const ROLES_WITHOUT_CALENDAR = ['worker', 'partner', 'partner_member', 'accountant'];
+
+/** 削除の確認・ボタンに出すルーム種別の呼び名 */
+function roomKindLabel(type: string | undefined): string {
+    if (type === 'dm') return '会話';
+    if (type === 'project') return '案件チャット';
+    return 'グループ';
+}
 
 const PRESET_STAMPS: { emoji: string; text: string }[] = [
     { emoji: '👍', text: '了解しました' },
@@ -131,10 +139,12 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
     const renameRoom = useChatStore((s) => s.renameRoom);
     const deleteRoom = useChatStore((s) => s.deleteRoom);
 
-    // グループの管理（名称変更・削除）はオーナーまたは管理者のみ
+    // 名称変更はグループのみ（案件チャット名は案件から・DMは相手名）で、オーナー(作成者)または管理者
     const myMember = room?.members.find((m) => m.userId === myUserId);
-    const canManageRoom =
-        room?.type === 'group' && (myMember?.role === 'owner' || session?.user?.role === 'admin');
+    const isOwnerOrAdmin = myMember?.role === 'owner' || session?.user?.role === 'admin';
+    const canManageRoom = room?.type === 'group' && isOwnerOrAdmin;
+    // 削除: グループ・案件チャットはオーナー(作成者)または管理者、DMは当事者どちらでも（相手側からも消える）
+    const canDeleteRoom = !!room && (room.type === 'dm' || isOwnerOrAdmin);
 
     const memberMap = useMemo(() => {
         const m = new Map<string, string>();
@@ -218,21 +228,19 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
     );
 
     /**
-     * 予定の行クリック → 週間カレンダーのその日へジャンプし、チャットは画面端にドッキングする。
-     * 遷移は NavigationContext 直接更新 + router.push の二段構え（通知ディープリンクと同じ規約）。
+     * 予定の行クリック → 週間カレンダーのその日へジャンプ（検索パネルのジャンプと同じ動き＝
+     * その日へ移動＋4秒ハイライト＋自動スクロール）し、チャットはウインドウ／ボトムシートに残す。
+     * ジャンプ依頼は scheduleJumpStore で直接渡す（URL 経由だと同じ URL の再 push に反応せず、
+     * 2回目以降が無反応になった）。カレンダーを持つトップ(/)以外に居るときだけ遷移する。
      */
     const navigateToSchedule = useCallback((item: ProjectScheduleItem) => {
         setShowSchedule(false);
         onNavigateAway?.();
+        useChatStore.getState().setDockedRoom(roomId);
+        useScheduleJumpStore.getState().requestJump(item.dateKey, item.id);
         setActivePage('schedule');
-        const params = new URLSearchParams();
-        params.set('page', 'schedule');
-        params.set('view', 'calendar');
-        params.set('date', item.dateKey);
-        params.set('assignmentId', item.id);
-        params.set('chatRoomId', roomId);
-        router.push(`/?${params.toString()}`);
-    }, [onNavigateAway, setActivePage, router, roomId]);
+        if (pathname !== '/') router.push('/?page=schedule');
+    }, [onNavigateAway, setActivePage, router, roomId, pathname]);
 
     /**
      * 「ウインドウ」→ チャットを画面内のフローティングウインドウへ移す。
@@ -345,12 +353,16 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
     };
 
     const handleDeleteGroup = async () => {
-        if (!window.confirm('このグループを削除しますか？\nすべてのメッセージ履歴が完全に削除され、元に戻せません。')) return;
+        const kind = roomKindLabel(room?.type);
+        const note = room?.type === 'dm'
+            ? '相手側からも消え、メッセージ履歴は元に戻せません。'
+            : 'すべてのメッセージ履歴が完全に削除され、元に戻せません。';
+        if (!window.confirm(`この${kind}を削除しますか？\n${note}`)) return;
         const ok = await deleteRoom(roomId);
         if (ok) {
-            toast.success('グループを削除しました', { position: 'bottom-center' });
+            toast.success(`${kind}を削除しました`, { position: 'bottom-center' });
         } else {
-            toast.error('グループの削除に失敗しました', { position: 'bottom-center' });
+            toast.error(`${kind}の削除に失敗しました`, { position: 'bottom-center' });
         }
     };
 
@@ -597,7 +609,8 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
                             )}
                         </div>
                     )}
-                    {room && room.type !== 'dm' && (
+                    {/* 参加メンバー（DMも開ける＝下の「削除」に辿り着けるように） */}
+                    {room && (
                         <button
                             type="button"
                             onClick={() => setShowMembers((v) => !v)}
@@ -614,7 +627,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
                     <div className="px-3 pb-3 border-t border-slate-100 bg-slate-50/60">
                         <div className="pt-2 flex items-center justify-between mb-2">
                             <span className="text-[11px] font-semibold text-slate-500">参加メンバー</span>
-                            {canInvite && (
+                            {canInvite && room.type !== 'dm' && (
                                 <button
                                     type="button"
                                     onClick={() => setShowInvite(true)}
@@ -650,7 +663,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
                                 </span>
                             ))}
                         </div>
-                        {canManageRoom && (
+                        {canDeleteRoom && (
                             <div className="mt-3 pt-3 border-t border-slate-200">
                                 <button
                                     type="button"
@@ -658,10 +671,12 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-rose-600 border border-rose-200 hover:bg-rose-50"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
-                                    グループを削除
+                                    {roomKindLabel(room.type)}を削除
                                 </button>
                                 <p className="text-[10px] text-slate-400 mt-1.5">
-                                    削除するとすべてのメッセージ履歴が完全に消え、元に戻せません。
+                                    {room.type === 'dm'
+                                        ? '削除すると相手側からも消え、メッセージ履歴は元に戻せません。'
+                                        : '削除するとすべてのメッセージ履歴が完全に消え、元に戻せません。'}
                                 </p>
                             </div>
                         )}
@@ -676,7 +691,8 @@ export default function ChatRoomView({ roomId, myUserId, onBack, onNavigateAway,
                 )}
             </header>
 
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 bg-slate-50">
+            {/* data-chat-scroll: 吹き出し脇のポップオーバーが「上に出す余地」を測る基準（placePopover） */}
+            <div ref={scrollRef} data-chat-scroll className="flex-1 overflow-y-auto px-3 py-4 bg-slate-50">
                 {hasMore && (
                     <div className="text-center mb-3">
                         <button
@@ -1026,15 +1042,44 @@ function AttachmentView({ att, isMine }: AttachmentViewProps) {
     );
 }
 
+/** 吹き出し脇のポップオーバー（リアクションピッカー・操作メニュー）の fixed 座標 */
+interface PopoverPos {
+    left: number;
+    top?: number;
+    bottom?: number;
+}
+
+/**
+ * ポップオーバーをボタンの上に出す座標を返す。上に出す余地が無ければ下に出す。
+ * 「上の余地」はメッセージ一覧(data-chat-scroll)の上端を基準にする＝一番上のメッセージで
+ * ヘッダー帯の裏に入って押せなくなるのを防ぐ。左右は画面内にクランプする。
+ */
+function placePopover(btn: HTMLElement, width: number, height: number, align: 'left' | 'right'): PopoverPos {
+    const rect = btn.getBoundingClientRect();
+    const margin = 8;
+    const gap = 4;
+    const rawLeft = align === 'left' ? rect.left : rect.right - width;
+    const left = Math.max(margin, Math.min(rawLeft, window.innerWidth - width - margin));
+    const scrollEl = btn.closest<HTMLElement>('[data-chat-scroll]');
+    const areaTop = scrollEl ? scrollEl.getBoundingClientRect().top : 0;
+    if (rect.top - areaTop >= height + gap) {
+        return { left, bottom: window.innerHeight - rect.top + gap };
+    }
+    return { left, top: rect.bottom + gap };
+}
+
 function MessageBubble({ message, isMine, myUserId, senderName, memberMap }: MessageBubbleProps) {
     const isDeleted = !!message.deletedAt;
     const [showReaders, setShowReaders] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [showReactionPicker, setShowReactionPicker] = useState(false);
-    // ピッカーは fixed 配置で画面内にクランプする（absolute だと長文メッセージで
-    // ボタンが画面端に寄ったとき左右にはみ出して絵文字が切れるため）
-    const [pickerPos, setPickerPos] = useState<{ left: number; bottom: number } | null>(null);
+    // ピッカー・操作メニューは fixed 配置で画面内にクランプする（absolute だと長文メッセージで
+    // ボタンが画面端に寄ったとき左右にはみ出して絵文字が切れる／一番上のメッセージでは
+    // メッセージ一覧(overflow)の上端で切れてヘッダーの裏に隠れたように見えるため）
+    const [pickerPos, setPickerPos] = useState<PopoverPos | null>(null);
+    const [menuPos, setMenuPos] = useState<PopoverPos | null>(null);
     const reactionButtonRef = useRef<HTMLButtonElement>(null);
+    const menuButtonRef = useRef<HTMLButtonElement>(null);
     const deleteMessage = useChatStore((s) => s.deleteMessage);
     const toggleReaction = useChatStore((s) => s.toggleReaction);
     const canUnsend = isMine && !isDeleted;
@@ -1046,13 +1091,22 @@ function MessageBubble({ message, isMine, myUserId, senderName, memberMap }: Mes
         }
         const btn = reactionButtonRef.current;
         if (!btn) return;
-        const rect = btn.getBoundingClientRect();
-        // ピッカー実幅: 絵文字ボタン w-9(36px)×n + gap-0.5(2px)×(n-1) + px-1.5(12px) + border(2px)
+        // ピッカー実寸: 幅=絵文字ボタン w-9(36px)×n + gap-0.5(2px)×(n-1) + px-1.5(12px) + border(2px)、高さ=36 + py-1(8) + border(2)
         const pickerWidth = REACTION_EMOJIS.length * 36 + (REACTION_EMOJIS.length - 1) * 2 + 14;
-        const margin = 8;
-        const left = Math.max(margin, Math.min(rect.left, window.innerWidth - pickerWidth - margin));
-        setPickerPos({ left, bottom: window.innerHeight - rect.top + 4 });
+        setPickerPos(placePopover(btn, pickerWidth, 46, 'left'));
         setShowReactionPicker(true);
+    };
+
+    const openMenu = () => {
+        if (showMenu) {
+            setShowMenu(false);
+            return;
+        }
+        const btn = menuButtonRef.current;
+        if (!btn) return;
+        // メニュー実寸: 幅 w-44(176px)、高さ=項目 py-2(16)+文字(20) + py-1(8) + border(2)
+        setMenuPos(placePopover(btn, 176, 46, 'right'));
+        setShowMenu(true);
     };
 
     const handleUnsend = async () => {
@@ -1104,7 +1158,7 @@ function MessageBubble({ message, isMine, myUserId, senderName, memberMap }: Mes
                         <div className="fixed inset-0 z-20" onClick={() => setShowReactionPicker(false)} />
                         <div
                             className="fixed z-30 bg-white rounded-full shadow-lg border border-slate-200 px-1.5 py-1 flex items-center gap-0.5"
-                            style={{ left: pickerPos.left, bottom: pickerPos.bottom }}
+                            style={{ left: pickerPos.left, top: pickerPos.top, bottom: pickerPos.bottom }}
                         >
                             {REACTION_EMOJIS.map((e) => (
                                 <button
@@ -1123,17 +1177,21 @@ function MessageBubble({ message, isMine, myUserId, senderName, memberMap }: Mes
             {canUnsend && (
                 <div className="relative">
                     <button
+                        ref={menuButtonRef}
                         type="button"
-                        onClick={() => setShowMenu((v) => !v)}
+                        onClick={openMenu}
                         className="inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                         aria-label="メッセージ操作"
                     >
                         <MoreHorizontal className="w-4 h-4" />
                     </button>
-                    {showMenu && (
+                    {showMenu && menuPos && (
                         <>
                             <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />
-                            <div className="absolute z-30 bottom-full mb-1 right-0 w-44 bg-white rounded-xl shadow-lg border border-slate-200 py-1">
+                            <div
+                                className="fixed z-30 w-44 bg-white rounded-xl shadow-lg border border-slate-200 py-1"
+                                style={{ left: menuPos.left, top: menuPos.top, bottom: menuPos.bottom }}
+                            >
                                 <button
                                     type="button"
                                     onClick={handleUnsend}

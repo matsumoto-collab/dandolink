@@ -335,9 +335,12 @@ useEffect(() => { setIsMounted(true); }, []);
             if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
         };
     }, []);
+    // 同じ配置へ続けてジャンプしたとき（ハイライト中に再度押された等）も必ずスクロールし直すための番号
+    const [scrollRequest, setScrollRequest] = useState(0);
     const handleSearchJump = useCallback((date: Date, assignmentId: string) => {
         goToDate(date);
         setHighlightedEventId(assignmentId);
+        setScrollRequest((n) => n + 1);
         if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
         highlightTimerRef.current = setTimeout(() => setHighlightedEventId(null), 4000);
     }, [goToDate]);
@@ -366,7 +369,7 @@ useEffect(() => { setIsMounted(true); }, []);
             cancelled = true;
             clearTimeout(t);
         };
-    }, [highlightedEventId, projects]);
+    }, [highlightedEventId, projects, scrollRequest]);
 
     // 外部からのジャンプ依頼を消化（検索パネルからのジャンプと同じ handleSearchJump を再利用）。
     // nonce を ref で覚えて同じ依頼を二重に消化しないようにする

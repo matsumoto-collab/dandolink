@@ -10,6 +10,7 @@ import { ScheduleView } from './Schedule/ScheduleViewTabs';
 import ScheduleToolbar from './Schedule/ScheduleToolbar';
 import { isManagerOrAbove } from '@/utils/permissions';
 import { useChatStore } from '@/stores/chatStore';
+import { useScheduleJumpStore } from '@/stores/scheduleJumpStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CHAT_WINDOW_MEDIA_QUERY, isChatWindowViewport } from '@/lib/chatWindow';
 
@@ -148,14 +149,11 @@ export default function MainContent() {
     const pathname = usePathname();
 
     const [scheduleView, setScheduleView] = useState<ScheduleView>('calendar');
-    // 週間カレンダーの特定日へジャンプする依頼（チャットの「予定」から）。
+    // 週間カレンダーの特定日へジャンプする依頼（チャットの「予定」・通知のディープリンクから）。
+    // 受け渡しは scheduleJumpStore（URL 経由だと同じ URL の再 push に反応せず2回目以降が無反応になるため）。
     // nonce は「同じ日付を連続で要求されても再ジャンプする」ための使い捨て番号
-    const [jumpRequest, setJumpRequest] = useState<{
-        date: string;
-        assignmentId: string | null;
-        nonce: number;
-    } | null>(null);
-    const handleJumpConsumed = useCallback(() => setJumpRequest(null), []);
+    const jumpRequest = useScheduleJumpStore((s) => s.request);
+    const handleJumpConsumed = useScheduleJumpStore((s) => s.clearJump);
     const isChatWindowOpen = useChatStore((s) => s.isChatWindowOpen);
     // PC・iPad(768px以上)ではチャットはウインドウで開く。何かの経路でチャット画面(activePage='chat')に
     // なったら（スマホで開いたまま iPad を横にした等）、直前のページに戻してウインドウで出す
@@ -205,12 +203,8 @@ export default function MainContent() {
         // 特定の予定（配置）へジャンプ。overview/assignment 表示中でもカレンダーに切り替える
         const dateParam = searchParams?.get('date');
         if (pageParam === 'schedule' && dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
-            setScheduleView('calendar');
-            setJumpRequest({
-                date: dateParam,
-                assignmentId: searchParams?.get('assignmentId') ?? null,
-                nonce: Date.now(),
-            });
+            // カレンダー表示への切替は下の「ジャンプ依頼を受けたとき」の効果が行う
+            useScheduleJumpStore.getState().requestJump(dateParam, searchParams?.get('assignmentId') ?? null);
             consumed = true;
         }
         // スケジュールを見ながら返信できるように、チャットを画面端へドッキングする
@@ -233,6 +227,14 @@ export default function MainContent() {
             router.replace(qs ? `${pathname}?${qs}` : pathname);
         }
     }, [searchParams, setActivePage, router, pathname]);
+
+    // ジャンプ依頼を受けたら、スケジュール画面のカレンダー表示へ切り替える
+    // （overview／手配表を表示中でも、別ページに居ても、カレンダーが出て WeeklyCalendar が依頼を消化する）
+    useEffect(() => {
+        if (!jumpRequest) return;
+        setActivePage('schedule');
+        setScheduleView('calendar');
+    }, [jumpRequest, setActivePage]);
     const [calendarNav, setCalendarNav] = useState<{
         goToPreviousWeek: () => void;
         goToNextWeek: () => void;

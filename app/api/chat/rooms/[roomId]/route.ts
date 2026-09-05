@@ -163,11 +163,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
             select: { type: true },
         });
         if (!room) return notFoundResponse('チャットルーム');
-        if (room.type !== 'group') {
-            return errorResponse('削除できるのはグループのみです', 400);
-        }
-        if (member.role !== 'owner' && session!.user.role !== 'admin') {
-            return errorResponse('グループ削除はオーナーまたは管理者のみ可能です', 403);
+        // グループ・案件チャット: オーナー(作成者)または管理者のみ。DM: 当事者どちらでも（相手側からも消える）
+        if (room.type !== 'dm' && member.role !== 'owner' && session!.user.role !== 'admin') {
+            return errorResponse('削除はオーナーまたは管理者のみ可能です', 403);
         }
 
         await prisma.chatRoom.delete({ where: { id: roomId } });
