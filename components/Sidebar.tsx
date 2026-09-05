@@ -13,6 +13,7 @@ import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
 import { useChatStore } from '@/stores/chatStore';
 import { APP_NAME, APP_LOGO } from '@/lib/branding';
 import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
+import { useOpenChat } from '@/hooks/useOpenChat';
 
 interface NavItem {
     name: string;
@@ -81,6 +82,8 @@ export default function Sidebar() {
     const [isReloading, setIsReloading] = useState(false);
     const totalChatUnread = useChatStore((s) => s.totalUnread);
     const fetchRooms = useChatStore((s) => s.fetchRooms);
+    // 「チャット」: PC・iPad はチャットウインドウで開く／スマホはチャット画面へ
+    const openChat = useOpenChat();
 
     // 全ページで未読バッジを即時更新するためグローバル購読
     useChatRoomsRealtime(!!session?.user?.id, session?.user?.id);
@@ -107,7 +110,12 @@ export default function Sidebar() {
     };
 
     const handleNavigation = (page: PageType) => {
-        setActivePage(page);
+        if (page === 'chat') {
+            // PC・iPad はチャット画面へ行かずウインドウで開く（スマホは従来どおりチャット画面）
+            openChat();
+        } else {
+            setActivePage(page);
+        }
         closeMobileMenu(); // Close mobile menu after navigation
     };
 

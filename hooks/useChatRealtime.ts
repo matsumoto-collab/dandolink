@@ -155,14 +155,11 @@ export function useChatRoomsRealtime(enabled: boolean, myUserId: string | undefi
         const offDeleted = onBroadcast('chat:room-deleted', (payload) => {
             const deletedId = (payload as { roomId?: string }).roomId;
             const { activeRoomId, setActiveRoom, dockedRoomId, setDockedRoom } = useChatStore.getState();
-            if (deletedId && activeRoomId === deletedId) {
-                setActiveRoom(null);
-                toast('このグループは削除されました', { position: 'bottom-center' });
-            }
-            // ドッキング表示中のルームが消えた場合もパネルを閉じる（activeRoomId と同じ扱い）
-            if (deletedId && dockedRoomId === deletedId) {
-                setDockedRoom(null);
-            }
+            const wasOpen = !!deletedId && (activeRoomId === deletedId || dockedRoomId === deletedId);
+            if (deletedId && activeRoomId === deletedId) setActiveRoom(null);
+            // チャットウインドウ／ボトムシートで開いていたルームが消えた場合はルーム一覧に戻す（ウインドウ自体は閉じない）
+            if (deletedId && dockedRoomId === deletedId) setDockedRoom(null);
+            if (wasOpen) toast('このグループは削除されました', { position: 'bottom-center' });
             fetchRooms();
         });
         return () => {

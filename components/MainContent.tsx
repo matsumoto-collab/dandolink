@@ -10,6 +10,8 @@ import { ScheduleView } from './Schedule/ScheduleViewTabs';
 import ScheduleToolbar from './Schedule/ScheduleToolbar';
 import { isManagerOrAbove } from '@/utils/permissions';
 import { useChatStore } from '@/stores/chatStore';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { CHAT_WINDOW_MEDIA_QUERY, isChatWindowViewport } from '@/lib/chatWindow';
 
 const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
@@ -154,7 +156,21 @@ export default function MainContent() {
         nonce: number;
     } | null>(null);
     const handleJumpConsumed = useCallback(() => setJumpRequest(null), []);
-    const dockedRoomId = useChatStore((s) => s.dockedRoomId);
+    const isChatWindowOpen = useChatStore((s) => s.isChatWindowOpen);
+    // PC・iPad(768px以上)ではチャットはウインドウで開く。何かの経路でチャット画面(activePage='chat')に
+    // なったら（スマホで開いたまま iPad を横にした等）、直前のページに戻してウインドウで出す
+    const isChatWindowViewportNow = useMediaQuery(CHAT_WINDOW_MEDIA_QUERY);
+    const lastNonChatPageRef = useRef<PageType>('schedule');
+    useEffect(() => {
+        if (activePage !== 'chat') lastNonChatPageRef.current = activePage;
+    }, [activePage]);
+    useEffect(() => {
+        if (activePage !== 'chat' || isChatWindowViewportNow !== true) return;
+        const chatStore = useChatStore.getState();
+        if (chatStore.activeRoomId) chatStore.setDockedRoom(chatStore.activeRoomId);
+        else chatStore.openChatWindow();
+        setActivePage(lastNonChatPageRef.current);
+    }, [activePage, isChatWindowViewportNow, setActivePage]);
 
     // 通知などからのディープリンク:
     //   ?page=schedule&view=assignment    → 手配表タブを開く
@@ -169,7 +185,16 @@ export default function MainContent() {
         const viewParam = searchParams?.get('view');
         if (!pageParam) return;
         let consumed = false;
-        if (VALID_PAGES.includes(pageParam as PageType)) {
+        // チャットへのディープリンク（通知・プッシュ通知の URL）: PC・iPad はチャット画面へ行かず
+        // ウインドウで開く。roomId もここで消費する（スマホは従来どおり ChatPage 側が消費する）
+        const isChatToWindow = pageParam === 'chat' && isChatWindowViewport();
+        if (isChatToWindow) {
+            const roomIdParam = searchParams?.get('roomId');
+            const chatStore = useChatStore.getState();
+            if (roomIdParam) chatStore.setDockedRoom(roomIdParam);
+            else chatStore.openChatWindow();
+            consumed = true;
+        } else if (VALID_PAGES.includes(pageParam as PageType)) {
             setActivePage(pageParam as PageType);
             consumed = true;
         }
@@ -203,6 +228,7 @@ export default function MainContent() {
             next.delete('date');
             next.delete('assignmentId');
             next.delete('chatRoomId');
+            if (isChatToWindow) next.delete('roomId');
             const qs = next.toString();
             router.replace(qs ? `${pathname}?${qs}` : pathname);
         }
@@ -483,9 +509,9 @@ export default function MainContent() {
     };
 
     // チャット画面ではチャットウインドウを出さない（同じルームを二重に開かないため）。
-    // dockedRoomId 自体は保持するので、他ページへ移ると再び出る。
+    // 開いている状態自体は保持するので、他ページへ移ると再び出る。
     // ウインドウ／ボトムシートは本文に重ねて出すので、本文側のレイアウトは変えない
-    const isChatPanelOpen = activePage !== 'chat' && !!dockedRoomId;
+    const isChatPanelOpen = activePage !== 'chat' && isChatWindowOpen;
 
     return (
         <>

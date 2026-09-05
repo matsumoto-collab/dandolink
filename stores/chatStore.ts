@@ -6,10 +6,15 @@ interface ChatState {
     rooms: ChatRoomSummary[];
     activeRoomId: string | null;
     /**
-     * チャット画面以外でも表示しておくルーム（スケジュールを見ながら返信する用）。
-     * PC・iPad は画面内ウインドウ、スマホは下部のボトムシートで出す
+     * チャットウインドウ（PC・iPad）／ボトムシート（スマホ）で表示中のルーム。
+     * null のときはウインドウにルーム一覧だけを出す
      */
     dockedRoomId: string | null;
+    /**
+     * チャットウインドウ／ボトムシートを出しているか。
+     * PC・iPad ではサイドバーの「チャット」を押すとチャット画面へは行かず、このウインドウで開く
+     */
+    isChatWindowOpen: boolean;
     messagesByRoom: Record<string, ChatMessage[]>;
     hasMoreByRoom: Record<string, boolean>;
     totalUnread: number;
@@ -21,7 +26,12 @@ interface ChatActions {
     fetchRooms: () => Promise<void>;
     fetchUnreadCount: () => Promise<void>;
     setActiveRoom: (roomId: string | null) => void;
+    /** ウインドウに出すルームを切り替える（指定ありならウインドウも開く。null は一覧だけの状態） */
     setDockedRoom: (roomId: string | null) => void;
+    /** ウインドウを開く（ルームは直前のものを保つ。無ければ一覧だけ） */
+    openChatWindow: () => void;
+    /** ウインドウを閉じる（ルームは保つので次に開いたとき続きが見える） */
+    closeChatWindow: () => void;
     fetchMessages: (roomId: string, opts?: { before?: string }) => Promise<void>;
     sendMessage: (
         roomId: string,
@@ -56,6 +66,7 @@ const initialState: ChatState = {
     rooms: [],
     activeRoomId: null,
     dockedRoomId: null,
+    isChatWindowOpen: false,
     messagesByRoom: {},
     hasMoreByRoom: {},
     totalUnread: 0,
@@ -96,7 +107,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
 
     setActiveRoom: (roomId) => set({ activeRoomId: roomId }),
 
-    setDockedRoom: (roomId) => set({ dockedRoomId: roomId }),
+    setDockedRoom: (roomId) =>
+        set(roomId ? { dockedRoomId: roomId, isChatWindowOpen: true } : { dockedRoomId: null }),
+
+    openChatWindow: () => set({ isChatWindowOpen: true }),
+
+    closeChatWindow: () => set({ isChatWindowOpen: false }),
 
     fetchMessages: async (roomId, opts) => {
         set({ isLoadingMessages: true });

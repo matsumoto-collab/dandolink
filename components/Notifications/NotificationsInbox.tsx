@@ -12,6 +12,7 @@ import CustomerNotifyDialog from '@/components/Notifications/CustomerNotifyDialo
 import { usePageVisible } from '@/hooks/useRealtimeSubscription';
 import { setAppBadge } from '@/lib/appBadge';
 import { useNavigation, PageType } from '@/contexts/NavigationContext';
+import { useOpenChat } from '@/hooks/useOpenChat';
 
 const INITIAL_LIMIT = 5;
 const LOAD_MORE_STEP = 20;
@@ -75,6 +76,8 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
     const role = session?.user?.role;
     const router = useRouter();
     const { setActivePage } = useNavigation();
+    // チャット通知: PC・iPad はチャットウインドウで開く／スマホはチャット画面へ
+    const openChat = useOpenChat();
 
     const [open, setOpen] = useState(false);
     const [notifyTarget, setNotifyTarget] = useState<{ assignmentId: string; kind: 'start' | 'complete' } | null>(null);
@@ -273,6 +276,11 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
             try {
                 const parsed = new URL(n.url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
                 const pageParam = parsed.searchParams.get('page');
+                if (pageParam === 'chat') {
+                    // チャット通知: PC・iPad はチャット画面へ行かずウインドウで開く（遷移込みで useOpenChat に任せる）
+                    openChat(parsed.searchParams.get('roomId'));
+                    return;
+                }
                 if (pageParam && (VALID_PAGES as ReadonlyArray<string>).includes(pageParam)) {
                     setActivePage(pageParam as PageType);
                 }

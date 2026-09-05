@@ -13,8 +13,8 @@ export interface FloatingWindowRect {
 /** リサイズできる角（右下 / 左下） */
 export type FloatingWindowCorner = 'se' | 'sw';
 
-/** 位置・サイズの保存先（キーを変えると保存済みの値は捨てられる） */
-const STORAGE_KEY = 'dandolink:chatWindow:v1';
+/** 位置・サイズの保存先（キーを変えると保存済みの値は捨てられる。v2=一覧カラムが入る既定幅720に変更） */
+const STORAGE_KEY = 'dandolink:chatWindow:v2';
 
 /** 最小サイズ（これ以下には縮められない） */
 const MIN_W = 320;
@@ -22,8 +22,8 @@ const MIN_H = 360;
 /** ビューポート端に必ず残す余白。最大サイズは「ビューポート − この余白×2」 */
 const MARGIN = 16;
 
-/** 既定サイズ・既定位置（右下） */
-const DEFAULT_W = 420;
+/** 既定サイズ・既定位置（右下）。幅は一覧カラム(240)＋チャット(400)が並ぶ広さ。狭い画面では clamp される */
+const DEFAULT_W = 720;
 const DEFAULT_H = 600;
 const DEFAULT_GAP = 24;
 
