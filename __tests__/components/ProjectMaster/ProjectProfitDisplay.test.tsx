@@ -263,4 +263,44 @@ describe('ProjectProfitDisplay', () => {
         await waitFor(() => expect(screen.getByDisplayValue('45000')).toBeInTheDocument());
         expect(screen.getByDisplayValue('5月分')).toBeInTheDocument();
     });
+    it('人件費の見出し直下に総人数と職長×作業内容ごとの人数を表示する（折りたたみ中でも見える）', async () => {
+        const dataWithLabor = {
+            ...mockProfitData,
+            breakdown: {
+                labor: [
+                    { assignmentId: 'a1', date: '2026-06-01', constructionTypeName: '組立', hours: 8, foremanName: '田畑', workerCount: 3, autoCost: 60000, override: null, effectiveCost: 60000 },
+                    { assignmentId: 'a2', date: '2026-06-02', constructionTypeName: '組立', hours: 8, foremanName: '小笠原', workerCount: 2, autoCost: 40000, override: null, effectiveCost: 40000 },
+                    { assignmentId: 'a3', date: '2026-06-03', constructionTypeName: '組立', hours: 8, foremanName: '田畑', workerCount: 2, autoCost: 40000, override: null, effectiveCost: 40000 },
+                    { assignmentId: 'a4', date: '2026-06-04', constructionTypeName: '搬入', hours: 4, foremanName: '玉ノ井', workerCount: 1, autoCost: 20000, override: null, effectiveCost: 20000 },
+                ],
+                vehicle: [],
+                subcontractor: [],
+                materialCost: 100000,
+                otherExpenses: 20000,
+                loadingCost: 50000,
+            },
+        };
+        global.fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, json: () => Promise.resolve(dataWithLabor) })
+        ) as jest.Mock;
+
+        render(<ProjectProfitDisplay projectMasterId="pm1" />);
+        await waitFor(() => expect(screen.getByText('利益サマリー')).toBeInTheDocument());
+
+        // 展開しなくても見出し直下に出る（明細行の「3名」はまだ出ていない）
+        expect(screen.queryByText(/3名/)).not.toBeInTheDocument();
+        const summary = screen.getByTestId('labor-headcount-summary');
+        expect(summary).toHaveTextContent('総人数 8人');
+        expect(summary).toHaveTextContent('（田畑 組立 5人・小笠原 組立 2人・玉ノ井 搬入 1人）');
+    });
+
+    it('人件費の配置明細が無ければ人数サマリーを出さない', async () => {
+        global.fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, json: () => Promise.resolve(mockProfitData) })
+        ) as jest.Mock;
+        render(<ProjectProfitDisplay projectMasterId="pm1" />);
+        await waitFor(() => expect(screen.getByText('利益サマリー')).toBeInTheDocument());
+        expect(screen.queryByTestId('labor-headcount-summary')).not.toBeInTheDocument();
+    });
+
 });

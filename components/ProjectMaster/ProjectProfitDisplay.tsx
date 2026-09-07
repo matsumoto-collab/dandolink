@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Loading from '@/components/ui/Loading';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
 import { logger } from '@/lib/logger';
+import { summarizeLaborHeadcount, formatLaborHeadcountGroups } from '@/lib/laborHeadcount';
 
 interface CostBreakdown {
     laborCost: number;
@@ -465,6 +466,8 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
     }
 
     const { costBreakdown, grossProfit, profitMargin, revenue, breakdown } = profitData;
+    // 人件費の人数サマリー（総人数＋職長×作業内容の内訳）。配置由来の明細が無ければ出さない
+    const laborHeadcount = breakdown?.labor?.length ? summarizeLaborHeadcount(breakdown.labor) : null;
     const revenueSource: RevenueSource = profitData.revenueSource ?? (revenue > 0 ? 'invoice' : 'none');
     const isProfit = grossProfit >= 0;
 
@@ -702,6 +705,21 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                                             {formatCurrency(section.amount)}
                                         </span>
                                     </div>
+
+                                    {/* 人件費: 総人数（日ごとの計上人数の合計＝延べ）＋職長×作業内容ごとの人数。折りたたみ中も見えるよう見出し直下に置く */}
+                                    {section.key === 'labor' && laborHeadcount && (
+                                        <div
+                                            data-testid="labor-headcount-summary"
+                                            className="ml-5 mt-0.5 text-xs text-slate-500 leading-relaxed break-words"
+                                            title="日ごとに計上した人数の合計（延べ人数）です"
+                                        >
+                                            <span>{'総人数 '}</span>
+                                            <span className="font-medium tabular-nums text-slate-700">{laborHeadcount.total}人</span>
+                                            {laborHeadcount.groups.length > 0 && (
+                                                <span>（{formatLaborHeadcountGroups(laborHeadcount.groups)}）</span>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {section.expandable && opened && (() => {
                                         const bucket = section.key as ManualBucket;
