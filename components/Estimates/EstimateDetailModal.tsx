@@ -14,6 +14,7 @@ import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import BudgetTab from './BudgetTab';
 import { logger } from '@/lib/logger';
+import { applyEstimateCustomerToProject } from '@/lib/estimateCustomer';
 
 const EstimateVersionHistoryModal = dynamic(
     () => import('@/components/Estimates/EstimateVersionHistoryModal'),
@@ -92,11 +93,10 @@ export default function EstimateDetailModal({
     // projectがnullの場合はestimateからダミーのProjectを作成（useMemoでメモ化）
     const effectiveProject: Project = useMemo(() => {
         if (project) {
-            // projectにcustomerがない場合、customerNameで補完
-            const patched = { ...project };
-            if (!patched.customer && customerName) patched.customer = customerName;
-            if (!patched.customerHonorific && customerHonorific) patched.customerHonorific = customerHonorific;
-            return patched;
+            // 宛名は見積書自身の顧客（customerName = estimate.customerId 由来）を優先する。
+            // 見積書は案件と別の顧客を選んで保存できるため、案件の顧客(project.customer)は
+            // 見積書に顧客が無い時のフォールバックにとどめる（見積書一覧・フォームのプレビューと同じ基準）。
+            return applyEstimateCustomerToProject(project, customerName, customerHonorific);
         }
         return {
             id: estimate?.id || '',
@@ -365,7 +365,7 @@ export default function EstimateDetailModal({
                     isOpen={isHistoryOpen}
                     onClose={() => setIsHistoryOpen(false)}
                     estimateId={estimate.id}
-                    project={project}
+                    project={effectiveProject}
                     companyInfo={companyInfo}
                 />
             )}

@@ -2,25 +2,43 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import EstimateDetailModal from '@/components/Estimates/EstimateDetailModal';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 
 // Mock lucide-react icons
-jest.mock('lucide-react', () => ({
-    X: () => <span data-testid="icon-x" />,
-    FileDown: () => <span data-testid="icon-filedown" />,
-    Printer: () => <span data-testid="icon-printer" />,
-    Trash2: () => <span data-testid="icon-trash" />,
-    Edit: () => <span data-testid="icon-edit" />,
-}));
+// 明示していないアイコン（FolderOpen/History/Receipt など後から増えた分）も
+// Proxy で空のスタブを返し、コンポーネント側のアイコン追加でスイート全体が落ちないようにする
+jest.mock('lucide-react', () => {
+    const explicit: Record<string, () => JSX.Element> = {
+        X: () => <span data-testid="icon-x" />,
+        FileDown: () => <span data-testid="icon-filedown" />,
+        Printer: () => <span data-testid="icon-printer" />,
+        Trash2: () => <span data-testid="icon-trash" />,
+        Edit: () => <span data-testid="icon-edit" />,
+    };
+    return new Proxy(explicit, {
+        get: (target, name) => {
+            if (typeof name !== 'string') return undefined;
+            if (name === '__esModule') return true;
+            if (name in target) return target[name];
+            const Stub = () => <span data-testid={`icon-${name.toLowerCase()}`} />;
+            return Stub;
+        },
+    });
+});
 
 // Mock the PDF generator (dynamic import)
 jest.mock('@/utils/reactPdfGenerator', () => ({
     generateEstimatePDFBlobReact: jest.fn().mockResolvedValue('blob:mock-url'),
     exportEstimatePDFReact: jest.fn().mockResolvedValue(undefined),
+}));
+
+// PDF ビューアは react-pdf(ESM) を動的 import するため jest では解析できない → スタブに差し替え
+jest.mock('@/components/ui/InlinePdfViewer', () => ({
+    InlinePdfViewer: () => <div data-testid="pdf-viewer" />,
 }));
 
 describe('EstimateDetailModal', () => {
@@ -316,6 +334,49 @@ describe('EstimateDetailModal', () => {
             />
         );
         expect(screen.getByText('PDFを読み込んでいます...')).toBeInTheDocument();
+    });
+
+    it('案件に顧客が付いていても、見積書自身の顧客(customerName)を宛名にしてPDFを作る', async () => {
+        const { generateEstimatePDFBlobReact } = jest.requireMock('@/utils/reactPdfGenerator');
+        render(
+            <EstimateDetailModal
+                isOpen={true}
+                onClose={mockOnClose}
+                estimate={mockEstimate}
+                project={mockProject}
+                customerName="株式会社ABC建設"
+                customerHonorific="様"
+                companyInfo={mockCompanyInfo}
+                onDelete={mockOnDelete}
+                onEdit={mockOnEdit}
+            />
+        );
+        await waitFor(() => expect(generateEstimatePDFBlobReact).toHaveBeenCalled());
+        const projectArg = generateEstimatePDFBlobReact.mock.calls[0][1];
+        expect(projectArg.customer).toBe('株式会社ABC建設');
+        expect(projectArg.customerHonorific).toBe('様');
+        // 現場名などは案件のまま
+        expect(projectArg.title).toBe('テストプロジェクト');
+    });
+
+    it('見積書に顧客が無ければ案件の顧客を宛名にする', async () => {
+        const { generateEstimatePDFBlobReact } = jest.requireMock('@/utils/reactPdfGenerator');
+        render(
+            <EstimateDetailModal
+                isOpen={true}
+                onClose={mockOnClose}
+                estimate={mockEstimate}
+                project={mockProject}
+                companyInfo={mockCompanyInfo}
+                onDelete={mockOnDelete}
+                onEdit={mockOnEdit}
+            />
+        );
+        await waitFor(() => expect(generateEstimatePDFBlobReact).toHaveBeenCalled());
+        const projectArg = generateEstimatePDFBlobReact.mock.calls[0][1];
+        expect(projectArg.customer).toBe('山田建設');
+        // 案件側にも敬称が無ければ上書きしない（PDF 側で「御中」に既定される）
+        expect(projectArg.customerHonorific).toBeUndefined();
     });
 
     it('should create dummy project when project is null', () => {

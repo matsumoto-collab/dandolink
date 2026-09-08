@@ -25,6 +25,7 @@ import type { Customer } from '@/types/customer';
 import type { ProjectMaster, Project } from '@/types/calendar';
 import type { InvoiceItem, BillingTitle } from '@/types/invoice';
 import type { EstimateItem } from '@/types/estimate';
+import { resolveEstimateCustomer } from '@/lib/estimateCustomer';
 
 interface BillingDraftFormPanelProps {
     /** パネルの開閉。false のときは何も描画しない（アニメーションのため Drawer/Sheet 側に open を渡す） */
@@ -227,7 +228,15 @@ export default function BillingDraftFormPanel({
         try {
             setPdfLoading(true);
             const { generateEstimatePDFBlobReact } = await import('@/utils/reactPdfGenerator');
-            const url = await generateEstimatePDFBlobReact(est, pdfProject, companyInfo, { creatorName: est.createdByName || '' });
+            // 宛名は見積書自身の顧客を優先（無ければ請求下書きで選んでいる請求先）
+            const cust = resolveEstimateCustomer({
+                estimateCustomerId: est.customerId,
+                customers,
+                fallbackName: pdfProject.customer,
+                fallbackHonorific: pdfProject.customerHonorific,
+            });
+            const estProject = { ...pdfProject, customer: cust.name, customerHonorific: cust.honorific };
+            const url = await generateEstimatePDFBlobReact(est, estProject, companyInfo, { creatorName: est.createdByName || '' });
             setPdfPreview({ url, title: `見積書　${est.estimateNumber}` });
         } catch (e) {
             logger.error('見積PDF生成エラー:', e);
@@ -235,7 +244,7 @@ export default function BillingDraftFormPanel({
         } finally {
             setPdfLoading(false);
         }
-    }, [estimates, companyInfo, pdfProject]);
+    }, [estimates, companyInfo, pdfProject, customers]);
 
     const handleViewInvoice = useCallback(async (invoiceId: string) => {
         const inv = invoices.find((i) => i.id === invoiceId);

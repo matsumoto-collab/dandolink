@@ -32,6 +32,7 @@ import type { Estimate, EstimateInput } from '@/types/estimate';
 import type { Project, ProjectMaster } from '@/types/calendar';
 import type { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import { logger } from '@/lib/logger';
+import { resolveEstimateCustomer } from '@/lib/estimateCustomer';
 import { useFinanceStore } from '@/stores/financeStore';
 
 // 請求書プレビュー（既存の請求書作成フォームを転用・重いので遅延読み込み）
@@ -769,16 +770,21 @@ export default function BillingBoardPage() {
             if (!companyInfo || !requestDialog) return null;
             const pm = projectMasters.find((p) => p.id === requestDialog.row.id);
             if (!pm) return null;
-            // 宛名は顧客マスタの現在値を優先（顧客名・敬称の変更に追従）。スナップショットはフォールバック
-            const cust = pm.customerId ? customers.find((c) => c.id === pm.customerId) : undefined;
+            // 宛名は見積書自身の顧客を優先し、無ければ案件の顧客。顧客マスタの現在値で引く（名前・敬称の変更に追従）
+            const cust = resolveEstimateCustomer({
+                estimateCustomerId: est.customerId,
+                projectCustomerId: pm.customerId,
+                customers,
+                fallbackName: pm.customerName || pm.customerShortName,
+            });
             const project = {
                 id: pm.id,
                 title: pm.title,
                 startDate: new Date(),
                 category: 'construction' as const,
                 color: '#3B82F6',
-                customer: cust?.name || pm.customerName || pm.customerShortName || '',
-                customerHonorific: cust?.honorific || '御中',
+                customer: cust.name,
+                customerHonorific: cust.honorific,
                 location: pm.location || '',
                 createdAt: pm.createdAt,
                 updatedAt: pm.updatedAt,

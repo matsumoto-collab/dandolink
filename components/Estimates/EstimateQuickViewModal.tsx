@@ -10,6 +10,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import type { Estimate } from '@/types/estimate';
 import type { Project, ProjectMaster } from '@/types/calendar';
 import { logger } from '@/lib/logger';
+import { resolveEstimateCustomer } from '@/lib/estimateCustomer';
 
 interface EstimateQuickViewModalProps {
     isOpen: boolean;
@@ -149,18 +150,21 @@ export default function EstimateQuickViewModal({
     const renderEstimatePdf = useCallback(
         async (est: Estimate): Promise<Blob | null> => {
             if (!companyInfo || !projectMaster) return null;
-            // 宛名は顧客マスタの現在値を優先（顧客名・敬称の変更に追従）
-            const cust = projectMaster.customerId
-                ? customers.find((c) => c.id === projectMaster.customerId)
-                : undefined;
+            // 宛名は見積書自身の顧客を優先し、無ければ案件の顧客。顧客マスタの現在値で引く（名前・敬称の変更に追従）
+            const cust = resolveEstimateCustomer({
+                estimateCustomerId: est.customerId,
+                projectCustomerId: projectMaster.customerId,
+                customers,
+                fallbackName: projectMaster.customerName || projectMaster.customerShortName,
+            });
             const project = {
                 id: projectMaster.id,
                 title: projectMaster.title,
                 startDate: new Date(),
                 category: 'construction' as const,
                 color: '#3B82F6',
-                customer: cust?.name || projectMaster.customerName || projectMaster.customerShortName || '',
-                customerHonorific: cust?.honorific || '御中',
+                customer: cust.name,
+                customerHonorific: cust.honorific,
                 location: projectMaster.location || '',
                 createdAt: projectMaster.createdAt,
                 updatedAt: projectMaster.updatedAt,
