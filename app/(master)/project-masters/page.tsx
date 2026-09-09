@@ -11,7 +11,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { ProjectMaster, Project } from '@/types/calendar';
 import { Estimate, EstimateInput, EstimateItem } from '@/types/estimate';
 import { Invoice, InvoiceInput } from '@/types/invoice';
-import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, User, Check, SlidersHorizontal, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, User, Check, SlidersHorizontal, X, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import { buildProjectMasterCreatePayload, createAssignmentsFromWorkDates } from '@/lib/projectMasterCreate';
@@ -44,6 +44,12 @@ import {
     workDateToJstYmd,
 } from '@/lib/projectWorkHistory';
 import CTypeChip, { ctypeName, type CtypeMap } from '@/components/ui/CTypeChip';
+import { toCsvString, downloadCsv } from '@/lib/csv';
+import {
+    buildProjectCsvRows,
+    buildWorkHistoryCsvRows,
+    type ProjectCsvContext,
+} from '@/lib/projectMasterCsv';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
@@ -566,6 +572,65 @@ function ProjectMasterListPageContent() {
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
         return filteredMasters.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [filteredMasters, currentPage]);
+
+    // ── CSV 出力（Excel での集計用）────────────────────────
+    /** 案件ID → 見積件数（CSV の「見積件数」列）。 */
+    const estimateCountByProject = useMemo(() => {
+        const m: Record<string, number> = {};
+        estimatesByProject.forEach((arr, pid) => { m[pid] = arr.length; });
+        return m;
+    }, [estimatesByProject]);
+
+    /** CSV 組み立てに渡す文脈（画面の判定ロジックをそのまま使う＝表示と CSV が必ず一致する）。 */
+    const csvContext = useMemo<ProjectCsvContext>(() => ({
+        canSeeFinancials: isAdminOrManager,
+        managerMap,
+        suffixMap,
+        resolveCtypeName: resolveCtypeNameById,
+        resolveBillingBasis: resolveBillingBasisFor,
+        invoicedByProject,
+        estimateCountByProject,
+        resolveBillingStatus,
+        workFilter: {
+            from: workFrom || undefined,
+            to: workTo || undefined,
+            ctypeName: filterCtypeName || undefined,
+            foremanId: filterForemanId || undefined,
+        },
+    }), [
+        isAdminOrManager, managerMap, suffixMap, resolveCtypeNameById, resolveBillingBasisFor,
+        invoicedByProject, estimateCountByProject, resolveBillingStatus,
+        workFrom, workTo, filterCtypeName, filterForemanId,
+    ]);
+
+    /** 絞り込み後の一覧（filteredMasters）をそのまま CSV にする。 */
+    const handleExportCsv = useCallback((kind: 'project' | 'work') => {
+        if (filteredMasters.length === 0) {
+            toast.error('出力する案件がありません');
+            return;
+        }
+        // 件数が多いと組み立てに時間がかかるため、クリックの反応を返してから実行する
+        setTimeout(() => {
+            try {
+                const rows = kind === 'project'
+                    ? buildProjectCsvRows(filteredMasters, csvContext)
+                    : buildWorkHistoryCsvRows(filteredMasters, csvContext);
+                const dataRows = rows.length - 1; // 先頭はヘッダ行
+                if (dataRows === 0) {
+                    toast.error('出力する作業履歴がありません');
+                    return;
+                }
+                // ファイル名の日付は JST
+                const ymd = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+                const filename = kind === 'project' ? `projects_${ymd}.csv` : `project_work_history_${ymd}.csv`;
+                downloadCsv(filename, toCsvString(rows));
+                toast.success(`${dataRows}件を出力しました`);
+            } catch (e) {
+                logger.error('CSV出力に失敗:', e);
+                toast.error('CSV出力に失敗しました');
+            }
+        }, 0);
+    }, [filteredMasters, csvContext]);
 
     const setBillingOverride = useCallback(
         async (pm: ProjectMaster, value: 'unbilled' | 'partial' | 'full' | null) => {
@@ -1109,6 +1174,26 @@ function ProjectMasterListPageContent() {
                                 絞り込みをクリア
                             </button>
                         )}
+                        {/* CSV 出力（Excel での集計用）。画面の絞り込み結果をそのまま出す。
+                            金額列は admin/manager のときだけ含める（csvContext.canSeeFinancials）。 */}
+                        <div className="ml-auto flex flex-wrap items-center gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => handleExportCsv('project')}
+                                leftIcon={<Download className="w-4 h-4" />}
+                                title="表示中の案件を1案件1行でCSV出力"
+                            >
+                                案件CSV
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => handleExportCsv('work')}
+                                leftIcon={<Download className="w-4 h-4" />}
+                                title="表示中の案件の作業履歴を1件1行でCSV出力"
+                            >
+                                作業履歴CSV
+                            </Button>
+                        </div>
                     </div>
 
                     {showFilters && (
