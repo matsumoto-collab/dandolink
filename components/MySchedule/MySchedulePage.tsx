@@ -34,10 +34,16 @@ interface ConstructionSuffix {
     name: string;
 }
 
+interface ConstructionContentOption {
+    name: string;
+    sortOrder: number;
+}
+
 interface ApiResponse {
     projects: GanttProject[];
     constructionTypes: ConstructionType[];
     constructionSuffixes: ConstructionSuffix[];
+    constructionContents: ConstructionContentOption[];
     managers: Manager[];
     currentUserRole: string;
 }
@@ -69,10 +75,16 @@ export default function MySchedulePage() {
 
     const [baseMonth, setBaseMonth] = useState(() => getMonthStart(new Date()));
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+    // null = 「全担当者」。初期値としてログイン中の自分を入れるのは初回だけ（下の useEffect 参照）
     const [filterManagerId, setFilterManagerId] = useState<string | null>(session?.user?.id ?? null);
+    const managerFilterInitializedRef = useRef(Boolean(session?.user?.id));
     const [filterSuffixIds, setFilterSuffixIds] = useState<string[]>([]);
+    const [filterContentNames, setFilterContentNames] = useState<string[]>([]);
     const [filterCustomerNames, setFilterCustomerNames] = useState<string[]>([]);
     const [filterProjectIds, setFilterProjectIds] = useState<string[]>([]);
+    // 配置日数の下限・上限。入力欄の値をそのまま持つ（空文字 = 未指定）
+    const [filterMinWorkDays, setFilterMinWorkDays] = useState('');
+    const [filterMaxWorkDays, setFilterMaxWorkDays] = useState('');
 
     const isAdmin = session?.user?.role === 'admin';
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
@@ -89,12 +101,16 @@ export default function MySchedulePage() {
         }
     }, []);
 
-    // セッション読み込み後にデフォルト設定
+    // セッション読み込み後に自分をデフォルト選択（初回のみ）。
+    // null は「全担当者」を選んだ状態でもあるため、null を見て毎回自分に戻すと
+    // 「全担当者」を選んでも即座に自分の案件だけに戻ってしまう
     useEffect(() => {
-        if (session?.user?.id && filterManagerId === null) {
+        if (managerFilterInitializedRef.current) return;
+        if (session?.user?.id) {
+            managerFilterInitializedRef.current = true;
             setFilterManagerId(session.user.id);
         }
-    }, [session?.user?.id, filterManagerId]);
+    }, [session?.user?.id]);
 
     const { viewStartDate, viewEndDate } = useMemo(() => {
         if (viewMode === 'month') {
@@ -273,6 +289,7 @@ export default function MySchedulePage() {
                     projects={data.projects}
                     constructionTypes={data.constructionTypes}
                     constructionSuffixes={data.constructionSuffixes}
+                    constructionContents={data.constructionContents}
                     managers={data.managers}
                     viewStartDate={viewStartDate}
                     viewEndDate={viewEndDate}
@@ -283,10 +300,16 @@ export default function MySchedulePage() {
                     onFilterManagerChange={setFilterManagerId}
                     filterSuffixIds={filterSuffixIds}
                     onFilterSuffixIdsChange={setFilterSuffixIds}
+                    filterContentNames={filterContentNames}
+                    onFilterContentNamesChange={setFilterContentNames}
                     filterCustomerNames={filterCustomerNames}
                     onFilterCustomerNamesChange={setFilterCustomerNames}
                     filterProjectIds={filterProjectIds}
                     onFilterProjectIdsChange={setFilterProjectIds}
+                    filterMinWorkDays={filterMinWorkDays}
+                    onFilterMinWorkDaysChange={setFilterMinWorkDays}
+                    filterMaxWorkDays={filterMaxWorkDays}
+                    onFilterMaxWorkDaysChange={setFilterMaxWorkDays}
                     isAdmin={isAdmin}
                     onProjectClick={handleProjectClick}
                 />

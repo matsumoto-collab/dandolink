@@ -31,6 +31,7 @@ import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { logger } from '@/lib/logger';
 import { matchesSearch } from '@/utils/searchNormalize';
+import { getConstructionContentLabel } from '@/lib/constructionContent';
 import {
     matchesProjectListStatus,
     resolveProjectListStatus,
@@ -378,17 +379,6 @@ function ProjectMasterListPageContent() {
         await proceedArchive(pm);
     };
 
-    const getConstructionContentLabel = (content: string | undefined) => {
-        if (!content) return '-';
-        // 旧enum値の後方互換
-        const legacy: Record<string, string> = {
-            new_construction: '新築',
-            renovation: '改修',
-            large_scale: '大規模',
-            other: 'その他',
-        };
-        return legacy[content] || content;
-    };
 
     const handleCreateEstimate = useCallback(() => {
         if (detailPm) {

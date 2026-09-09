@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { normalizeConstructionContent } from '@/lib/constructionContent';
 
 /**
  * GET /api/my-schedule - マイ工程用の案件別工程データ取得
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
                         honorific: true,
                         customerName: true,
                         constructionSuffixId: true,
+                        constructionContent: true,
                         createdBy: true,
                         status: true,
                     },
@@ -89,6 +91,7 @@ export async function GET(req: NextRequest) {
             projectName: string | null;
             customerName: string | null;
             constructionSuffixId: string | null;
+            constructionContent: string | null;
             managerIds: string[];
             status: string;
             foremen: Map<string, string>;
@@ -118,6 +121,8 @@ export async function GET(req: NextRequest) {
                     projectName: a.projectMaster.name ? `${a.projectMaster.name}${a.projectMaster.honorific || ''}` : null,
                     customerName: a.projectMaster.customerName,
                     constructionSuffixId: a.projectMaster.constructionSuffixId,
+                    // 旧enum値が混じるので正規化してから返す（絞り込みの選択肢がここから作られる）
+                    constructionContent: normalizeConstructionContent(a.projectMaster.constructionContent),
                     managerIds: createdByIds,
                     status: a.projectMaster.status,
                     foremen: new Map(),
@@ -155,6 +160,7 @@ export async function GET(req: NextRequest) {
                 projectName: p.projectName,
                 customerName: p.customerName,
                 constructionSuffixId: p.constructionSuffixId,
+                constructionContent: p.constructionContent,
                 startDate: startDateActual,
                 endDate: endDateActual,
                 managerIds: p.managerIds,
@@ -174,10 +180,29 @@ export async function GET(req: NextRequest) {
             orderBy: { sortOrder: 'asc' },
         });
 
+        // 工事内容マスターを取得（絞り込みの並び順に使うだけ。無効化済みの工事内容が付いた案件も
+        // 残っているので isActive では絞らない）
+        const contentMaster = await prisma.constructionContent.findMany({
+            select: { name: true, sortOrder: true },
+            orderBy: { sortOrder: 'asc' },
+        });
+        // 同じ名前が複数行ある（例:「改修」が無効化済みと現行の2件）ので最小 sortOrder を採用
+        const contentOrder = new Map<string, number>();
+        for (const c of contentMaster) {
+            const name = normalizeConstructionContent(c.name);
+            if (!name) continue;
+            const prev = contentOrder.get(name);
+            if (prev === undefined || c.sortOrder < prev) contentOrder.set(name, c.sortOrder);
+        }
+        const constructionContents = Array.from(contentOrder.entries())
+            .map(([name, sortOrder]) => ({ name, sortOrder }))
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+
         return NextResponse.json({
             projects: result,
             constructionTypes,
             constructionSuffixes,
+            constructionContents,
             managers,
             currentUserRole: role,
         }, {

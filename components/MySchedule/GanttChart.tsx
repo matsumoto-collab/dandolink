@@ -29,6 +29,8 @@ export interface GanttProject {
     projectName: string | null;
     customerName: string | null;
     constructionSuffixId: string | null;
+    /** 案件マスタの工事内容（新築/改修/大規模など）。API側で旧enum値を正規化済み */
+    constructionContent: string | null;
     startDate: string | null;
     endDate: string | null;
     managerIds: string[];
@@ -42,10 +44,17 @@ interface ConstructionSuffix {
     name: string;
 }
 
+interface ConstructionContentOption {
+    name: string;
+    sortOrder: number;
+}
+
 interface GanttChartProps {
     projects: GanttProject[];
     constructionTypes: ConstructionType[];
     constructionSuffixes: ConstructionSuffix[];
+    /** 工事内容マスタ（絞り込みの並び順に使う。選択肢そのものは案件の実データから作る） */
+    constructionContents: ConstructionContentOption[];
     managers: { id: string; displayName: string }[];
     viewStartDate: Date;
     viewEndDate: Date;
@@ -56,10 +65,17 @@ interface GanttChartProps {
     onFilterManagerChange: (id: string | null) => void;
     filterSuffixIds: string[];
     onFilterSuffixIdsChange: (ids: string[]) => void;
+    filterContentNames: string[];
+    onFilterContentNamesChange: (names: string[]) => void;
     filterCustomerNames: string[];
     onFilterCustomerNamesChange: (names: string[]) => void;
     filterProjectIds: string[];
     onFilterProjectIdsChange: (ids: string[]) => void;
+    /** 配置日数の下限・上限。入力中の値をそのまま持つので空文字 = 未指定 */
+    filterMinWorkDays: string;
+    onFilterMinWorkDaysChange: (value: string) => void;
+    filterMaxWorkDays: string;
+    onFilterMaxWorkDaysChange: (value: string) => void;
     isAdmin: boolean;
     onProjectClick?: (projectMasterId: string) => void;
 }
@@ -85,6 +101,18 @@ function getDaysBetween(start: Date, end: Date): Date[] {
 
 const DAY_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 
+/** 配置日数の入力欄: 全角数字も拾って半角数字だけにする（3桁まで） */
+function sanitizeDayInput(value: string): string {
+    return value.normalize('NFKC').replace(/[^0-9]/g, '').slice(0, 3);
+}
+
+/** 空文字・数字以外は「未指定」(null) として扱う */
+function parseDayInput(value: string): number | null {
+    const digits = sanitizeDayInput(value);
+    if (!digits) return null;
+    return Number(digits);
+}
+
 const ROW_HEIGHT = 32;
 const LEFT_COL_WIDTH_PC = 210;
 const LEFT_COL_WIDTH_MOBILE = 100;
@@ -96,6 +124,7 @@ export default function GanttChart({
     projects,
     constructionTypes,
     constructionSuffixes,
+    constructionContents,
     managers,
     viewStartDate,
     viewEndDate,
@@ -106,10 +135,16 @@ export default function GanttChart({
     onFilterManagerChange,
     filterSuffixIds,
     onFilterSuffixIdsChange,
+    filterContentNames,
+    onFilterContentNamesChange,
     filterCustomerNames,
     onFilterCustomerNamesChange,
     filterProjectIds,
     onFilterProjectIdsChange,
+    filterMinWorkDays,
+    onFilterMinWorkDaysChange,
+    filterMaxWorkDays,
+    onFilterMaxWorkDaysChange,
     isAdmin,
     onProjectClick,
 }: GanttChartProps) {
@@ -205,6 +240,38 @@ export default function GanttChart({
         return Array.from(names).sort();
     }, [projects]);
 
+    // 工事内容リスト（フィルタ用）。マスタではなく実データから作る＝無効化済みの工事内容が
+    // 付いたままの案件も選べるようにするため。並びはマスタの sortOrder、マスタ外は末尾に名前順
+    const contentNames = useMemo(() => {
+        const names = new Set<string>();
+        projects.forEach(p => { if (p.constructionContent) names.add(p.constructionContent); });
+        const orderMap = new Map(constructionContents.map(c => [c.name, c.sortOrder]));
+        return Array.from(names).sort((a, b) => {
+            const oa = orderMap.get(a);
+            const ob = orderMap.get(b);
+            if (oa !== undefined && ob !== undefined) return oa - ob;
+            if (oa !== undefined) return -1;
+            if (ob !== undefined) return 1;
+            return a.localeCompare(b, 'ja');
+        });
+    }, [projects, constructionContents]);
+
+    // 案件ごとの配置日数。同じ日に複数の配置（職長違いなど）があっても1日と数える。
+    // 母数は API が取得している前後6ヶ月ぶんの配置なので、表示月を動かしても値は変わらない
+    const workDayCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const p of projects) {
+            const dates = new Set<string>();
+            for (const entry of p.workEntries) dates.add(entry.date);
+            counts.set(p.projectMasterId, dates.size);
+        }
+        return counts;
+    }, [projects]);
+
+    const minWorkDays = useMemo(() => parseDayInput(filterMinWorkDays), [filterMinWorkDays]);
+    const maxWorkDays = useMemo(() => parseDayInput(filterMaxWorkDays), [filterMaxWorkDays]);
+    const workDaysRangeInvalid = minWorkDays !== null && maxWorkDays !== null && minWorkDays > maxWorkDays;
+
     const normalizeText = (s: string) => s.normalize('NFKC').toLowerCase();
     const viewStartStr = useMemo(() => formatDate(viewStartDate), [viewStartDate]);
     const viewEndStr = useMemo(() => formatDate(viewEndDate), [viewEndDate]);
@@ -220,11 +287,17 @@ export default function GanttChart({
         return projects.filter(p => {
             if (filterManagerId && !p.managerIds.includes(filterManagerId)) return false;
             if (filterSuffixIds.length > 0 && (!p.constructionSuffixId || !filterSuffixIds.includes(p.constructionSuffixId))) return false;
+            if (filterContentNames.length > 0 && (!p.constructionContent || !filterContentNames.includes(p.constructionContent))) return false;
             if (filterCustomerNames.length > 0 && (!p.customerName || !filterCustomerNames.includes(p.customerName))) return false;
             if (filterProjectIds.length > 0 && !filterProjectIds.includes(p.projectMasterId)) return false;
+            if (minWorkDays !== null || maxWorkDays !== null) {
+                const days = workDayCounts.get(p.projectMasterId) ?? 0;
+                if (minWorkDays !== null && days < minWorkDays) return false;
+                if (maxWorkDays !== null && days > maxWorkDays) return false;
+            }
             return true;
         });
-    }, [projects, filterManagerId, filterSuffixIds, filterCustomerNames, filterProjectIds]);
+    }, [projects, filterManagerId, filterSuffixIds, filterContentNames, filterCustomerNames, filterProjectIds, minWorkDays, maxWorkDays, workDayCounts]);
 
     // 新規追加フィルタ（検索/ステータス/空案件）も含めた最終結果
     const filteredProjects = useMemo(() => {
@@ -246,6 +319,10 @@ export default function GanttChart({
             return true;
         });
     }, [baseFilteredProjects, searchQuery, statusFilters, showEmptyProjects, viewStartStr, viewEndStr, projectStatusKey]);
+
+    const activeFilterCount =
+        filterSuffixIds.length + filterContentNames.length + filterCustomerNames.length + filterProjectIds.length +
+        (minWorkDays !== null || maxWorkDays !== null ? 1 : 0);
 
     // 案件ごとのworkEntriesをdateでインデックス
     const projectWorkMap = useMemo(() => {
@@ -350,7 +427,7 @@ export default function GanttChart({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
                     style={{ fontSize: 12 }}
                 >
-                    <span>絞り込み{(filterSuffixIds.length + filterCustomerNames.length + filterProjectIds.length) > 0 ? ` (${filterSuffixIds.length + filterCustomerNames.length + filterProjectIds.length})` : ''}</span>
+                    <span>絞り込み{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</span>
                     <span aria-hidden className="text-slate-400" style={{ fontSize: 10 }}>{filtersOpen ? '▲' : '▼'}</span>
                 </button>
 
@@ -423,13 +500,44 @@ export default function GanttChart({
             <div
                 id="my-schedule-filter-panel"
                 className="flex-shrink-0 overflow-hidden border-b border-slate-200 bg-slate-50/50 transition-[max-height,opacity] duration-300 ease-in-out"
-                style={{ maxHeight: filtersOpen ? 400 : 0, opacity: filtersOpen ? 1 : 0 }}
+                style={{
+                    maxHeight: filtersOpen ? 400 : 0,
+                    opacity: filtersOpen ? 1 : 0,
+                    // 絞り込み項目とチップが増えて 400px を超えても隠れないようにする
+                    overflowY: filtersOpen ? 'auto' : 'hidden',
+                }}
                 aria-hidden={!filtersOpen}
             >
               <div className="flex items-center gap-3 px-4 py-2 flex-wrap">
-                {/* 工事名称フィルタ */}
+                {/* 工事内容フィルタ（案件マスタの「工事内容」＝新築/改修/大規模など） */}
                 <div className="flex items-center gap-1.5">
-                    <span className="text-slate-500 whitespace-nowrap" style={{ fontSize: 11 }}>工事:</span>
+                    <span className="text-slate-500 whitespace-nowrap" style={{ fontSize: 11 }}>工事内容:</span>
+                    <select
+                        value=""
+                        onChange={(e) => {
+                            if (e.target.value && !filterContentNames.includes(e.target.value)) {
+                                onFilterContentNamesChange([...filterContentNames, e.target.value]);
+                            }
+                        }}
+                        className="border border-slate-300 rounded-lg px-2 py-1 bg-white"
+                        style={{ fontSize: 12 }}
+                    >
+                        <option value="">選択...</option>
+                        {contentNames.filter(n => !filterContentNames.includes(n)).map(n => (
+                            <option key={n} value={n}>{n}</option>
+                        ))}
+                    </select>
+                    {filterContentNames.map(name => (
+                        <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 rounded-md border border-violet-200" style={{ fontSize: 11 }}>
+                            {name}
+                            <button onClick={() => onFilterContentNamesChange(filterContentNames.filter(x => x !== name))} className="hover:text-red-500">×</button>
+                        </span>
+                    ))}
+                </div>
+
+                {/* 工事名称フィルタ（案件名の末尾に付く「〜工事」＝ProjectMaster.constructionSuffixId） */}
+                <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500 whitespace-nowrap" style={{ fontSize: 11 }}>工事名称:</span>
                     <select
                         value=""
                         onChange={(e) => {
@@ -511,13 +619,54 @@ export default function GanttChart({
                     })}
                 </div>
 
+                {/* 配置日数フィルタ（例: 5〜10日／20〜30日の案件だけ見る） */}
+                <div className="flex items-center gap-1.5">
+                    <span
+                        className="text-slate-500 whitespace-nowrap"
+                        style={{ fontSize: 11 }}
+                        title="案件に予定が入っている日数。同じ日に複数の配置があっても1日と数えます（前後6ヶ月の範囲で集計）"
+                    >
+                        配置日数:
+                    </span>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        value={filterMinWorkDays}
+                        onChange={(e) => onFilterMinWorkDaysChange(sanitizeDayInput(e.target.value))}
+                        placeholder="最小"
+                        aria-label="配置日数の下限"
+                        className={`border rounded-lg px-2 py-1 bg-white text-center ${workDaysRangeInvalid ? 'border-red-400' : 'border-slate-300'}`}
+                        style={{ fontSize: 12, width: 56 }}
+                    />
+                    <span className="text-slate-400" style={{ fontSize: 11 }}>〜</span>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        value={filterMaxWorkDays}
+                        onChange={(e) => onFilterMaxWorkDaysChange(sanitizeDayInput(e.target.value))}
+                        placeholder="最大"
+                        aria-label="配置日数の上限"
+                        className={`border rounded-lg px-2 py-1 bg-white text-center ${workDaysRangeInvalid ? 'border-red-400' : 'border-slate-300'}`}
+                        style={{ fontSize: 12, width: 56 }}
+                    />
+                    <span className="text-slate-500" style={{ fontSize: 11 }}>日</span>
+                    {workDaysRangeInvalid && (
+                        <span className="text-red-500 whitespace-nowrap" style={{ fontSize: 11 }}>
+                            最小が最大を超えています
+                        </span>
+                    )}
+                </div>
+
                 {/* クリアボタン */}
-                {(filterSuffixIds.length > 0 || filterCustomerNames.length > 0 || filterProjectIds.length > 0) && (
+                {activeFilterCount > 0 && (
                     <button
                         onClick={() => {
                             onFilterSuffixIdsChange([]);
+                            onFilterContentNamesChange([]);
                             onFilterCustomerNamesChange([]);
                             onFilterProjectIdsChange([]);
+                            onFilterMinWorkDaysChange('');
+                            onFilterMaxWorkDaysChange('');
                         }}
                         className="text-slate-400 hover:text-red-500 transition-colors whitespace-nowrap"
                         style={{ fontSize: 11 }}
@@ -591,24 +740,33 @@ export default function GanttChart({
                     ref={leftBodyRef}
                     style={{ width: leftColWidth, scrollbarWidth: 'none' }}
                 >
-                    {filteredProjects.map((project) => (
-                        <div
-                            key={project.projectMasterId}
-                            className="flex items-center gap-2 px-3 border-b border-slate-200 hover:bg-slate-50 transition-colors"
-                            style={{ height: ROW_HEIGHT }}
-                        >
-                            <div className="flex-1 min-w-0">
-                                <div
-                                    className={`font-medium truncate ${onProjectClick ? 'text-teal-700 hover:text-teal-900 hover:underline cursor-pointer' : 'text-slate-800'}`}
-                                    style={{ fontSize: isMobile ? 10 : 12 }}
-                                    title={project.projectTitle}
-                                    onClick={() => onProjectClick?.(project.projectMasterId)}
-                                >
-                                    {project.projectName || project.projectTitle}
+                    {filteredProjects.map((project) => {
+                        const workDays = workDayCounts.get(project.projectMasterId) ?? 0;
+                        return (
+                            <div
+                                key={project.projectMasterId}
+                                className="flex items-center gap-2 px-3 border-b border-slate-200 hover:bg-slate-50 transition-colors"
+                                style={{ height: ROW_HEIGHT }}
+                            >
+                                <div className="flex-1 min-w-0">
+                                    <div
+                                        className={`font-medium truncate ${onProjectClick ? 'text-teal-700 hover:text-teal-900 hover:underline cursor-pointer' : 'text-slate-800'}`}
+                                        style={{ fontSize: isMobile ? 10 : 12 }}
+                                        title={`${project.projectTitle}（配置${workDays}日）`}
+                                        onClick={() => onProjectClick?.(project.projectMasterId)}
+                                    >
+                                        {project.projectName || project.projectTitle}
+                                    </div>
                                 </div>
+                                {/* 日数で絞り込んだ結果を確かめられるように件数を出す（幅の狭いモバイルは省略） */}
+                                {!isMobile && (
+                                    <span className="flex-shrink-0 text-slate-400 tabular-nums" style={{ fontSize: 10 }}>
+                                        {workDays}日
+                                    </span>
+                                )}
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {filteredProjects.length === 0 && (
                         <div className="flex items-center justify-center h-32 text-sm text-slate-400">
