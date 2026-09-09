@@ -29,12 +29,38 @@ export async function GET(req: NextRequest) {
 
         const url = new URL(req.url);
         const month = url.searchParams.get('month');
-        if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-            return validationErrorResponse('month=yyyy-mm を指定してください');
+        const startDate = url.searchParams.get('startDate');
+        const endDate = url.searchParams.get('endDate');
+
+        // month（従来）または startDate/endDate（期間指定）のどちらかを受け付ける
+        let start: Date;
+        let end: Date; // 排他的上限（AttendanceRecord.date は @db.Date なので lt で扱う）
+        let filenameSuffix: string;
+        if (month) {
+            if (!/^\d{4}-\d{2}$/.test(month)) {
+                return validationErrorResponse('month=yyyy-mm または startDate/endDate=yyyy-mm-dd を指定してください');
+            }
+            const [y, m] = month.split('-').map(Number);
+            start = new Date(Date.UTC(y, m - 1, 1));
+            end = new Date(Date.UTC(y, m, 1));
+            filenameSuffix = month;
+        } else if (startDate && endDate) {
+            const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+            if (!datePattern.test(startDate) || !datePattern.test(endDate)) {
+                return validationErrorResponse('month=yyyy-mm または startDate/endDate=yyyy-mm-dd を指定してください');
+            }
+            if (startDate > endDate) {
+                return validationErrorResponse('開始日は終了日以前の日付を指定してください');
+            }
+            const [sy, sm, sd] = startDate.split('-').map(Number);
+            const [ey, em, ed] = endDate.split('-').map(Number);
+            start = new Date(Date.UTC(sy, sm - 1, sd));
+            // 終了日を含めるため翌日を排他的上限にする
+            end = new Date(Date.UTC(ey, em - 1, ed + 1));
+            filenameSuffix = `${startDate}_${endDate}`;
+        } else {
+            return validationErrorResponse('month=yyyy-mm または startDate/endDate=yyyy-mm-dd を指定してください');
         }
-        const [y, m] = month.split('-').map(Number);
-        const start = new Date(Date.UTC(y, m - 1, 1));
-        const end = new Date(Date.UTC(y, m, 1));
 
         const [records, users] = await Promise.all([
             prisma.attendanceRecord.findMany({
@@ -106,7 +132,7 @@ export async function GET(req: NextRequest) {
         return new NextResponse(csv, {
             headers: {
                 'Content-Type': 'text/csv; charset=utf-8',
-                'Content-Disposition': `attachment; filename="attendance_${month}.csv"`,
+                'Content-Disposition': `attachment; filename="attendance_${filenameSuffix}.csv"`,
                 'Cache-Control': 'no-store',
             },
         });

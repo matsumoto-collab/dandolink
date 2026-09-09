@@ -10,7 +10,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { DailyReport } from '@/types/dailyReport';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate, calcTimeDiffMinutes } from '@/utils/dateUtils';
-import { Plus, Search, Trash2, Clock, Calendar, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Plus, Search, Trash2, Clock, Calendar, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -49,6 +49,13 @@ function DailyReportPageContent() {
     const initialRange = useMemo(getInitialRange, []);
     const [rangeStart, setRangeStart] = useState<string>(initialRange.start);
     const [rangeEnd, setRangeEnd] = useState<string>(initialRange.end);
+
+    // CSV出力（月次 / 表示中の期間）
+    const [csvMonth, setCsvMonth] = useState<string>(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+    });
+    const [csvLoading, setCsvLoading] = useState<'month' | 'range' | null>(null);
 
     // 期間に応じて日報を取得
     useEffect(() => {
@@ -217,6 +224,56 @@ function DailyReportPageContent() {
         setRangeEnd(r.end);
     };
 
+    // CSV出力（mode='month' は指定月・mode='range' は表示中の期間）
+    const handleDownloadCsv = async (mode: 'month' | 'range') => {
+        let query: string;
+        let filename: string;
+        if (mode === 'month') {
+            if (!/^\d{4}-\d{2}$/.test(csvMonth)) {
+                toast.error('対象月の形式が不正です');
+                return;
+            }
+            query = `month=${csvMonth}`;
+            filename = `daily_reports_${csvMonth}.csv`;
+        } else {
+            if (!rangeStart || !rangeEnd) {
+                toast.error('期間を指定してください');
+                return;
+            }
+            if (rangeStart > rangeEnd) {
+                toast.error('開始日は終了日以前を指定してください');
+                return;
+            }
+            query = `startDate=${rangeStart}&endDate=${rangeEnd}`;
+            filename = `daily_reports_${rangeStart}_${rangeEnd}.csv`;
+        }
+        // 職長で絞り込み中ならその職長分だけ出力
+        if (foremanFilter !== 'all') {
+            query += `&foremanId=${encodeURIComponent(foremanFilter)}`;
+        }
+
+        setCsvLoading(mode);
+        try {
+            const res = await fetch(`/api/daily-reports/export?${query}`, { cache: 'no-store' });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `status ${res.status}`);
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            logger.error('CSV出力失敗:', err);
+            toast.error('CSV出力に失敗しました');
+        } finally {
+            setCsvLoading(null);
+        }
+    };
+
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー（モバイルは新規追加をタイトル行へ統合・説明文非表示） */}
@@ -275,7 +332,7 @@ function DailyReportPageContent() {
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
                     <select
                         value={foremanFilter}
                         onChange={(e) => setForemanFilter(e.target.value)}
@@ -313,6 +370,33 @@ function DailyReportPageContent() {
                         >
                             直近30日
                         </button>
+                    </div>
+
+                    {/* CSV出力（月次 / 表示中の期間）。この画面を開ける人は全員出力できる */}
+                    <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                        <input
+                            type="month"
+                            value={csvMonth}
+                            onChange={(e) => setCsvMonth(e.target.value)}
+                            className="flex-1 sm:flex-none min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        />
+                        <Button
+                            variant="outline"
+                            onClick={() => handleDownloadCsv('month')}
+                            isLoading={csvLoading === 'month'}
+                            leftIcon={<Download className="w-4 h-4" />}
+                        >
+                            月次CSV
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => handleDownloadCsv('range')}
+                            isLoading={csvLoading === 'range'}
+                            leftIcon={<Download className="w-4 h-4" />}
+                            title="表示中の期間(開始〜終了)で出力"
+                        >
+                            期間CSV
+                        </Button>
                     </div>
                 </div>
             </div>

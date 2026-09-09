@@ -180,6 +180,18 @@ jest.mock('@/lib/prisma', () => ({
             createMany: jest.fn(),
             deleteMany: jest.fn(),
         },
+        attendanceRecord: {
+            findMany: jest.fn(),
+            findFirst: jest.fn(),
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            createMany: jest.fn(),
+            update: jest.fn(),
+            upsert: jest.fn(),
+            delete: jest.fn(),
+            deleteMany: jest.fn(),
+            count: jest.fn(),
+        },
         user: {
             findMany: jest.fn(),
             findUnique: jest.fn(),

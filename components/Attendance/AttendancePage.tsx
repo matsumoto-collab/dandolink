@@ -116,7 +116,8 @@ export default function AttendancePage() {
         const d = new Date();
         return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
     });
-    const [csvLoading, setCsvLoading] = useState(false);
+    // 月次CSV / 期間CSV のどちらを出力中かでボタンのローディングを出し分ける
+    const [csvLoading, setCsvLoading] = useState<'month' | 'range' | null>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<{ date: Date; foremanId: string } | null>(null);
@@ -310,14 +311,32 @@ export default function AttendancePage() {
         }
     };
 
-    const handleDownloadCsv = useCallback(async () => {
-        if (!/^\d{4}-\d{2}$/.test(csvMonth)) {
-            toast.error('対象月の形式が不正です');
-            return;
+    const handleDownloadCsv = useCallback(async (mode: 'month' | 'range') => {
+        let query: string;
+        let filename: string;
+        if (mode === 'month') {
+            if (!/^\d{4}-\d{2}$/.test(csvMonth)) {
+                toast.error('対象月の形式が不正です');
+                return;
+            }
+            query = `month=${csvMonth}`;
+            filename = `attendance_${csvMonth}.csv`;
+        } else {
+            if (!rangeStart || !rangeEnd) {
+                toast.error('期間を指定してください');
+                return;
+            }
+            if (rangeStart > rangeEnd) {
+                toast.error('開始日は終了日以前を指定してください');
+                return;
+            }
+            query = `startDate=${rangeStart}&endDate=${rangeEnd}`;
+            filename = `attendance_${rangeStart}_${rangeEnd}.csv`;
         }
-        setCsvLoading(true);
+
+        setCsvLoading(mode);
         try {
-            const res = await fetch(`/api/attendance/export?month=${csvMonth}`, { cache: 'no-store' });
+            const res = await fetch(`/api/attendance/export?${query}`, { cache: 'no-store' });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.error || `status ${res.status}`);
@@ -326,16 +345,16 @@ export default function AttendancePage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `attendance_${csvMonth}.csv`;
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
         } catch (err) {
             logger.error('CSV出力失敗:', err);
             toast.error('CSV出力に失敗しました');
         } finally {
-            setCsvLoading(false);
+            setCsvLoading(null);
         }
-    }, [csvMonth]);
+    }, [csvMonth, rangeStart, rangeEnd]);
 
     const resetRange = () => {
         const r = getInitialRange();
@@ -454,7 +473,7 @@ export default function AttendancePage() {
                     </div>
 
                     {(isAdminOrManager || isForeman) && (
-                        <div className="flex items-center gap-2 sm:ml-auto">
+                        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
                             <input
                                 type="month"
                                 value={csvMonth}
@@ -463,11 +482,20 @@ export default function AttendancePage() {
                             />
                             <Button
                                 variant="outline"
-                                onClick={handleDownloadCsv}
-                                isLoading={csvLoading}
+                                onClick={() => handleDownloadCsv('month')}
+                                isLoading={csvLoading === 'month'}
                                 leftIcon={<Download className="w-4 h-4" />}
                             >
                                 月次CSV
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => handleDownloadCsv('range')}
+                                isLoading={csvLoading === 'range'}
+                                leftIcon={<Download className="w-4 h-4" />}
+                                title="表示中の期間(開始〜終了)で出力"
+                            >
+                                期間CSV
                             </Button>
                         </div>
                     )}
