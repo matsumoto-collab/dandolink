@@ -7,6 +7,7 @@ import {
     formatYmdJst,
     toAmountCell,
     type ProjectCsvContext,
+    type ProjectCostExportRow,
 } from '@/lib/projectMasterCsv';
 import { escapeCsvCell, toCsvString } from '@/lib/csv';
 import type { ProjectMaster, ProjectWorkHistoryItem } from '@/types/calendar';
@@ -62,6 +63,23 @@ const pm = (over: Partial<ProjectMaster> = {}): ProjectMaster => ({
     ...over,
 });
 
+/** `/api/project-masters/export-costs` の1行ぶん（原価エンジンの実計上額）。 */
+const cost = (over: Partial<ProjectCostExportRow> = {}): ProjectCostExportRow => ({
+    id: 'pm-1',
+    revenue: 900000,
+    revenueSource: 'invoice',
+    subcontractorCost: 200000,
+    materialCost: 50000,
+    loadingCost: 30000,
+    laborCost: 300000,
+    vehicleCost: 20000,
+    otherExpenses: 10000,
+    totalCost: 610000,
+    laborHours: 63.5,
+    laborManDays: 9,
+    ...over,
+});
+
 const ctx = (over: Partial<ProjectCsvContext> = {}): ProjectCsvContext => ({
     canSeeFinancials: true,
     managerMap: MANAGERS,
@@ -72,6 +90,7 @@ const ctx = (over: Partial<ProjectCsvContext> = {}): ProjectCsvContext => ({
     estimateCountByProject: { 'pm-1': 1 },
     resolveBillingStatus: () => 'partial',
     workFilter: {},
+    costById: { 'pm-1': cost() },
     ...over,
 });
 
@@ -113,8 +132,8 @@ describe('buildProjectCsvRows', () => {
         expect(withoutMoney[0]).not.toContain('契約金額(税抜)');
         expect(withoutMoney[0]).not.toContain('請求済み金額(税抜)');
         expect(withoutMoney[0]).not.toContain('見積有無');
-        // 金額ブロック（15列）ぶんだけ列数が減る
-        expect(withMoney[0].length - withoutMoney[0].length).toBe(15);
+        // 金額ブロック（22列）ぶんだけ列数が減る
+        expect(withMoney[0].length - withoutMoney[0].length).toBe(22);
         // 行の列数はヘッダと必ず一致する
         expect(withMoney[1].length).toBe(withMoney[0].length);
         expect(withoutMoney[1].length).toBe(withoutMoney[0].length);
@@ -198,30 +217,80 @@ describe('buildProjectCsvRows', () => {
         expect(cell(manual, 1, '請求ステータス手動')).toBe('手動');
     });
 
-    it('協力業者費を合計と内訳で出す', () => {
+    it('原価は案件マスタの予定単価ではなく原価エンジンの実計上額を出す', () => {
         const rows = buildProjectCsvRows(
-            [pm({
-                subcontractorCosts: [
-                    { id: 'sc-1', constructionTypeId: 'ct-assembly', amount: 120000 },
-                    { id: 'sc-2', constructionTypeId: 'ct-demolition', amount: 80000 },
-                ],
-            })],
+            // 案件マスタ側の予定値（協力業者費・材料費）は無視され、costById の値が出る
+            [Object.assign(pm({
+                materialCost: 999999,
+                subcontractorCosts: [{ id: 'sc-1', constructionTypeId: 'ct-assembly', amount: 111111 }],
+                hasEstimate: true,
+                hasInvoice: false,
+            }), { loadingCost: '888888' })],
             ctx(),
         );
-        expect(cell(rows, 1, '協力業者費合計')).toBe('200000');
-        expect(cell(rows, 1, '協力業者費内訳')).toBe('組立:120000、解体:80000');
-    });
-
-    it('積込費（Decimal の文字列）と原価・見積/請求有無を出す', () => {
-        const rows = buildProjectCsvRows(
-            [Object.assign(pm({ materialCost: 50000, otherExpenses: null, hasEstimate: true, hasInvoice: false }), { loadingCost: '30000' })],
-            ctx(),
-        );
-        expect(cell(rows, 1, '積込費')).toBe('30000');
+        expect(cell(rows, 1, '外注費')).toBe('200000');
         expect(cell(rows, 1, '材料費')).toBe('50000');
-        expect(cell(rows, 1, 'その他経費')).toBe('');
+        expect(cell(rows, 1, '積込費')).toBe('30000');
+        expect(cell(rows, 1, '人件費')).toBe('300000');
+        expect(cell(rows, 1, '車両費')).toBe('20000');
+        expect(cell(rows, 1, 'その他経費')).toBe('10000');
+        expect(cell(rows, 1, '原価合計')).toBe('610000');
+        expect(cell(rows, 1, '実績人時')).toBe('63.5');
+        expect(cell(rows, 1, '実績人日')).toBe('9');
         expect(cell(rows, 1, '見積有無')).toBe('有');
         expect(cell(rows, 1, '請求有無')).toBe('無');
+        // 旧列は出さない
+        expect(rows[0]).not.toContain('協力業者費合計');
+        expect(rows[0]).not.toContain('協力業者費内訳');
+    });
+
+    it('売上の区分ラベルを出す', () => {
+        const label = (revenueSource: ProjectCostExportRow['revenueSource']) => {
+            const rows = buildProjectCsvRows([pm()], ctx({ costById: { 'pm-1': cost({ revenueSource }) } }));
+            return cell(rows, 1, '売上の区分');
+        };
+        expect(label('override')).toBe('手動上書き');
+        expect(label('invoice')).toBe('請求済み');
+        expect(label('contract')).toBe('契約金額');
+        expect(label('estimate')).toBe('見積');
+        expect(label('none')).toBe('');
+    });
+
+    it('粗利は 売上 − 原価合計。売上が決まっていない（区分 none）なら空文字', () => {
+        const ok = buildProjectCsvRows([pm()], ctx());
+        expect(cell(ok, 1, '売上(税抜)')).toBe('900000');
+        expect(cell(ok, 1, '粗利')).toBe('290000');
+
+        // 原価が売上を上回ればマイナスのまま出す
+        const minus = buildProjectCsvRows(
+            [pm()],
+            ctx({ costById: { 'pm-1': cost({ revenue: 500000, totalCost: 610000 }) } }),
+        );
+        expect(cell(minus, 1, '粗利')).toBe('-110000');
+
+        const none = buildProjectCsvRows(
+            [pm()],
+            ctx({ costById: { 'pm-1': cost({ revenue: 0, revenueSource: 'none' }) } }),
+        );
+        expect(cell(none, 1, '売上(税抜)')).toBe('0');
+        expect(cell(none, 1, '粗利')).toBe('');
+        // 原価自体は none でもそのまま出す
+        expect(cell(none, 1, '原価合計')).toBe('610000');
+    });
+
+    it('原価が取得できなかった案件は原価・売上の列を空文字にする（他の列は出す）', () => {
+        const rows = buildProjectCsvRows([pm()], ctx({ costById: {} }));
+        for (const col of ['売上(税抜)', '売上の区分', '外注費', '材料費', '積込費', '人件費', '車両費', 'その他経費', '原価合計', '粗利', '実績人時', '実績人日']) {
+            expect(cell(rows, 1, col)).toBe('');
+        }
+        // 原価ブロック以外は従来どおり
+        expect(cell(rows, 1, '請求済み金額(税抜)')).toBe('400000');
+        expect(cell(rows, 1, '請求ステータス')).toBe('一部');
+        expect(rows[1].length).toBe(rows[0].length);
+
+        // costById 自体が無い（非取得）ときも同じ
+        const noCtx = buildProjectCsvRows([pm()], ctx({ costById: undefined }));
+        expect(cell(noCtx, 1, '原価合計')).toBe('');
     });
 
     it('登録日・更新日を JST に直す（UTC15時は翌日）', () => {

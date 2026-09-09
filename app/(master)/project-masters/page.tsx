@@ -11,7 +11,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { ProjectMaster, Project } from '@/types/calendar';
 import { Estimate, EstimateInput, EstimateItem } from '@/types/estimate';
 import { Invoice, InvoiceInput } from '@/types/invoice';
-import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, User, Check, SlidersHorizontal, X, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, User, Check, SlidersHorizontal, X, Download, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import { buildProjectMasterCreatePayload, createAssignmentsFromWorkDates } from '@/lib/projectMasterCreate';
@@ -49,7 +49,12 @@ import {
     buildProjectCsvRows,
     buildWorkHistoryCsvRows,
     type ProjectCsvContext,
+    type ProjectCostExportRow,
 } from '@/lib/projectMasterCsv';
+import {
+    checkSubcontractorCostStale,
+    type SubcontractorRates,
+} from '@/lib/subcontractorCostCheck';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
@@ -137,6 +142,8 @@ function ProjectMasterListPageContent() {
     const [filterBillingStatus, setFilterBillingStatus] = useState('');
     // 工事種別ID → 名称・色（作業履歴のチップ表示と、種別での絞り込みに使う）
     const [ctypeMap, setCtypeMap] = useState<CtypeMap>({});
+    // 協力業者費（予定）の目安計算に使う按分率。取れなければ一覧に印を出さない
+    const [subcontractorRates, setSubcontractorRates] = useState<SubcontractorRates | null>(null);
     const [suffixMap, setSuffixMap] = useState<Record<string, string>>({});
     const [currentPage, setCurrentPage] = useState(1);
     // 完了連動: 貸出中が残る案件を完了にしようとしたときの警告
@@ -233,6 +240,28 @@ function ProjectMasterListPageContent() {
                 setCtypeMap(m);
             } catch (e) {
                 logger.error('工事種別マスタの取得に失敗:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    // システム設定（協力業者率・組立/解体按分率）。協力業者費（予定）が古いかの判定に使う。
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/master-data/settings');
+                if (!res.ok) return;
+                const settings = await res.json();
+                if (cancelled) return;
+                setSubcontractorRates({
+                    revenueRate: Number(settings.subcontractorRevenueRate ?? 60),
+                    assemblyRate: Number(settings.subcontractorAssemblyRate ?? 60),
+                    demolitionRate: Number(settings.subcontractorDemolitionRate ?? 40),
+                });
+            } catch (e) {
+                // 取れなければ印を出さないだけ（一覧の表示は従来どおり）
+                logger.error('システム設定の取得に失敗:', e);
             }
         })();
         return () => { cancelled = true; };
@@ -436,6 +465,28 @@ function ProjectMasterListPageContent() {
             getBillingStatus(resolveBillingBasisFor(pm).amount, invoicedByProject[pm.id] ?? 0),
         [invoicedByProject, resolveBillingBasisFor],
     );
+
+    /**
+     * 協力業者費（予定）が現在の売上と合っているかの判定。
+     * 売上はこの画面で使える値での近似＝請求済み(税抜) → 見積(税抜小計の合算) → 足場工事金額 の順。
+     * 案件詳細の利益タブ（/api/project-masters/[id]/profit）はまとめ請求を明細で按分し、
+     * revenueOverride も見るため、金額が一致しないことがある（一覧APIに override は来ない）。
+     * ここは注意を促す印だけなので近似で足りる。正確な目安は案件編集画面の警告で出す。
+     */
+    const subcontractorCostCheckFor = useCallback((pm: ProjectMaster) => {
+        if (!subcontractorRates) return null;
+        const invoiced = invoicedByProject[pm.id] ?? 0;
+        const estimateSubtotal = (estimatesByProject.get(pm.id) ?? []).reduce((sum, e) => sum + e.subtotal, 0);
+        const revenue = invoiced > 0 ? invoiced : estimateSubtotal > 0 ? estimateSubtotal : Number(pm.contractAmount ?? 0);
+        return checkSubcontractorCostStale({
+            revenue,
+            rates: subcontractorRates,
+            costs: (pm.subcontractorCosts ?? []).map(c => ({
+                constructionTypeName: resolveCtypeNameById(c.constructionTypeId),
+                amount: Number(c.amount ?? 0),
+            })),
+        });
+    }, [subcontractorRates, invoicedByProject, estimatesByProject, resolveCtypeNameById]);
     // ── 絞り込みの選択肢（実際にデータに存在するものだけを出す）─────────────
     /** 担当者（案件に設定されている人だけ・五十音順）。 */
     const assigneeOptions = useMemo(() => {
@@ -574,6 +625,9 @@ function ProjectMasterListPageContent() {
     }, [filteredMasters, currentPage]);
 
     // ── CSV 出力（Excel での集計用）────────────────────────
+    /** 出力中の CSV 種別（ボタンのローディング表示・二重クリック防止）。 */
+    const [csvExporting, setCsvExporting] = useState<'project' | 'work' | null>(null);
+
     /** 案件ID → 見積件数（CSV の「見積件数」列）。 */
     const estimateCountByProject = useMemo(() => {
         const m: Record<string, number> = {};
@@ -603,34 +657,52 @@ function ProjectMasterListPageContent() {
         workFrom, workTo, filterCtypeName, filterForemanId,
     ]);
 
-    /** 絞り込み後の一覧（filteredMasters）をそのまま CSV にする。 */
-    const handleExportCsv = useCallback((kind: 'project' | 'work') => {
+    /**
+     * 絞り込み後の一覧（filteredMasters）をそのまま CSV にする。
+     * 案件CSV × admin/manager のときだけ、先に原価エンジンの実計上額を取りに行く
+     * （取れなければ中断＝金額列が空のCSVを黙って出さない）。
+     */
+    const handleExportCsv = useCallback(async (kind: 'project' | 'work') => {
         if (filteredMasters.length === 0) {
             toast.error('出力する案件がありません');
             return;
         }
-        // 件数が多いと組み立てに時間がかかるため、クリックの反応を返してから実行する
-        setTimeout(() => {
-            try {
-                const rows = kind === 'project'
-                    ? buildProjectCsvRows(filteredMasters, csvContext)
-                    : buildWorkHistoryCsvRows(filteredMasters, csvContext);
-                const dataRows = rows.length - 1; // 先頭はヘッダ行
-                if (dataRows === 0) {
-                    toast.error('出力する作業履歴がありません');
-                    return;
-                }
-                // ファイル名の日付は JST
-                const ymd = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
-                const filename = kind === 'project' ? `projects_${ymd}.csv` : `project_work_history_${ymd}.csv`;
-                downloadCsv(filename, toCsvString(rows));
-                toast.success(`${dataRows}件を出力しました`);
-            } catch (e) {
-                logger.error('CSV出力に失敗:', e);
-                toast.error('CSV出力に失敗しました');
+        setCsvExporting(kind);
+        try {
+            let costById: Record<string, ProjectCostExportRow> | undefined;
+            if (kind === 'project' && isAdminOrManager) {
+                const res = await fetch('/api/project-masters/export-costs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: filteredMasters.map((pm) => pm.id) }),
+                });
+                if (!res.ok) throw new Error(`export-costs ${res.status}`);
+                const json = await res.json() as { data: ProjectCostExportRow[] };
+                costById = {};
+                for (const r of json.data ?? []) costById[r.id] = r;
             }
-        }, 0);
-    }, [filteredMasters, csvContext]);
+
+            const ctx = costById ? { ...csvContext, costById } : csvContext;
+            const rows = kind === 'project'
+                ? buildProjectCsvRows(filteredMasters, ctx)
+                : buildWorkHistoryCsvRows(filteredMasters, ctx);
+            const dataRows = rows.length - 1; // 先頭はヘッダ行
+            if (dataRows === 0) {
+                toast.error('出力する作業履歴がありません');
+                return;
+            }
+            // ファイル名の日付は JST
+            const ymd = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+            const filename = kind === 'project' ? `projects_${ymd}.csv` : `project_work_history_${ymd}.csv`;
+            downloadCsv(filename, toCsvString(rows));
+            toast.success(`${dataRows}件を出力しました`);
+        } catch (e) {
+            logger.error('CSV出力に失敗:', e);
+            toast.error(kind === 'project' && isAdminOrManager ? '原価の取得に失敗しました' : 'CSV出力に失敗しました');
+        } finally {
+            setCsvExporting(null);
+        }
+    }, [filteredMasters, csvContext, isAdminOrManager]);
 
     const setBillingOverride = useCallback(
         async (pm: ProjectMaster, value: 'unbilled' | 'partial' | 'full' | null) => {
@@ -1179,7 +1251,9 @@ function ProjectMasterListPageContent() {
                         <div className="ml-auto flex flex-wrap items-center gap-2">
                             <Button
                                 variant="outline"
-                                onClick={() => handleExportCsv('project')}
+                                onClick={() => { void handleExportCsv('project'); }}
+                                isLoading={csvExporting === 'project'}
+                                disabled={csvExporting !== null}
                                 leftIcon={<Download className="w-4 h-4" />}
                                 title="表示中の案件を1案件1行でCSV出力"
                             >
@@ -1187,7 +1261,9 @@ function ProjectMasterListPageContent() {
                             </Button>
                             <Button
                                 variant="outline"
-                                onClick={() => handleExportCsv('work')}
+                                onClick={() => { void handleExportCsv('work'); }}
+                                isLoading={csvExporting === 'work'}
+                                disabled={csvExporting !== null}
                                 leftIcon={<Download className="w-4 h-4" />}
                                 title="表示中の案件の作業履歴を1件1行でCSV出力"
                             >
@@ -1583,15 +1659,27 @@ function ProjectMasterListPageContent() {
                                                 <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                     {(() => {
                                                         const hasEst = hasEstimateFor(pm);
+                                                        // 協力業者費（予定）が売上と合っていない案件だけ琥珀の印を添える
+                                                        const scCheck = subcontractorCostCheckFor(pm);
                                                         return (
-                                                            <button
-                                                                onClick={() => handleEstimateCellClick(pm)}
-                                                                title={hasEst ? '見積書を確認' : '見積書を作成'}
-                                                                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${hasEst ? 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600'}`}
-                                                            >
-                                                                {hasEst && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                                {hasEst ? '済' : '未'}
-                                                            </button>
+                                                            <span className="inline-flex items-center gap-1">
+                                                                <button
+                                                                    onClick={() => handleEstimateCellClick(pm)}
+                                                                    title={hasEst ? '見積書を確認' : '見積書を作成'}
+                                                                    className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${hasEst ? 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600'}`}
+                                                                >
+                                                                    {hasEst && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                                    {hasEst ? '済' : '未'}
+                                                                </button>
+                                                                {scCheck?.status === 'stale' && (
+                                                                    <span
+                                                                        className="inline-flex shrink-0"
+                                                                        title={`協力業者費（予定）が現在の売上と合っていません（目安 ¥${Math.round(scCheck.expectedTotal).toLocaleString()} / 現在 ¥${scCheck.currentTotal.toLocaleString()}）`}
+                                                                    >
+                                                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                                                    </span>
+                                                                )}
+                                                            </span>
                                                         );
                                                     })()}
                                                 </td>

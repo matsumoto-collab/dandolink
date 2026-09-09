@@ -1,12 +1,17 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Calculator, FileSearch } from 'lucide-react';
+import { Plus, Trash2, Calculator, FileSearch, AlertTriangle } from 'lucide-react';
 import { ProjectMasterFormData, SubcontractorCostEntry } from '../ProjectMasterForm';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { logger } from '@/lib/logger';
 import { EstimatePreviewSlideOver } from './EstimatePreviewSlideOver';
+import {
+    checkSubcontractorCostStale,
+    revenueSourceLabel,
+    type SubcontractorRates,
+} from '@/lib/subcontractorCostCheck';
 
 interface SubcontractorCostSectionProps {
     formData: ProjectMasterFormData;
@@ -24,6 +29,10 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
     const constructionTypes = useMasterStore(selectConstructionTypes);
     const [isAutoCalc, setIsAutoCalc] = useState(false);
     const [isEstimateOpen, setIsEstimateOpen] = useState(false);
+    // 自動計算の材料（税抜売上・按分率）。予定単価が古くなっていないかの警告にも使う
+    const [revenueInfo, setRevenueInfo] = useState<
+        { revenue: number; revenueSource: string; rates: SubcontractorRates } | null
+    >(null);
 
     const rows = formData.subcontractorCosts;
 
@@ -92,6 +101,64 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
         });
     };
 
+    /**
+     * 自動計算・警告表示の材料をまとめて取得する（税抜売上＋按分率）。
+     * 取得結果は state に持ち、金額を編集するたびに再取得しないようにする。
+     */
+    const fetchRevenueAndRates = useCallback(async () => {
+        if (!projectMasterId) return null;
+        const [profitRes, settingsRes] = await Promise.all([
+            fetch(`/api/project-masters/${projectMasterId}/profit`),
+            fetch('/api/master-data/settings'),
+        ]);
+        if (!profitRes.ok || !settingsRes.ok) throw new Error('情報取得に失敗しました');
+        const profit = await profitRes.json();
+        const settings = await settingsRes.json();
+        const info = {
+            revenue: Number(profit.revenue || 0),
+            revenueSource: String(profit.revenueSource || 'none'),
+            rates: {
+                revenueRate: Number(settings.subcontractorRevenueRate ?? 60),
+                assemblyRate: Number(settings.subcontractorAssemblyRate ?? 60),
+                demolitionRate: Number(settings.subcontractorDemolitionRate ?? 40),
+            },
+        };
+        setRevenueInfo(info);
+        return info;
+    }, [projectMasterId]);
+
+    /** 予定単価が1件でも入っているか（未入力の案件では警告も取得もしない）。 */
+    const hasPlannedAmount = useMemo(() => rows.some(r => Number(r.amount) > 0), [rows]);
+    const fetchedForRef = useRef<string | null>(null);
+
+    // 初回（予定単価が入っている案件のみ）に1回だけ取得する。
+    // 失敗しても警告を出さないだけで、入力自体は従来どおり使える。
+    useEffect(() => {
+        if (!projectMasterId || !hasPlannedAmount) return;
+        if (fetchedForRef.current === projectMasterId) return;
+        fetchedForRef.current = projectMasterId;
+        fetchRevenueAndRates().catch(err => {
+            logger.error('協力業者費の目安取得に失敗', err);
+        });
+    }, [projectMasterId, hasPlannedAmount, fetchRevenueAndRates]);
+
+    /**
+     * 予定単価が現在の売上と釣り合っているかの判定。
+     * 金額を編集すると rows が変わるので、その場で再評価されて警告が消える。
+     * 運搬費は自動計算の対象外なので作業費（amount）だけを渡す。
+     */
+    const staleCheck = useMemo(() => {
+        if (!revenueInfo) return null;
+        return checkSubcontractorCostStale({
+            revenue: revenueInfo.revenue,
+            rates: revenueInfo.rates,
+            costs: rows.map(r => ({
+                constructionTypeName: constructionTypes.find(t => t.id === r.constructionTypeId)?.name ?? '',
+                amount: Number(r.amount),
+            })),
+        });
+    }, [revenueInfo, rows, constructionTypes]);
+
     const handleAutoCalc = async () => {
         if (!projectMasterId) {
             toast.error('案件保存後に利用できます');
@@ -99,19 +166,10 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
         }
         setIsAutoCalc(true);
         try {
-            const [profitRes, settingsRes] = await Promise.all([
-                fetch(`/api/project-masters/${projectMasterId}/profit`),
-                fetch('/api/master-data/settings'),
-            ]);
-            if (!profitRes.ok || !settingsRes.ok) throw new Error('情報取得に失敗しました');
-            const profit = await profitRes.json();
-            const settings = await settingsRes.json();
-
-            const revenue = Number(profit.revenue || 0);
-            const revenueSource = profit.revenueSource || 'none';
-            const revenueRate = Number(settings.subcontractorRevenueRate ?? 60);
-            const assemblyRate = Number(settings.subcontractorAssemblyRate ?? 60);
-            const demolitionRate = Number(settings.subcontractorDemolitionRate ?? 40);
+            const info = await fetchRevenueAndRates();
+            if (!info) return;
+            const { revenue, revenueSource } = info;
+            const { revenueRate, assemblyRate, demolitionRate } = info.rates;
 
             if (revenueSource === 'none' || revenue <= 0) {
                 toast.error('請求書または見積書が必要です');
@@ -170,6 +228,35 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
                     </div>
                 )}
             </div>
+
+            {/* 売上が変わったのに予定単価が自動計算のまま残っているときの注意書き（保存は妨げない） */}
+            {staleCheck?.status === 'stale' && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                        <p className="text-xs leading-relaxed">
+                            {`予定単価が現在の売上と合っていません。`}
+                            {`${revenueSourceLabel(revenueInfo?.revenueSource)}（税抜）¥${Math.round(revenueInfo?.revenue ?? 0).toLocaleString()} からの目安は `}
+                            {`¥${Math.round(staleCheck.expectedTotal).toLocaleString()}（組立 ¥${staleCheck.expectedAssembly.toLocaleString()}／解体 ¥${staleCheck.expectedDemolition.toLocaleString()}）です。`}
+                            {`現在の合計 ¥${staleCheck.currentTotal.toLocaleString()}。`}
+                        </p>
+                        <p className="text-[11px] text-amber-700">
+                            「組立・解体を自動計算」で目安に合わせられます。金額を手入力している場合はこのままで問題ありません。
+                        </p>
+                        {projectMasterId && (
+                            <button
+                                type="button"
+                                onClick={handleAutoCalc}
+                                disabled={isAutoCalc}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-800 bg-white border border-amber-300 rounded-xl hover:bg-amber-100 transition-colors disabled:opacity-50"
+                            >
+                                <Calculator className="w-3.5 h-3.5" />
+                                {isAutoCalc ? '計算中...' : '目安で再計算'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {rows.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">

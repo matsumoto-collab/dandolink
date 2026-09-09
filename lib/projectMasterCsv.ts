@@ -6,6 +6,8 @@
  * - 金額列は admin/manager のときだけ「列ごと」出す（他ロールは空欄ではなく列自体を出さない）。
  * - 金額は桁区切りなしの整数文字列＝Excel が数値として扱える形にする。
  * - 日付は JST の yyyy-mm-dd（ProjectAssignment.date は JST0時＝UTC前日15時保存のため必ず JST に直す）。
+ * - 原価・売上は案件マスタの予定単価ではなく、原価エンジン `computeProjectCosts` の実計上額
+ *   （`/api/project-masters/export-costs` 経由）を ctx.costById で受け取って出す。
  */
 
 import type { ProjectMaster, ProjectWorkHistoryItem } from '@/types/calendar';
@@ -34,7 +36,45 @@ export interface ProjectCsvContext {
     resolveBillingStatus: (pm: ProjectMaster) => BillingStatus;
     /** 画面の作業履歴絞り込み（未指定なら全件を対象にする）。 */
     workFilter: WorkHistoryFilter;
+    /**
+     * 案件ID → 原価エンジン（computeProjectCosts）の実計上額。
+     * `/api/project-masters/export-costs` の戻り値をそのまま Record 化したもの。
+     * 未取得（非 admin/manager）や API に返らなかった案件は該当セルを空文字にする。
+     */
+    costById?: Record<string, ProjectCostExportRow>;
 }
+
+/**
+ * 案件CSVの原価・売上ブロック1案件ぶん（`/api/project-masters/export-costs` のレスポンス行）。
+ * 金額はすべて税抜・整数。
+ */
+export interface ProjectCostExportRow {
+    id: string;
+    /** 売上（税抜）。revenueSource が 'none' のときは 0。 */
+    revenue: number;
+    /** 売上の出どころ。手動上書き → 請求済み → 契約金額 → 見積 の順（案件CSV固有の順番）。 */
+    revenueSource: 'override' | 'invoice' | 'contract' | 'estimate' | 'none';
+    subcontractorCost: number;
+    materialCost: number;
+    loadingCost: number;
+    laborCost: number;
+    vehicleCost: number;
+    otherExpenses: number;
+    totalCost: number;
+    /** 実績人時＝Σ(配置の作業時間 × 原価計上した人数)。 */
+    laborHours: number;
+    /** 実績人日＝Σ(原価計上した人数)＝延べ人日。 */
+    laborManDays: number;
+}
+
+/** 売上の区分（revenueSource）の日本語表記。'none' は空欄（売上が決まっていない案件）。 */
+const REVENUE_SOURCE_LABEL: Record<ProjectCostExportRow['revenueSource'], string> = {
+    override: '手動上書き',
+    invoice: '請求済み',
+    contract: '契約金額',
+    estimate: '見積',
+    none: '',
+};
 
 /** 見積金額の根拠（resolveBillingBasis の source）の日本語表記。 */
 const BILLING_BASIS_SOURCE_LABEL: Record<'picked' | 'single' | 'contract' | 'none', string> = {
@@ -117,7 +157,11 @@ export function buildProjectCsvRows(pms: ProjectMaster[], ctx: ProjectCsvContext
     if (ctx.canSeeFinancials) {
         header.push(
             '契約金額(税抜)', '見積金額(税抜)', '見積金額の根拠', '見積件数', '請求済み金額(税抜)', '請求残(税抜)',
-            '請求ステータス', '請求ステータス手動', '材料費', 'その他経費', '積込費', '協力業者費合計', '協力業者費内訳',
+            '請求ステータス', '請求ステータス手動',
+            // ここから下は原価エンジン（computeProjectCosts）の実計上額。案件マスタの予定単価ではない。
+            '売上(税抜)', '売上の区分',
+            '外注費', '材料費', '積込費', '人件費', '車両費', 'その他経費', '原価合計', '粗利',
+            '実績人時', '実績人日',
             '見積有無', '請求有無',
         );
     }
@@ -161,11 +205,8 @@ export function buildProjectCsvRows(pms: ProjectMaster[], ctx: ProjectCsvContext
         if (ctx.canSeeFinancials) {
             const basis = ctx.resolveBillingBasis(pm);
             const invoiced = ctx.invoicedByProject[pm.id] ?? 0;
-            const subcontractorCosts = pm.subcontractorCosts ?? [];
-            const subTotal = subcontractorCosts.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
-            const subBreakdown = subcontractorCosts
-                .map((c) => `${ctx.resolveCtypeName(c.constructionTypeId)}:${Number(c.amount) || 0}`)
-                .join('、');
+            // 原価・売上は API（原価エンジン）の値。未取得の案件はこのブロックを空欄にする。
+            const cost = ctx.costById?.[pm.id];
             row.push(
                 toAmountCell(pm.contractAmount),
                 toAmountCell(basis.amount),
@@ -175,12 +216,19 @@ export function buildProjectCsvRows(pms: ProjectMaster[], ctx: ProjectCsvContext
                 basis.amount === null ? '' : toAmountCell(basis.amount - invoiced),
                 BILLING_STATUS_META[ctx.resolveBillingStatus(pm)].short,
                 pm.billingStatusOverride ? '手動' : '',
-                toAmountCell(pm.materialCost),
-                toAmountCell(pm.otherExpenses),
-                // loadingCost は formatProjectMaster が素通しするため Prisma Decimal の JSON（文字列）で来る
-                toAmountCell((pm as { loadingCost?: unknown }).loadingCost),
-                toAmountCell(subTotal),
-                subBreakdown,
+                cost ? toAmountCell(cost.revenue) : '',
+                cost ? REVENUE_SOURCE_LABEL[cost.revenueSource] : '',
+                cost ? toAmountCell(cost.subcontractorCost) : '',
+                cost ? toAmountCell(cost.materialCost) : '',
+                cost ? toAmountCell(cost.loadingCost) : '',
+                cost ? toAmountCell(cost.laborCost) : '',
+                cost ? toAmountCell(cost.vehicleCost) : '',
+                cost ? toAmountCell(cost.otherExpenses) : '',
+                cost ? toAmountCell(cost.totalCost) : '',
+                // 売上が決まっていない（区分 none）案件は粗利を出さない＝原価だけのマイナスを利益に見せない
+                cost && cost.revenueSource !== 'none' ? toAmountCell(cost.revenue - cost.totalCost) : '',
+                cost ? String(cost.laborHours) : '',
+                cost ? String(cost.laborManDays) : '',
                 pm.hasEstimate ? '有' : '無',
                 pm.hasInvoice ? '有' : '無',
             );
