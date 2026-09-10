@@ -1,6 +1,7 @@
 import {
     DEFAULT_VALUE_ADDED_SETTINGS,
     computeValueAdded,
+    previewEstimateValueAdded,
     valueAddedUnavailableReason,
     type ValueAddedSettings,
 } from '@/lib/valueAdded';
@@ -304,5 +305,67 @@ describe('端数', () => {
         expect(r.valueAdded).toBe(-150000);
         expect(r.perManday).toBe(-37500);
         expect(r.judgement).toBe('bad');
+    });
+});
+
+describe('previewEstimateValueAdded（見積時の試算・仕様3-5）', () => {
+    it('見積額と予定原価・予定人工から人工あたり加工高を出す', () => {
+        // 加工高 = 1,200,000 − 200,000 = 1,000,000 ÷ 20人工 = 50,000
+        const p = previewEstimateValueAdded(
+            { sales: 1200000, nonLaborCost: 200000, plannedManDays: 20 },
+            SETTINGS,
+        );
+        expect(p.valueAdded).toBe(1000000);
+        expect(p.perManday).toBe(50000);
+        expect(p.judgement).toBe('good');
+        expect(p.achievementRate).toBe(125);
+        // 足りているので逆算は出さない
+        expect(p.requiredSales).toBeNull();
+        expect(p.allowedManDays).toBeNull();
+    });
+
+    it('しきい値に届かないときは必要な見積額と許容人工を逆算する', () => {
+        // 加工高 600,000 ÷ 20人工 = 30,000（しきい値40,000の75%）
+        const p = previewEstimateValueAdded(
+            { sales: 800000, nonLaborCost: 200000, plannedManDays: 20 },
+            SETTINGS,
+        );
+        expect(p.perManday).toBe(30000);
+        expect(p.judgement).toBe('bad');
+        // 40,000 × 20 + 200,000 = 1,000,000
+        expect(p.requiredSales).toBe(1000000);
+        // 600,000 ÷ 40,000 = 15.0 人工
+        expect(p.allowedManDays).toBe(15);
+    });
+
+    it('予定人工が0なら人工単価は出さない', () => {
+        const p = previewEstimateValueAdded(
+            { sales: 800000, nonLaborCost: 200000, plannedManDays: 0 },
+            SETTINGS,
+        );
+        expect(p.perManday).toBeNull();
+        expect(p.judgement).toBe('unknown');
+        expect(p.requiredSales).toBeNull();
+    });
+
+    it('しきい値が未設定なら判定も逆算も出さない（数値は出す）', () => {
+        const p = previewEstimateValueAdded(
+            { sales: 800000, nonLaborCost: 200000, plannedManDays: 20 },
+            DEFAULT_VALUE_ADDED_SETTINGS,
+        );
+        expect(p.perManday).toBe(30000);
+        expect(p.judgement).toBe('unknown');
+        expect(p.achievementRate).toBeNull();
+        expect(p.requiredSales).toBeNull();
+    });
+
+    it('予定原価が見積額を超える（加工高が赤字）場合は許容人工0', () => {
+        const p = previewEstimateValueAdded(
+            { sales: 200000, nonLaborCost: 300000, plannedManDays: 5 },
+            SETTINGS,
+        );
+        expect(p.valueAdded).toBe(-100000);
+        expect(p.judgement).toBe('bad');
+        expect(p.allowedManDays).toBe(0);
     });
 });

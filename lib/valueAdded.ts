@@ -214,6 +214,52 @@ export function computeValueAdded(
     };
 }
 
+export interface EstimateValueAddedPreview {
+    valueAdded: number;
+    perManday: number | null;
+    judgement: ValueAddedJudgement;
+    achievementRate: number | null;
+    /** しきい値を満たすのに必要な見積額（税抜）。今の見積で足りていれば null */
+    requiredSales: number | null;
+    /** 今の見積額でしきい値を満たすために収める必要がある人工。足りていれば null */
+    allowedManDays: number | null;
+}
+
+/**
+ * 見積書作成時の試算（仕様3-5）。
+ * 実績ではなく「予定」で計算する: 売上＝見積額、原価＝人件費以外の予定原価、
+ * 人工＝予定組立人工＋予定解体人工。信頼度フラグや外注中心の判定は使わない
+ * （まだ配置も請求も無いため）。
+ */
+export function previewEstimateValueAdded(
+    params: { sales: number; nonLaborCost: number; plannedManDays: number },
+    settings: ValueAddedSettings = DEFAULT_VALUE_ADDED_SETTINGS,
+): EstimateValueAddedPreview {
+    const sales = Math.round(params.sales || 0);
+    const nonLaborCost = Math.round(params.nonLaborCost || 0);
+    const planned = Math.max(0, params.plannedManDays || 0);
+
+    const valueAdded = truncYen(sales - nonLaborCost);
+    const perManday = planned > 0 ? truncYen(valueAdded / planned) : null;
+    const threshold = settings.breakevenPerManday;
+    const judgement = judgeBy(perManday, threshold, settings.judgeWarningRatio);
+    const achievementRate =
+        perManday !== null && threshold !== null && threshold > 0
+            ? Math.round((perManday / threshold) * 100)
+            : null;
+
+    let requiredSales: number | null = null;
+    let allowedManDays: number | null = null;
+    if (threshold !== null && threshold > 0 && perManday !== null && perManday < threshold) {
+        // しきい値 × 予定人工 ＋ 人件費以外の原価 ＝ 必要な見積額
+        requiredSales = Math.ceil(threshold * planned + nonLaborCost);
+        // 今の加工高でしきい値を満たせる人工（小数第1位まで）
+        allowedManDays = valueAdded > 0 ? Math.floor((valueAdded / threshold) * 10) / 10 : 0;
+    }
+
+    return { valueAdded, perManday, judgement, achievementRate, requiredSales, allowedManDays };
+}
+
 /** 指標を数値で出せない理由（画面にそのまま出す文言）。出せる場合は null */
 export function valueAddedUnavailableReason(result: ValueAddedResult): string | null {
     if (result.available) return null;

@@ -5,12 +5,26 @@ import { systemSettingsSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
 
         let settings = await prisma.systemSettings.findFirst({ where: { id: 'default' } });
         if (!settings) {
             settings = await prisma.systemSettings.create({ data: { id: 'default', totalMembers: 20 } });
+        }
+
+        // 「人工あたり加工高」の判定設定は金額・判定の内部値なので admin / manager だけに返す
+        // （仕様5章: 権限のないユーザーにはフィールド自体を返さない）
+        const role = session!.user.role;
+        if (role !== 'admin' && role !== 'manager') {
+            const {
+                breakevenValueAddedPerManday: _breakeven,
+                outsourcingRatioThreshold: _outsourcing,
+                billingShortRatio: _billing,
+                judgeWarningRatio: _warning,
+                ...rest
+            } = settings;
+            return NextResponse.json(rest);
         }
         return NextResponse.json(settings);
     } catch (error) {

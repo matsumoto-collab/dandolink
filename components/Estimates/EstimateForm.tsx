@@ -23,6 +23,7 @@ import EstimateHeader from './EstimateHeader';
 import ItemsEditor from './ItemsEditor';
 import SummaryFooter from './SummaryFooter';
 import ConditionNotes from './ConditionNotes';
+import EstimateValueAddedHint from './EstimateValueAddedHint';
 import { logger } from '@/lib/logger';
 
 interface EstimateFormProps {
@@ -600,6 +601,12 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                     />
 
                     <ConditionNotes notes={notes} setNotes={setNotes} />
+
+                    {/* 人工あたり加工高の目安（案件マスタの予定原価・予定人工から試算。admin/manager のみ） */}
+                    <EstimateValueAddedHint
+                        subtotal={subtotal}
+                        projectMaster={projectMasters.find(pm => pm.id === projectId)}
+                    />
 
                     {/* 合計エリア（sticky） */}
                     <div className="sticky bottom-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
