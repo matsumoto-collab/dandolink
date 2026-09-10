@@ -16,6 +16,7 @@ import MaterialMasterSettings from '@/components/Settings/MaterialMasterSettings
 import CostMasterSettings from '@/components/Settings/CostMasterSettings';
 import ExpenseCategorySettings from '@/components/Settings/ExpenseCategorySettings';
 import SystemSettingsPanel from '@/components/Settings/SystemSettingsPanel';
+import ValueAddedSettingsPanel from '@/components/Settings/ValueAddedSettingsPanel';
 import NotificationSettings from '@/components/Settings/NotificationSettings';
 import DispatchOrderSettings from '@/components/Settings/DispatchOrderSettings';
 import ToolMasterSettings from '@/components/Settings/ToolMasterSettings';
@@ -35,7 +36,7 @@ export default function SettingsPage() {
         deleteMemberCountEntry,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [editingRate, setEditingRate] = useState(''); // 車両の日額（編集中）
@@ -52,10 +53,12 @@ export default function SettingsPage() {
 
     // Check if user is admin
     const isUserAdmin = session?.user?.role === 'admin';
+    // 「人工あたり加工高」の判定設定は金額を含むので admin / manager だけに出す（API側も同じ制御）
+    const canSeeFinancials = session?.user?.role === 'admin' || session?.user?.role === 'manager';
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: null },
             { id: 'tools' as const, label: '電動工具', count: null },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
@@ -74,6 +77,11 @@ export default function SettingsPage() {
             { id: 'tentativeTriage' as const, label: '仮予定の仕分け', count: null },
         ];
 
+        // 金額を含む判定設定は admin / manager のみ
+        if (canSeeFinancials) {
+            baseTabs.push({ id: 'valueAdded' as const, label: '人工あたり加工高', count: null });
+        }
+
         // Add user management tab if user is admin
         if (isUserAdmin) {
             baseTabs.push({ id: 'users' as const, label: 'ユーザー管理', count: null });
@@ -81,7 +89,7 @@ export default function SettingsPage() {
         }
 
         return baseTabs;
-    }, [isUserAdmin]);
+    }, [isUserAdmin, canSeeFinancials]);
 
     // 日額入力(円)を number|null に変換。空→null。負数/非数値は null を返す（呼び出し側で弾く）。
     const parseRate = (raw: string): number | null => {
@@ -372,6 +380,9 @@ export default function SettingsPage() {
                         ) : activeTab === 'system' ? (
                             // 協力業者費設定
                             <SystemSettingsPanel />
+                        ) : activeTab === 'valueAdded' ? (
+                            // 人工あたり加工高の判定設定
+                            <ValueAddedSettingsPanel />
                         ) : activeTab === 'notifications' ? (
                             // プッシュ通知設定
                             <NotificationSettings />
