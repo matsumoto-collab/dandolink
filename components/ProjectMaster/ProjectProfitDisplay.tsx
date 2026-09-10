@@ -7,6 +7,8 @@ import Loading from '@/components/ui/Loading';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
 import { logger } from '@/lib/logger';
 import { summarizeLaborHeadcount, formatLaborHeadcountGroups } from '@/lib/laborHeadcount';
+import type { ValueAddedResult } from '@/lib/valueAdded';
+import ValueAddedSummary from '@/components/ProjectMaster/ValueAddedSummary';
 
 interface CostBreakdown {
     laborCost: number;
@@ -103,6 +105,8 @@ interface ProfitData {
     estimatedProfit?: number;
     confirmedProfit?: number;
     costConsumptionRate?: number | null;
+    /** 人工あたり加工高。権限のないユーザーにはAPIが返さない（このAPI自体が admin/manager 限定） */
+    valueAdded?: ValueAddedResult;
 }
 
 interface ProjectProfitDisplayProps {
@@ -796,6 +800,9 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                             );
                         })}
                     </div>
+
+                    {/* 人工あたり加工高（原価内訳の下）。権限が無いユーザーにはAPIが返さないので出ない */}
+                    {profitData.valueAdded && <ValueAddedSummary data={profitData.valueAdded} />}
                 </div>
             </div>
         </div>

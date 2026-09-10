@@ -68,6 +68,11 @@ export const systemSettingsSchema = z.object({
     subcontractorRevenueRate: z.number().int().min(0).max(100).optional(),
     subcontractorAssemblyRate: z.number().int().min(0).max(100).optional(),
     subcontractorDemolitionRate: z.number().int().min(0).max(100).optional(),
+    // 「人工あたり加工高」の判定設定。比率は 0〜1（画面では%で入力し、APIには小数で渡す）
+    breakevenValueAddedPerManday: z.number().int().min(0).max(10_000_000).nullable().optional(),
+    outsourcingRatioThreshold: z.number().min(0).max(1).optional(),
+    billingShortRatio: z.number().min(0).max(1).optional(),
+    judgeWarningRatio: z.number().min(0).max(1).optional(),
 });
 
 export const scaffoldingSpecItemSchema = z.object({

@@ -33,6 +33,10 @@ export async function PATCH(request: NextRequest) {
             subcontractorRevenueRate,
             subcontractorAssemblyRate,
             subcontractorDemolitionRate,
+            breakevenValueAddedPerManday,
+            outsourcingRatioThreshold,
+            billingShortRatio,
+            judgeWarningRatio,
         } = validation.data;
 
         const updateData: Record<string, unknown> = {};
@@ -40,6 +44,11 @@ export async function PATCH(request: NextRequest) {
         if (subcontractorRevenueRate !== undefined) updateData.subcontractorRevenueRate = subcontractorRevenueRate;
         if (subcontractorAssemblyRate !== undefined) updateData.subcontractorAssemblyRate = subcontractorAssemblyRate;
         if (subcontractorDemolitionRate !== undefined) updateData.subcontractorDemolitionRate = subcontractorDemolitionRate;
+        // 人工あたり加工高の判定設定（null を渡すと「未設定＝判定しない」に戻せる）
+        if (breakevenValueAddedPerManday !== undefined) updateData.breakevenValueAddedPerManday = breakevenValueAddedPerManday;
+        if (outsourcingRatioThreshold !== undefined) updateData.outsourcingRatioThreshold = outsourcingRatioThreshold;
+        if (billingShortRatio !== undefined) updateData.billingShortRatio = billingShortRatio;
+        if (judgeWarningRatio !== undefined) updateData.judgeWarningRatio = judgeWarningRatio;
 
         const createData = {
             id: 'default',
@@ -47,6 +56,10 @@ export async function PATCH(request: NextRequest) {
             ...(subcontractorRevenueRate !== undefined ? { subcontractorRevenueRate } : {}),
             ...(subcontractorAssemblyRate !== undefined ? { subcontractorAssemblyRate } : {}),
             ...(subcontractorDemolitionRate !== undefined ? { subcontractorDemolitionRate } : {}),
+            ...(breakevenValueAddedPerManday !== undefined ? { breakevenValueAddedPerManday } : {}),
+            ...(outsourcingRatioThreshold !== undefined ? { outsourcingRatioThreshold } : {}),
+            ...(billingShortRatio !== undefined ? { billingShortRatio } : {}),
+            ...(judgeWarningRatio !== undefined ? { judgeWarningRatio } : {}),
         };
 
         const settings = await prisma.systemSettings.upsert({

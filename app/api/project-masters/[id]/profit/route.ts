@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, notFoundResponse, serverErrorResponse, errorResponse } from '@/lib/api/utils';
 import { computeProjectCosts } from '@/lib/projectCost';
 import { SALES_INVOICE_STATUSES, invoiceProjectShares } from '@/lib/profitDashboard';
+import { computeValueAdded } from '@/lib/valueAdded';
+import { loadValueAddedSettings } from '@/lib/valueAddedSettings';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -31,7 +33,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         });
         if (!projectMaster) return notFoundResponse('案件');
 
-        const [estimates, invoices, costMap] = await Promise.all([
+        const [estimates, invoices, costMap, assignmentCount, valueAddedSettings] = await Promise.all([
             prisma.estimate.findMany({
                 where: { projectMasterId: id },
                 select: { id: true, estimateNumber: true, title: true, total: true, subtotal: true, costTotal: true, createdAt: true, updatedAt: true },
@@ -51,6 +53,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 select: { subtotal: true, total: true, items: true, projectMasterId: true },
             }),
             computeProjectCosts([id], { withDetail: true }),
+            // 「作業履歴があるのに人件費0＝原価未入力」の判定に使う
+            prisma.projectAssignment.count({ where: { projectMasterId: id } }),
+            loadValueAddedSettings(),
         ]);
 
         // 見積（複数合算・追加見積含む）
@@ -118,6 +123,28 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             ? Math.round((totalCost / estimatedRevenue) * 1000) / 10
             : null;
 
+        // 人工あたり加工高（加工高 ÷ 総人数）。総人数は利益サマリーと同じ実績ベース。
+        // このAPIは既に admin/manager 以外を 403 で弾いているので、ここに来る時点で権限あり。
+        const headcount = detail.labor.reduce((sum, row) => sum + (row.workerCount || 0), 0);
+        const hasManualCost =
+            Object.values(detail.manualItems ?? emptyManualItems).some(items =>
+                (items as { amount: number }[]).some(item => Number(item.amount) !== 0),
+            ) ||
+            detail.labor.some(r => r.override != null) ||
+            detail.vehicle.some(r => r.override != null) ||
+            detail.subcontractor.some(r => r.override != null);
+        const valueAdded = computeValueAdded(
+            {
+                sales: confirmedRevenue,
+                cost: costBreakdown,
+                headcount,
+                estimateSubtotal,
+                hasManualCost,
+                hasAssignments: assignmentCount > 0,
+            },
+            valueAddedSettings,
+        );
+
         return NextResponse.json({
             projectMasterId: id, projectTitle: projectMaster.title,
             revenue, revenueSource, autoRevenue, revenueOverride: projectMaster.revenueOverride,
@@ -140,6 +167,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             // Phase4: 見込み／確定／見積残／消化率
             estimatedRevenue, confirmedRevenue, isBilled,
             estimatedProfit, confirmedProfit, costConsumptionRate,
+            valueAdded,
         });
     } catch (error) {
         return serverErrorResponse('利益計算', error);

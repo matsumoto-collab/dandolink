@@ -903,6 +903,14 @@ model SystemSettings {
   subcontractorRevenueRate    Int      @default(60)
   subcontractorAssemblyRate   Int      @default(60)
   subcontractorDemolitionRate Int      @default(40)
+  /// 損益分岐の人工単価（円）。「人工あたり加工高」の判定色に使う。null = 未設定＝判定しない
+  breakevenValueAddedPerManday Int?
+  /// 「外注中心」と判定する労務の外注比率 ＝ 外注費 ÷（外注費 ＋ 自社人件費）
+  outsourcingRatioThreshold   Decimal  @default(0.5) @db.Decimal(4, 3)
+  /// 請求不足を疑う 請求額÷見積額
+  billingShortRatio           Decimal  @default(0.7) @db.Decimal(4, 3)
+  /// 黄色（注意）判定の下限
+  judgeWarningRatio           Decimal  @default(0.8) @db.Decimal(4, 3)
 
   @@schema("public")
 }
