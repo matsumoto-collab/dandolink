@@ -167,6 +167,7 @@ export default function GanttChart({
     const [showEmptyProjects, setShowEmptyProjects] = useState(false);
     const [statusFilters, setStatusFilters] = useState<string[]>(['active']);
     const [exportingPdf, setExportingPdf] = useState(false);
+    const [exportingExcel, setExportingExcel] = useState(false);
 
     const days = useMemo(() => getDaysBetween(viewStartDate, viewEndDate), [viewStartDate, viewEndDate]);
     const today = useMemo(() => formatDate(new Date()), []);
@@ -330,33 +331,51 @@ export default function GanttChart({
         filterSuffixIds.length + filterContentNames.length + filterCustomerNames.length + filterProjectIds.length +
         (minWorkDays !== null || maxWorkDays !== null ? 1 : 0);
 
-    // 工程表PDF（A3横）。表示中＝絞り込み後の案件をそのまま1枚にする
+    // 工程表の出力（PDF / Excel 共通の材料）。表示中＝絞り込み後の案件をそのまま1枚にする
+    const buildExportPayload = useCallback(() => {
+        const today = new Date();
+        return {
+            projects: filteredProjects.map(p => ({
+                projectMasterId: p.projectMasterId,
+                label: p.projectName || p.projectTitle,
+                workEntries: p.workEntries,
+            })),
+            constructionTypes: constructionTypes.map(ct => ({ id: ct.id, name: ct.name, color: ct.color })),
+            meta: {
+                author: authorName,
+                createdAt: `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`,
+            },
+            fileName: `工程表_${formatDate(today)}`,
+        };
+    }, [filteredProjects, constructionTypes, authorName]);
+
     const handleExportPdf = useCallback(async () => {
         if (filteredProjects.length === 0) return;
         setExportingPdf(true);
         try {
             const { exportScheduleChartPDF } = await import('@/utils/scheduleChartPdf');
-            const today = new Date();
-            await exportScheduleChartPDF({
-                projects: filteredProjects.map(p => ({
-                    projectMasterId: p.projectMasterId,
-                    label: p.projectName || p.projectTitle,
-                    workEntries: p.workEntries,
-                })),
-                constructionTypes: constructionTypes.map(ct => ({ id: ct.id, name: ct.name, color: ct.color })),
-                meta: {
-                    author: authorName,
-                    createdAt: `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`,
-                },
-                fileName: `工程表_${formatDate(today)}`,
-            });
+            await exportScheduleChartPDF(buildExportPayload());
         } catch (error) {
             logger.error('工程表PDF出力に失敗:', error);
             toast.error('工程表PDFの出力に失敗しました');
         } finally {
             setExportingPdf(false);
         }
-    }, [filteredProjects, constructionTypes, authorName]);
+    }, [filteredProjects.length, buildExportPayload]);
+
+    const handleExportExcel = useCallback(async () => {
+        if (filteredProjects.length === 0) return;
+        setExportingExcel(true);
+        try {
+            const { exportScheduleChartExcel } = await import('@/utils/scheduleChartExcel');
+            await exportScheduleChartExcel(buildExportPayload());
+        } catch (error) {
+            logger.error('工程表Excel出力に失敗:', error);
+            toast.error('工程表Excelの出力に失敗しました');
+        } finally {
+            setExportingExcel(false);
+        }
+    }, [filteredProjects.length, buildExportPayload]);
 
     // 案件ごとのworkEntriesをdateでインデックス
     const projectWorkMap = useMemo(() => {
@@ -445,6 +464,17 @@ export default function GanttChart({
                     >
                         <FileDown className="w-3.5 h-3.5" />
                         <span>{exportingPdf ? '出力中...' : '工程表PDF'}</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => { void handleExportExcel(); }}
+                        disabled={exportingExcel || filteredProjects.length === 0}
+                        title="表示中の工程をA3横の工程表Excel(.xlsx)で出力。セルの塗りで工程バーを表すので Excel 上で調整できます"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        style={{ fontSize: 12 }}
+                    >
+                        <FileDown className="w-3.5 h-3.5" />
+                        <span>{exportingExcel ? '出力中...' : '工程表Excel'}</span>
                     </button>
 
                     {isAdmin && (

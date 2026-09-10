@@ -7,7 +7,8 @@ import { CompanyInfo } from '@/types/company';
 // React PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
 import { EstimateItem } from '@/types/estimate';
-import { X, FileDown, Printer, Trash2, Edit, FolderOpen, History, Receipt } from 'lucide-react';
+import { X, FileDown, FileSpreadsheet, Printer, Trash2, Edit, FolderOpen, History, Receipt } from 'lucide-react';
+import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
@@ -143,6 +144,18 @@ export default function EstimateDetailModal({
         }
     };
 
+    // Excel（.xlsx）出力。PDF と同じ材料・同じ宛名で、金額は数式入り
+    const handleDownloadExcel = async () => {
+        if (!estimate || !companyInfo) return;
+        try {
+            const { exportEstimateExcel } = await import('@/utils/estimateExcel');
+            await exportEstimateExcel(estimate, effectiveProject, companyInfo, { includeDetails, creatorName });
+        } catch (error) {
+            logger.error('見積書Excel出力に失敗:', error);
+            toast.error('見積書Excelの出力に失敗しました');
+        }
+    };
+
     const handlePrint = () => {
         if (!pdfUrl) return;
         const w = window.open(pdfUrl, '_blank');
@@ -260,6 +273,15 @@ export default function EstimateDetailModal({
                             >
                                 <FileDown size={18} />
                                 <span className="hidden sm:inline">PDF出力</span>
+                            </button>
+                            <button
+                                onClick={handleDownloadExcel}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                title="Excel出力（金額は数式入り。単価を直すと小計・消費税・合計が連動します）"
+                                aria-label="Excel出力"
+                            >
+                                <FileSpreadsheet size={18} />
+                                <span className="hidden sm:inline">Excel出力</span>
                             </button>
                             <button
                                 onClick={handlePrint}
