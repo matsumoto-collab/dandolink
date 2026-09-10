@@ -310,6 +310,7 @@ export default function MySchedulePage() {
                     onFilterMinWorkDaysChange={setFilterMinWorkDays}
                     filterMaxWorkDays={filterMaxWorkDays}
                     onFilterMaxWorkDaysChange={setFilterMaxWorkDays}
+                    authorName={session?.user?.name ?? session?.user?.username ?? undefined}
                     isAdmin={isAdmin}
                     onProjectClick={handleProjectClick}
                 />

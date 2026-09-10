@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileDown } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { logger } from '@/lib/logger';
 
 // --- Types ---
 
@@ -76,6 +78,8 @@ interface GanttChartProps {
     onFilterMinWorkDaysChange: (value: string) => void;
     filterMaxWorkDays: string;
     onFilterMaxWorkDaysChange: (value: string) => void;
+    /** 工程表PDFの「作成者」欄に入れる名前（ログイン中のユーザー） */
+    authorName?: string;
     isAdmin: boolean;
     onProjectClick?: (projectMasterId: string) => void;
 }
@@ -145,6 +149,7 @@ export default function GanttChart({
     onFilterMinWorkDaysChange,
     filterMaxWorkDays,
     onFilterMaxWorkDaysChange,
+    authorName,
     isAdmin,
     onProjectClick,
 }: GanttChartProps) {
@@ -161,6 +166,7 @@ export default function GanttChart({
     const [searchQuery, setSearchQuery] = useState('');
     const [showEmptyProjects, setShowEmptyProjects] = useState(false);
     const [statusFilters, setStatusFilters] = useState<string[]>(['active']);
+    const [exportingPdf, setExportingPdf] = useState(false);
 
     const days = useMemo(() => getDaysBetween(viewStartDate, viewEndDate), [viewStartDate, viewEndDate]);
     const today = useMemo(() => formatDate(new Date()), []);
@@ -324,6 +330,34 @@ export default function GanttChart({
         filterSuffixIds.length + filterContentNames.length + filterCustomerNames.length + filterProjectIds.length +
         (minWorkDays !== null || maxWorkDays !== null ? 1 : 0);
 
+    // 工程表PDF（A3横）。表示中＝絞り込み後の案件をそのまま1枚にする
+    const handleExportPdf = useCallback(async () => {
+        if (filteredProjects.length === 0) return;
+        setExportingPdf(true);
+        try {
+            const { exportScheduleChartPDF } = await import('@/utils/scheduleChartPdf');
+            const today = new Date();
+            await exportScheduleChartPDF({
+                projects: filteredProjects.map(p => ({
+                    projectMasterId: p.projectMasterId,
+                    label: p.projectName || p.projectTitle,
+                    workEntries: p.workEntries,
+                })),
+                constructionTypes: constructionTypes.map(ct => ({ id: ct.id, name: ct.name, color: ct.color })),
+                meta: {
+                    author: authorName,
+                    createdAt: `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`,
+                },
+                fileName: `工程表_${formatDate(today)}`,
+            });
+        } catch (error) {
+            logger.error('工程表PDF出力に失敗:', error);
+            toast.error('工程表PDFの出力に失敗しました');
+        } finally {
+            setExportingPdf(false);
+        }
+    }, [filteredProjects, constructionTypes, authorName]);
+
     // 案件ごとのworkEntriesをdateでインデックス
     const projectWorkMap = useMemo(() => {
         const map = new Map<string, Map<string, WorkEntry[]>>();
@@ -400,6 +434,18 @@ export default function GanttChart({
                             +
                         </button>
                     </div>
+
+                    <button
+                        type="button"
+                        onClick={() => { void handleExportPdf(); }}
+                        disabled={exportingPdf || filteredProjects.length === 0}
+                        title="表示中の工程をA3横の工程表PDFで出力"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        style={{ fontSize: 12 }}
+                    >
+                        <FileDown className="w-3.5 h-3.5" />
+                        <span>{exportingPdf ? '出力中...' : '工程表PDF'}</span>
+                    </button>
 
                     {isAdmin && (
                         <select
