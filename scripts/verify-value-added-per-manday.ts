@@ -40,6 +40,7 @@ async function main() {
     const { prisma } = await import('../lib/prisma');
     const { computeProjectCosts } = await import('../lib/projectCost');
     const { SALES_INVOICE_STATUSES, invoiceProjectShares } = await import('../lib/profitDashboard');
+    const { computeValueAdded, DEFAULT_VALUE_ADDED_SETTINGS } = await import('../lib/valueAdded');
 
     for (const exp of EXPECTED) {
         const candidates = await prisma.projectMaster.findMany({
@@ -77,12 +78,17 @@ async function main() {
         };
         const headcount = (cost?.detail?.labor ?? []).reduce((s, r) => s + (r.workerCount || 0), 0);
 
-        const sales = invoiceSubtotal;
-        const nonLabor = b.totalCost - b.laborCost;
-        const valueAdded = sales - nonLabor;
-        const perManday = headcount > 0 ? Math.floor(valueAdded / headcount) : null;
-        const productivity = b.laborCost > 0 ? valueAdded / b.laborCost : null;
-        const outsourcingRatio = sales > 0 ? b.subcontractorCost / sales : 0;
+        // 本番と同じ計算（lib/valueAdded.ts）を通す＝この検証がそのまま実装の回帰テストになる
+        const va = computeValueAdded(
+            { sales: invoiceSubtotal, cost: b, headcount },
+            { ...DEFAULT_VALUE_ADDED_SETTINGS, breakevenPerManday: 40000 },
+        );
+        const sales = va.sales;
+        const nonLabor = va.nonLaborCost;
+        const valueAdded = va.valueAdded;
+        const perManday = va.perManday;
+        const productivity = va.productivityRatio;
+        const outsourcingRatio = va.laborOutsourcingRatio ?? 0;
 
         console.log('='.repeat(96));
         console.log(`【${exp.label}】`);
@@ -94,8 +100,8 @@ async function main() {
         console.log(`  総人数             ${String(headcount).padStart(12)}  期待 ${String(exp.headcount).padStart(12)}  ${headcount === exp.headcount ? '一致' : `差 ${headcount - exp.headcount}`}`);
         console.log(`  人工あたり加工高   ${(perManday === null ? '—' : yen(perManday)).padStart(12)}  期待 ${yen(exp.perManday).padStart(12)}  ${perManday === null ? '' : diffMark(perManday, exp.perManday)}`);
         console.log(`  労働生産性倍率     ${(productivity === null ? '—' : productivity.toFixed(2) + '倍').padStart(12)}`);
-        console.log(`  外注比率(外注÷売上) ${(sales > 0 ? (outsourcingRatio * 100).toFixed(1) + '%' : '—').padStart(11)}`);
-        console.log(`  参考: 人件費以外÷売上 ${(sales > 0 ? ((nonLabor / sales) * 100).toFixed(1) + '%' : '—').padStart(9)}`);
+        console.log(`  労務の外注比率      ${((outsourcingRatio * 100).toFixed(1) + '%').padStart(11)}  ${va.outsourcingHeavy ? '← 外注中心' : ''}`);
+        console.log(`  判定                ${(va.judgement + (va.judgedBy ? ` (${va.judgedBy})` : '')).padStart(11)}`);
         console.log(`  参考: 1人工あたり人件費 ${headcount > 0 ? yen(Math.round(b.laborCost / headcount)) + '円' : '—'}`);
         console.log();
     }
