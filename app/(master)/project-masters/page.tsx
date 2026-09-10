@@ -32,6 +32,8 @@ import { useSession } from 'next-auth/react';
 import { logger } from '@/lib/logger';
 import { matchesSearch } from '@/utils/searchNormalize';
 import { getConstructionContentLabel } from '@/lib/constructionContent';
+import { ValueAddedCell } from '@/components/ui/ValueAddedBadge';
+import type { ValueAddedResult } from '@/lib/valueAdded';
 import {
     matchesProjectListStatus,
     resolveProjectListStatus,
@@ -141,6 +143,12 @@ function ProjectMasterListPageContent() {
     const [filterCtypeName, setFilterCtypeName] = useState('');
     const [filterForemanId, setFilterForemanId] = useState('');
     const [filterBillingStatus, setFilterBillingStatus] = useState('');
+    // 人工あたり加工高（金額列を見られる人だけ・一覧表示後に非同期で取得する）
+    const [valueAddedById, setValueAddedById] = useState<Record<string, ValueAddedResult>>({});
+    const [valueAddedLoading, setValueAddedLoading] = useState(false);
+    const [filterJudgement, setFilterJudgement] = useState('');
+    const [sortKey, setSortKey] = useState<'updated' | 'valueAdded'>('updated');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     // 工事種別ID → 名称・色（作業履歴のチップ表示と、種別での絞り込みに使う）
     const [ctypeMap, setCtypeMap] = useState<CtypeMap>({});
     // 協力業者費（予定）の目安計算に使う按分率。取れなければ一覧に印を出さない
@@ -552,6 +560,45 @@ function ProjectMasterListPageContent() {
     // ── 絞り込み・並び替え ────────────────────────────────
     // 作業履歴の条件（日付範囲 / 工事種別 / 職長）は「同じ1件の作業履歴」がすべて満たすことを求める
     // ＝「この期間に、この職長が、組立をやった案件」を探せる（lib/projectWorkHistory）。
+    // 案件IDの集合が変わったときだけ取り直す。原価エンジンを全件で回すので一覧の初期表示は
+    // 待たせず、取れた順に列へ流し込む（取得できなくても列が「—」になるだけ）。
+    const valueAddedKey = useMemo(
+        () => (isAdminOrManager ? projectMasters.map(pm => pm.id).sort().join(',') : ''),
+        [isAdminOrManager, projectMasters],
+    );
+    useEffect(() => {
+        if (!valueAddedKey) {
+            setValueAddedById({});
+            return;
+        }
+        const ids = valueAddedKey.split(',');
+        let cancelled = false;
+        setValueAddedLoading(true);
+        (async () => {
+            try {
+                const res = await fetch('/api/project-masters/export-costs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids }),
+                });
+                if (!res.ok) throw new Error(`export-costs ${res.status}`);
+                const json = await res.json() as { data: ProjectCostExportRow[] };
+                if (cancelled) return;
+                const map: Record<string, ValueAddedResult> = {};
+                for (const row of json.data ?? []) {
+                    if (row.valueAdded) map[row.id] = row.valueAdded;
+                }
+                setValueAddedById(map);
+            } catch (e) {
+                // 列が出ないだけなので画面は止めない
+                logger.error('人工あたり加工高の取得に失敗:', e);
+            } finally {
+                if (!cancelled) setValueAddedLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [valueAddedKey]);
+
     const filteredMasters = useMemo(() => {
         let results = projectMasters;
 
@@ -592,20 +639,38 @@ function ProjectMasterListPageContent() {
             results = results.filter(pm => resolveBillingStatus(pm) === filterBillingStatus);
         }
 
-        // Sort by updated date
-        return [...results].sort((a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
+        // 人工あたり加工高の判定（未取得の案件は「算出不可」側に寄せる）
+        if (filterJudgement) {
+            results = results.filter(pm => {
+                const va = valueAddedById[pm.id];
+                if (filterJudgement === 'unavailable') return !va || !va.available;
+                return !!va && va.available && va.judgement === filterJudgement;
+            });
+        }
+
+        return [...results].sort((a, b) => {
+            if (sortKey === 'valueAdded') {
+                const av = valueAddedById[a.id]?.available ? valueAddedById[a.id]?.perManday ?? null : null;
+                const bv = valueAddedById[b.id]?.available ? valueAddedById[b.id]?.perManday ?? null : null;
+                // 算出できない案件は並び順に関係なく末尾へ
+                if (av === null && bv === null) return 0;
+                if (av === null) return 1;
+                if (bv === null) return -1;
+                return sortDir === 'asc' ? av - bv : bv - av;
+            }
+            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
     }, [
         projectMasters, searchTerm, filterStatus, filterAssigneeId,
         workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus,
+        filterJudgement, valueAddedById, sortKey, sortDir,
         getAssigneeIds, resolveCtypeNameById, resolveBillingStatus,
     ]);
 
     // 絞り込み・検索が変わったらページを先頭へ戻す
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterStatus, filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus]);
+    }, [searchTerm, filterStatus, filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus, filterJudgement]);
 
     const totalPages = Math.ceil(filteredMasters.length / ITEMS_PER_PAGE);
 
@@ -1347,6 +1412,24 @@ function ProjectMasterListPageContent() {
                                 </select>
                             </div>
 
+                            {isAdminOrManager && (
+                                <div>
+                                    <label htmlFor="f-judgement" className="mb-1 block text-xs font-medium text-slate-600">人工あたり加工高</label>
+                                    <select
+                                        id="f-judgement"
+                                        value={filterJudgement}
+                                        onChange={(e) => setFilterJudgement(e.target.value)}
+                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    >
+                                        <option value="">すべての判定</option>
+                                        <option value="good">良好</option>
+                                        <option value="warning">注意</option>
+                                        <option value="bad">要改善</option>
+                                        <option value="unavailable">算出不可</option>
+                                    </select>
+                                </div>
+                            )}
+
                             {(workFrom || workTo) && (filterCtypeName || filterForemanId) && (
                                 <p className="text-[11px] leading-relaxed text-slate-500 sm:col-span-2 lg:col-span-3">
                                     工事種別・職長は「指定した期間内の作業履歴」に対して判定します
@@ -1531,6 +1614,23 @@ function ProjectMasterListPageContent() {
                                 </th>
                                 {isAdminOrManager && (
                                     <>
+                                        <th
+                                            className="px-4 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider cursor-pointer select-none hover:bg-slate-200 transition-colors"
+                                            onClick={() => {
+                                                if (sortKey === 'valueAdded') {
+                                                    setSortDir(d => (d === 'desc' ? 'asc' : 'desc'));
+                                                } else {
+                                                    setSortKey('valueAdded');
+                                                    setSortDir('desc');
+                                                }
+                                            }}
+                                            title="加工高（売上 − 人件費以外の原価）÷ 総人数。クリックで並び替え"
+                                        >
+                                            人工あたり加工高
+                                            <span className="ml-1 text-[10px] text-slate-500">
+                                                {sortKey === 'valueAdded' ? (sortDir === 'desc' ? '▼' : '▲') : '↕'}
+                                            </span>
+                                        </th>
                                         <th className="px-4 py-4 text-center text-xs font-bold text-slate-800 uppercase tracking-wider">
                                             見積
                                         </th>
@@ -1558,6 +1658,7 @@ function ProjectMasterListPageContent() {
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
                                         {isAdminOrManager && (
                                             <>
+                                                <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-20 ml-auto"></div></td>
                                                 <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-10 mx-auto"></div></td>
                                                 <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-10 mx-auto"></div></td>
                                             </>
@@ -1567,7 +1668,7 @@ function ProjectMasterListPageContent() {
                                 ))
                             ) : filteredMasters.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6 + (isAdminOrManager ? 2 : 0) + (!isForeman2 ? 1 : 0)} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={6 + (isAdminOrManager ? 3 : 0) + (!isForeman2 ? 1 : 0)} className="px-6 py-12 text-center text-slate-500">
                                         {searchTerm || filterStatus !== 'all' || activeFilterCount > 0 ? '検索結果が見つかりませんでした' : '案件マスターがありません'}
                                     </td>
                                 </tr>
@@ -1646,6 +1747,9 @@ function ProjectMasterListPageContent() {
                                         </td>
                                         {isAdminOrManager && (
                                             <>
+                                                <td className="px-4 py-4 whitespace-nowrap text-right">
+                                                    <ValueAddedCell data={valueAddedById[pm.id]} loading={valueAddedLoading} />
+                                                </td>
                                                 <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                     {(() => {
                                                         const hasEst = hasEstimateFor(pm);

@@ -4,6 +4,8 @@ import { requireAuth, errorResponse, serverErrorResponse, validationErrorRespons
 import { computeProjectCosts } from '@/lib/projectCost';
 import { SALES_INVOICE_STATUSES, invoiceProjectShares } from '@/lib/profitDashboard';
 import type { ProjectCostExportRow } from '@/lib/projectMasterCsv';
+import { computeValueAdded } from '@/lib/valueAdded';
+import { loadValueAddedSettings } from '@/lib/valueAddedSettings';
 
 /**
  * 案件CSV（案件一覧の「案件CSV」）の金額列用 API。
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
         }
         const idSet = new Set(ids);
 
-        const [projectMasters, estimates, invoices, costMap] = await Promise.all([
+        const [projectMasters, estimates, invoices, costMap, assignmentCounts, valueAddedSettings] = await Promise.all([
             prisma.projectMaster.findMany({
                 where: { id: { in: ids } },
                 select: { id: true, contractAmount: true, revenueOverride: true },
@@ -62,7 +64,15 @@ export async function POST(request: NextRequest) {
                 select: { subtotal: true, items: true, projectMasterId: true },
             }),
             computeProjectCosts(ids, { withDetail: true }),
+            // 「作業履歴があるのに人件費0＝原価未入力」の判定に使う
+            prisma.projectAssignment.groupBy({
+                by: ['projectMasterId'],
+                where: { projectMasterId: { in: ids } },
+                _count: { _all: true },
+            }),
+            loadValueAddedSettings(),
         ]);
+        const assignmentCountById = new Map(assignmentCounts.map(r => [r.projectMasterId, r._count._all]));
 
         // 見積（複数合算・追加見積含む。利益タブと同じ）
         const estimateSubtotalById = new Map<string, number>();
@@ -117,6 +127,28 @@ export async function POST(request: NextRequest) {
                 laborManDays += Number(r.workerCount) || 0;
             }
 
+            // 人工あたり加工高の売上は「確定請求(税抜)のみ」＝上の revenue（契約額へフォールバック
+            // する案件CSV固有の値）とは別。仕様1-2「売上は確定（請求基準・税抜）を使う」に合わせる。
+            const manualItems = cost?.detail?.manualItems;
+            const hasManualCost =
+                (manualItems
+                    ? Object.values(manualItems).some(items => items.some(item => Number(item.amount) !== 0))
+                    : false) ||
+                laborRows.some(r => r.override != null) ||
+                (cost?.detail?.vehicle ?? []).some(r => r.override != null) ||
+                (cost?.detail?.subcontractor ?? []).some(r => r.override != null);
+            const valueAdded = computeValueAdded(
+                {
+                    sales: invoiceSubtotal,
+                    cost: b,
+                    headcount: laborManDays,
+                    estimateSubtotal,
+                    hasManualCost,
+                    hasAssignments: (assignmentCountById.get(pm.id) ?? 0) > 0,
+                },
+                valueAddedSettings,
+            );
+
             return {
                 id: pm.id,
                 revenue: Math.round(revenue),
@@ -130,6 +162,7 @@ export async function POST(request: NextRequest) {
                 totalCost: b.totalCost,
                 laborHours: Math.round(laborHours * 10) / 10,
                 laborManDays,
+                valueAdded,
             };
         });
 

@@ -16,6 +16,11 @@ import { PROJECT_LIST_STATUS_LABEL, resolveProjectListStatus } from '@/lib/proje
 import { filterWorkHistory, hasWorkHistoryFilter, workDateToJstYmd, type WorkHistoryFilter } from '@/lib/projectWorkHistory';
 import type { BillingStatus } from '@/lib/billing/billingStatus';
 import { BILLING_STATUS_META } from '@/lib/billing/billingStatusMeta';
+import {
+    VALUE_ADDED_FLAG_LABELS,
+    VALUE_ADDED_JUDGEMENT_LABELS,
+    type ValueAddedResult,
+} from '@/lib/valueAdded';
 
 export interface ProjectCsvContext {
     /** 金額列を出すか（admin / manager のみ true）。 */
@@ -65,6 +70,11 @@ export interface ProjectCostExportRow {
     laborHours: number;
     /** 実績人日＝Σ(原価計上した人数)＝延べ人日。 */
     laborManDays: number;
+    /**
+     * 人工あたり加工高。売上は **確定請求(税抜)のみ**で、上の revenue（契約額などへ
+     * フォールバックする案件CSV固有の値）とは別物。権限が無いユーザーには API が返さない。
+     */
+    valueAdded?: ValueAddedResult;
 }
 
 /** 売上の区分（revenueSource）の日本語表記。'none' は空欄（売上が決まっていない案件）。 */
@@ -162,6 +172,8 @@ export function buildProjectCsvRows(pms: ProjectMaster[], ctx: ProjectCsvContext
             '売上(税抜)', '売上の区分',
             '外注費', '材料費', '積込費', '人件費', '車両費', 'その他経費', '原価合計', '粗利',
             '実績人時', '実績人日',
+            // 人工あたり加工高（加工高＝確定請求の売上 − 人件費以外の原価。人件費は引かない）
+            '加工高', '人工あたり加工高', '労働生産性倍率', '労務の外注比率(%)', '人工判定', '人工の注記',
             '見積有無', '請求有無',
         );
     }
@@ -207,6 +219,7 @@ export function buildProjectCsvRows(pms: ProjectMaster[], ctx: ProjectCsvContext
             const invoiced = ctx.invoicedByProject[pm.id] ?? 0;
             // 原価・売上は API（原価エンジン）の値。未取得の案件はこのブロックを空欄にする。
             const cost = ctx.costById?.[pm.id];
+            const va = cost?.valueAdded;
             row.push(
                 toAmountCell(pm.contractAmount),
                 toAmountCell(basis.amount),
@@ -229,6 +242,14 @@ export function buildProjectCsvRows(pms: ProjectMaster[], ctx: ProjectCsvContext
                 cost && cost.revenueSource !== 'none' ? toAmountCell(cost.revenue - cost.totalCost) : '',
                 cost ? String(cost.laborHours) : '',
                 cost ? String(cost.laborManDays) : '',
+                // 人工あたり加工高。算出できない案件（未請求・原価未入力・自社人工なし）は空欄にし、
+                // 理由を「人工の注記」に出す
+                va ? toAmountCell(va.valueAdded) : '',
+                va?.perManday != null ? toAmountCell(va.perManday) : '',
+                va?.productivityRatio != null ? va.productivityRatio.toFixed(2) : '',
+                va?.laborOutsourcingRatio != null ? String(Math.round(va.laborOutsourcingRatio * 100)) : '',
+                va && va.judgement !== 'unknown' ? VALUE_ADDED_JUDGEMENT_LABELS[va.judgement] : '',
+                va ? va.flags.map(f => VALUE_ADDED_FLAG_LABELS[f]).join(' / ') : '',
                 pm.hasEstimate ? '有' : '無',
                 pm.hasInvoice ? '有' : '無',
             );

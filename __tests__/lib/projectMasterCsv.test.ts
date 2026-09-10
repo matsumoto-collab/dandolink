@@ -132,8 +132,13 @@ describe('buildProjectCsvRows', () => {
         expect(withoutMoney[0]).not.toContain('契約金額(税抜)');
         expect(withoutMoney[0]).not.toContain('請求済み金額(税抜)');
         expect(withoutMoney[0]).not.toContain('見積有無');
-        // 金額ブロック（22列）ぶんだけ列数が減る
-        expect(withMoney[0].length - withoutMoney[0].length).toBe(22);
+        // 人工あたり加工高の列も金額ブロックの中＝権限が無ければ列ごと出ない
+        expect(withMoney[0]).toContain('人工あたり加工高');
+        expect(withMoney[0]).toContain('労働生産性倍率');
+        expect(withoutMoney[0]).not.toContain('人工あたり加工高');
+        expect(withoutMoney[0]).not.toContain('労働生産性倍率');
+        // 金額ブロック（28列）ぶんだけ列数が減る
+        expect(withMoney[0].length - withoutMoney[0].length).toBe(28);
         // 行の列数はヘッダと必ず一致する
         expect(withMoney[1].length).toBe(withMoney[0].length);
         expect(withoutMoney[1].length).toBe(withoutMoney[0].length);

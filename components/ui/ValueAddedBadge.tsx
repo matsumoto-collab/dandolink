@@ -4,6 +4,7 @@ import React from 'react';
 import {
     VALUE_ADDED_JUDGEMENT_LABELS,
     type ValueAddedJudgement,
+    type ValueAddedResult,
 } from '@/lib/valueAdded';
 
 const JUDGEMENT_STYLES: Record<ValueAddedJudgement, { chip: string; dot: string }> = {
@@ -42,6 +43,40 @@ export function ValueAddedJudgementBadge({
         >
             <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
             {VALUE_ADDED_JUDGEMENT_LABELS[judgement]}
+        </span>
+    );
+}
+
+/** 算出できない案件に出す短い理由（一覧の列は幅が狭いので詰めた表記にする） */
+function shortReason(data: ValueAddedResult): string {
+    if (data.flags.includes('no_sales')) return '未請求';
+    if (data.flags.includes('no_cost')) return '原価未入力';
+    if (data.flags.includes('no_manday')) return '人工なし';
+    return '—';
+}
+
+/** 案件一覧の「人工あたり加工高」列 */
+export function ValueAddedCell({ data, loading }: { data?: ValueAddedResult; loading?: boolean }) {
+    if (!data) {
+        return <span className="text-slate-300 text-sm">{loading ? '…' : '—'}</span>;
+    }
+    if (!data.available) {
+        return <span className="text-xs text-slate-400">{shortReason(data)}</span>;
+    }
+    return (
+        <span className="inline-flex items-center justify-end gap-1.5">
+            <ValueAddedDot judgement={data.judgement} />
+            <span className={`text-sm tabular-nums ${data.tentative ? 'text-slate-400' : 'text-slate-800'}`}>
+                {data.perManday !== null ? data.perManday.toLocaleString('ja-JP') : '—'}
+            </span>
+            {data.outsourcingHeavy && (
+                <span
+                    className="text-[10px] px-1 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200"
+                    title="外注中心（判定は労働生産性倍率で付けています）"
+                >
+                    外
+                </span>
+            )}
         </span>
     );
 }
