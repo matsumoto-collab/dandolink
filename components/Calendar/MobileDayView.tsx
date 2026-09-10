@@ -3,7 +3,8 @@
 import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react';
 import { CalendarEvent, Employee } from '@/types/calendar';
-import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
+import { formatDate, getDayOfWeekString, getHolidayName, isHoliday } from '@/utils/dateUtils';
+import { getCalendarDayStyle } from '@/lib/calendarDayStyle';
 import { formatDateKey } from '@/utils/employeeUtils';
 
 interface MobileDayViewProps {
@@ -33,8 +34,8 @@ export default function MobileDayView({
     const dayOfWeek = getDayOfWeekString(currentDate, 'short');
     const dateString = formatDate(currentDate, 'full');
     const isToday = formatDateKey(new Date()) === dateKey;
-    const isSaturday = currentDate.getDay() === 6;
-    const isSunday = currentDate.getDay() === 0;
+    const dayStyle = getCalendarDayStyle({ dayOfWeek: currentDate.getDay(), isHoliday: isHoliday(currentDate) });
+    const holidayName = getHolidayName(currentDate);
 
     // この日のイベントを職長ごとにグループ化
     const eventsByEmployee = useMemo(() => {
@@ -72,12 +73,12 @@ export default function MobileDayView({
                     </button>
 
                     <div className="flex flex-col items-center">
-                        <span className={`text-lg font-bold ${isSaturday ? 'text-slate-600' :
-                            isSunday ? 'text-slate-600' :
-                                'text-slate-800'
-                            }`}>
+                        <span className={`text-lg font-bold ${dayStyle.headerText}`}>
                             {dateString}（{dayOfWeek}）
                         </span>
+                        {holidayName && (
+                            <span className="text-xs font-medium text-rose-600 mt-0.5">{holidayName}</span>
+                        )}
                         {isToday && (
                             <span className="text-xs text-white bg-slate-700 px-2 py-0.5 rounded-full mt-1">
                                 今日

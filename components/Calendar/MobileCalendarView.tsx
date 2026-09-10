@@ -5,7 +5,8 @@ import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, 
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
-import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
+import { formatDate, getDayOfWeekString, getHolidayName } from '@/utils/dateUtils';
+import { getCalendarDayStyle } from '@/lib/calendarDayStyle';
 import { useVacation } from '@/hooks/useVacation';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useMasterStore, selectConstructionTypes, selectVehicles, selectTools } from '@/stores/masterStore';
@@ -153,8 +154,7 @@ const MobileForemanRow = React.memo(function MobileForemanRow({
                                 {weekDays.map((day) => {
                                     const dateKey = formatDateKey(day.date);
                                     const isToday = dateKey === todayKey;
-                                    const isSat = day.dayOfWeek === 6;
-                                    const isSun = day.dayOfWeek === 0;
+                                    const dayStyle = getCalendarDayStyle(day);
                                     const cellEvents = getEventsForDate(row, day.date);
                                     const isEmpty = cellEvents.length === 0;
                                     const isMovingSource = movingEventId !== null
@@ -180,9 +180,7 @@ const MobileForemanRow = React.memo(function MobileForemanRow({
                                                     : movingEventId !== null
                                                     ? 'cursor-pointer bg-slate-50/30 hover:bg-slate-100/50 active:bg-slate-200/50'
                                                     : isToday ? 'bg-slate-50/20'
-                                                    : isSat ? 'bg-slate-50/10'
-                                                    : isSun ? 'bg-slate-50/10'
-                                                    : ''
+                                                    : dayStyle.cellBg
                                             } ${!isReadOnly && isEmpty && movingEventId === null ? 'cursor-pointer hover:bg-slate-50 active:bg-slate-100' : ''}`}
                                             style={{ width: colW }}
                                         >
@@ -696,23 +694,24 @@ function MobileCalendarView({
                         {weekDays.map((day) => {
                             const dateKey = formatDateKey(day.date);
                             const isToday = dateKey === todayKey;
-                            const isSat = day.dayOfWeek === 6;
-                            const isSun = day.dayOfWeek === 0;
+                            const dayStyle = getCalendarDayStyle(day);
+                            const holidayName = day.isHoliday ? getHolidayName(day.date) : null;
                             return (
                                 <div
                                     key={dateKey}
+                                    title={holidayName ?? undefined}
                                     className={`grow flex-shrink-0 border-r border-slate-200 flex flex-col items-center justify-center ${
-                                        isToday ? 'bg-teal-600'
-                                        : isSat ? 'bg-blue-50'
-                                        : isSun ? 'bg-rose-50'
-                                        : 'bg-slate-100'
+                                        isToday ? 'bg-teal-600' : dayStyle.headerBg
                                     }`}
                                     style={{ width: COL_W }}
                                 >
                                     <span className={`text-[11px] font-bold ${
-                                        isToday ? 'text-white' : isSat ? 'text-slate-700' : isSun ? 'text-slate-600' : 'text-slate-700'
+                                        isToday ? 'text-white' : dayStyle.headerText
                                     }`}>
                                         {formatDate(day.date, 'short')}({getDayOfWeekString(day.date, 'short')})
+                                        {holidayName && !isToday && (
+                                            <span className="ml-0.5 align-middle text-[9px] font-bold text-rose-500">祝</span>
+                                        )}
                                         {(() => {
                                             // 浮きの件数バッジもレーンと同じ権限で出し分ける
                                             const fs = hideFloatingLane ? { count: 0, members: 0 } : getFloatingSummaryForDate(events, day.date);
@@ -746,8 +745,7 @@ function MobileCalendarView({
                         </div>
                         {weekDays.map((day) => {
                             const dateKey = formatDateKey(day.date);
-                            const isSat = day.dayOfWeek === 6;
-                            const isSun = day.dayOfWeek === 0;
+                            const dayStyle = getCalendarDayStyle(day);
                             const dayEvts = events.filter(e => formatDateKey(e.startDate) === dateKey);
                             const byForeman = new Map<string, number[]>();
                             let unassignedCount = 0;
@@ -771,7 +769,7 @@ function MobileCalendarView({
                                 <div
                                     key={dateKey}
                                     className={`grow flex-shrink-0 border-r border-slate-200 flex items-center justify-center gap-0.5 ${
-                                        isSat ? 'bg-slate-50/30' : isSun ? 'bg-slate-50/30' : ''
+                                        dayStyle.subRowBg
                                     }`}
                                     style={{ width: COL_W }}
                                 >

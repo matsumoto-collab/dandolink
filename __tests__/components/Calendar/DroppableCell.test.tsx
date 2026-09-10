@@ -39,11 +39,16 @@ describe('DroppableCell', () => {
         const cell = screen.getByTestId('calendar-cell');
         expect(cell).toHaveClass('bg-white');
 
+        // 土曜は青、日曜と祝日は赤で区別する（lib/calendarDayStyle）
         rerender(<DroppableCell {...defaultProps} dayOfWeek={6} />); // Saturday
-        expect(cell).toHaveClass('bg-slate-50/40');
+        expect(cell).toHaveClass('bg-sky-50/70');
 
         rerender(<DroppableCell {...defaultProps} dayOfWeek={0} />); // Sunday
-        expect(cell).toHaveClass('bg-slate-50/40');
+        expect(cell).toHaveClass('bg-rose-50/70');
+
+        // 平日でも祝日なら日曜と同じ赤
+        rerender(<DroppableCell {...defaultProps} dayOfWeek={1} isHoliday />);
+        expect(cell).toHaveClass('bg-rose-50/70');
     });
 
     it('applies highlight when isOver is true', () => {

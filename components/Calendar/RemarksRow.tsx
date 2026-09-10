@@ -3,6 +3,7 @@ import { WeekDay } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { useVacation } from '@/hooks/useVacation';
 import VacationSelector from './VacationSelector';
+import { getCalendarDayStyle } from '@/lib/calendarDayStyle';
 
 interface RemarksRowProps {
     weekDays: WeekDay[];
@@ -54,8 +55,7 @@ export default function RemarksRow({ weekDays, readOnly = false }: RemarksRowPro
             {/* 日付セル */}
             {weekDays.map((day, index) => {
                 const dateKey = formatDateKey(day.date);
-                const isSaturday = day.dayOfWeek === 6;
-                const isSunday = day.dayOfWeek === 0;
+                const dayStyle = getCalendarDayStyle(day);
                 const isEditing = editingCell === dateKey;
                 const remarkText = isEditing ? (tempValues[dateKey] ?? '') : getRemarks(dateKey);
                 const vacationEmployeeIds = vacations[dateKey]?.employeeIds || [];
@@ -66,7 +66,7 @@ export default function RemarksRow({ weekDays, readOnly = false }: RemarksRowPro
                         className={`
                             flex-1 min-w-[84px] border-r border-slate-200 p-1.5
                             transition-all duration-200
-                            ${isSaturday ? 'bg-slate-50/40' : isSunday ? 'bg-slate-50/40' : 'bg-white'}
+                            ${dayStyle.subRowBg}
                         `}
                     >
                         <div className="flex flex-col gap-1 h-full">

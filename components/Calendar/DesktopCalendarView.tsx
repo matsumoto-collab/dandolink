@@ -6,7 +6,8 @@ import { MoveRight, X, Search } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { formatDateKey } from '@/utils/employeeUtils';
-import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
+import { formatDate, getDayOfWeekString, getHolidayName } from '@/utils/dateUtils';
+import { getCalendarDayStyle } from '@/lib/calendarDayStyle';
 import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import RemarksRow from './RemarksRow';
@@ -256,8 +257,8 @@ function DesktopCalendarView({
                                 {weekDays.map((day, index) => {
                                     const dayOfWeekString = getDayOfWeekString(day.date, 'short');
                                     const dateString = formatDate(day.date, 'short');
-                                    const isSaturday = day.dayOfWeek === 6;
-                                    const isSunday = day.dayOfWeek === 0;
+                                    const dayStyle = getCalendarDayStyle(day);
+                                    const holidayName = day.isHoliday ? getHolidayName(day.date) : null;
                                     const combinedDate = `${dateString}(${dayOfWeekString})`;
 
                                     // 浮きの件数バッジもレーンと同じ権限で出し分ける
@@ -265,9 +266,17 @@ function DesktopCalendarView({
                                         ? { count: 0, members: 0 }
                                         : getFloatingSummaryForDate(events, day.date);
                                     return (
-                                        <div key={index} className={`flex-1 min-w-[84px] border-r border-slate-300 h-8 flex flex-col items-center justify-center leading-none gap-0.5 ${isSaturday ? 'bg-blue-50' : isSunday ? 'bg-rose-50' : 'bg-slate-100'} ${day.isToday ? 'bg-teal-600' : ''}`}>
-                                            <div className={`text-[11px] font-bold ${isSaturday ? 'text-slate-700' : isSunday ? 'text-slate-600' : 'text-slate-700'} ${day.isToday ? 'text-white' : ''}`}>
+                                        <div
+                                            key={index}
+                                            // 祝日は名前をホバーで出す（ヘッダーは h-8 で祝日名を並べる高さが無い）
+                                            title={holidayName ?? undefined}
+                                            className={`flex-1 min-w-[84px] border-r border-slate-300 h-8 flex flex-col items-center justify-center leading-none gap-0.5 ${dayStyle.headerBg} ${day.isToday ? 'bg-teal-600' : ''}`}
+                                        >
+                                            <div className={`text-[11px] font-bold ${dayStyle.headerText} ${day.isToday ? 'text-white' : ''}`}>
                                                 {combinedDate}
+                                                {holidayName && !day.isToday && (
+                                                    <span className="ml-0.5 align-middle text-[9px] font-bold text-rose-500">祝</span>
+                                                )}
                                                 {floatingSummary.count > 0 && (
                                                     <span
                                                         className="ml-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold leading-none align-middle"
@@ -293,8 +302,7 @@ function DesktopCalendarView({
                                 </div>
                                 {weekDays.map((day, index) => {
                                     const dateKey = formatDateKey(day.date);
-                                    const isSaturday = day.dayOfWeek === 6;
-                                    const isSunday = day.dayOfWeek === 0;
+                                    const dayStyle = getCalendarDayStyle(day);
                                     const dayEvents = events.filter(event => formatDateKey(event.startDate) === dateKey);
                                     // 職長ごとに最大人数を取り、未割当は単純加算（人数ソースは memberCount のみ）
                                     const byForeman = new Map<string, number[]>();
@@ -317,7 +325,7 @@ function DesktopCalendarView({
                                     const remainingCount = totalCount - assignedCount - vacationCount;
 
                                     return (
-                                        <div key={index} className={`flex-1 min-w-[84px] h-full border-r border-slate-100 p-1 flex items-center justify-center gap-1 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>
+                                        <div key={index} className={`flex-1 min-w-[84px] h-full border-r border-slate-100 p-1 flex items-center justify-center gap-1 ${dayStyle.subRowBg}`}>
                                             {onMemberAdjustmentChange && (
                                                 <button
                                                     onClick={() => onMemberAdjustmentChange(dateKey, -1)}

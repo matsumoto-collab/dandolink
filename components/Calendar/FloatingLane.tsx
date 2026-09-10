@@ -5,6 +5,7 @@ import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { CalendarEvent, WeekDay } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { TENTATIVE_STRIPE_BG, TentativeBadge } from './tentativeStyle';
+import { getCalendarDayStyle } from '@/lib/calendarDayStyle';
 import CellRemarkInput from './CellRemarkInput';
 import { Plus, Users, ChevronUp, ChevronDown } from 'lucide-react';
 
@@ -350,8 +351,13 @@ export default function FloatingLane({
 
                 // 移動モード中はセル/カードのタップで commitMove、それ以外は通常の onCellClick/onEventClick
                 const interactive = (!isReadOnly && !!onCellClick) || (isMoving && !!onCommitMove);
+                const dayStyle = getCalendarDayStyle(day);
                 // relative: 浮きメモの鉛筆（CellRemarkInput floatingLane）をセル基準で右下に絶対配置するため
-                const cellClassName = `relative ${colWidth ? 'grow flex-shrink-0' : `flex-1 ${compact ? 'min-w-[72px]' : 'min-w-[84px]'}`} border-r border-red-100 p-1 ${
+                // min-h: 職長セル（DroppableCell）と同じく下に余白を残す。これが無いとカードが1枚入った
+                //        時点でセルの高さがカードぴったりになり、2件目を入れる空白が押せなかった（kei報告 2026-09-10）
+                const cellClassName = `relative ${colWidth ? 'grow flex-shrink-0' : `flex-1 ${compact ? 'min-w-[72px]' : 'min-w-[84px]'}`} ${
+                    compact ? 'min-h-[64px]' : 'min-h-[72px] xl:min-h-[84px]'
+                } border-r border-red-100 p-1 ${dayStyle.floatingBg} ${
                     interactive ? 'cursor-pointer hover:bg-red-50' : ''
                 }`;
                 const handleCellClick = () => {
@@ -406,11 +412,15 @@ export default function FloatingLane({
                                 <Plus className="w-4 h-4" />
                             </div>
                         )}
-                        {/* 空セルの新規登録動線（移動モード中はターゲットを優先して隠す） */}
-                        {/* h-full は付けないこと: 伸びたセル高さの100%を取り直すため、
+                        {/* 新規登録の動線。カードが既にあっても**その下に**出す＝2件目以降を続けて入れられる。
+                            h-full は付けないこと: 伸びたセル高さの100%を取り直すため、
                             メモがあるとその分だけセル下枠へはみ出す（2026-07-21の実害） */}
-                        {dayFloating.length === 0 && !isMoving && !isReadOnly && onCellClick && (
-                            <div className={`${compact ? 'min-h-[32px]' : 'min-h-[40px]'} flex items-center justify-center text-red-200`}>
+                        {!isMoving && !isReadOnly && onCellClick && (
+                            <div
+                                className={`${compact ? 'min-h-[28px]' : 'min-h-[32px]'} flex items-center justify-center rounded text-red-300 ${
+                                    dayFloating.length > 0 ? 'border border-dashed border-red-200 hover:border-red-300 hover:text-red-400' : ''
+                                }`}
+                            >
                                 <Plus className="w-3.5 h-3.5" />
                             </div>
                         )}

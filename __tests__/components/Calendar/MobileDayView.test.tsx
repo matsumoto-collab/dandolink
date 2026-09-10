@@ -18,6 +18,9 @@ jest.mock('lucide-react', () => ({
 jest.mock('@/utils/dateUtils', () => ({
     formatDate: jest.fn(() => '2024年1月1日'),
     getDayOfWeekString: jest.fn(() => '月'),
+    // 祝日は曜日の色分け（lib/calendarDayStyle）で使う。モックに無いと呼び出しで落ちる
+    isHoliday: jest.fn(() => false),
+    getHolidayName: jest.fn(() => null),
 }));
 
 jest.mock('@/utils/employeeUtils', () => ({

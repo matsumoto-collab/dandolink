@@ -154,6 +154,7 @@ function EmployeeRowComponent({
                         key={`${row.employeeId}-${row.rowIndex}-${index}`}
                         id={dropId}
                         dayOfWeek={day.dayOfWeek}
+                        isHoliday={day.isHoliday}
                         events={events}
                         onClick={handleCellClickMaybeMove}
                     >
