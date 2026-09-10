@@ -48,7 +48,8 @@ export default function StocktakePage() {
     const { data: session } = useSession();
     const canManage = isManagerOrAbove(session?.user);
 
-    const [tab, setTab] = useState<TabKey>('list');
+    // 普段いちばん見るのは推移なので、開いたときは推移を出す
+    const [tab, setTab] = useState<TabKey>('trend');
     const [locations, setLocations] = useState<StorageLocation[]>([]);
     const [stocktakes, setStocktakes] = useState<StocktakeSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -149,15 +150,17 @@ export default function StocktakePage() {
     }
 
     return (
-        <div className="p-4 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+        // 外枠の余白は MainContent 側が付けるので、ここでは付けない（他の材料ページと同じ）
+        <div className="w-full max-w-[1800px] mx-auto space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-semibold text-slate-800">棚卸</h1>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <h1 className="text-2xl font-bold text-slate-800">棚卸</h1>
+                    <p className="text-sm text-slate-500 mt-1">
                         置き場所ごとに実際に数えた数を記録します。確定すると在庫に反映されます。
                     </p>
                 </div>
-                {canManage && tab === 'list' && (
+                {/* 推移を見ている最中にも始められるよう、タブに関係なく出す */}
+                {canManage && (
                     <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setShowCreate(true)}>
                         棚卸を始める
                     </Button>
@@ -167,8 +170,8 @@ export default function StocktakePage() {
             {/* タブ */}
             <div className="flex gap-1 border-b border-slate-200">
                 {([
-                    { key: 'list' as const, label: '棚卸一覧', icon: ClipboardList },
                     { key: 'trend' as const, label: '推移', icon: CalendarDays },
+                    { key: 'list' as const, label: '棚卸一覧', icon: ClipboardList },
                 ]).map(({ key, label, icon: Icon }) => (
                     <button
                         key={key}

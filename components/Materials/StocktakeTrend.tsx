@@ -181,8 +181,13 @@ export default function StocktakeTrend() {
                                         </td>
                                     </tr>
                                     {cat.items.map((item) => (
-                                        <tr key={item.materialItemId} className="border-t border-slate-100">
-                                            <td className="sticky left-0 z-10 bg-white px-3 py-1.5 text-slate-700 whitespace-nowrap">
+                                        // 列が多く横に長い表なので、カーソルを合わせた行を色で追えるようにする。
+                                        // 品目名の列は sticky で自前の背景を持つため group-hover で一緒に塗る
+                                        <tr
+                                            key={item.materialItemId}
+                                            className="group border-t border-slate-100 transition-colors hover:bg-teal-50"
+                                        >
+                                            <td className="sticky left-0 z-10 bg-white px-3 py-1.5 text-slate-700 whitespace-nowrap transition-colors group-hover:bg-teal-50 group-hover:text-teal-800">
                                                 {item.name}
                                                 {!item.isActive && (
                                                     <span className="ml-1 text-xs text-slate-400">（停止）</span>
