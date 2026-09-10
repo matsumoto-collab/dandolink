@@ -18,6 +18,7 @@ export type PageType =
     | 'company'          // 自社情報
     | 'materials'        // 材料出庫伝票
     | 'inventory'        // 在庫管理
+    | 'stocktake'        // 棚卸（置き場所ごとの実地カウント）
     | 'loading-list'     // 積込リスト
     | 'material-returns' // 材料返却
     | 'equipment'        // 機材台帳（車両・電動工具の車検/整備履歴/使用履歴）

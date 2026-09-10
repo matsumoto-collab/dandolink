@@ -1737,12 +1737,18 @@ model MaterialItem {
   // ネット / シート / リース品など notes-JSON が出庫の正となる品目を
   // Phase 3 の倉庫在庫自動減算対象から外すための構造フラグ（catalog.ts と同期）
   excludeFromStockDecrement Boolean               @default(false)
+  /// 工法区分。棚卸を工法ごとに分けて数えるための区分（kei 決定 2026-09-11）。
+  /// 'standard' = 通常のくさび足場 / 'lock' = ロック足場（次世代足場）。
+  /// 置き場所（StorageLocation）とは独立した軸で、同じ土場に両方が置かれていてもよい。
+  scaffoldMethod        String                    @default("standard")
   requisitionItems      MaterialRequisitionItem[]
   inventoryTransactions InventoryTransaction[]
   projectMaterialItems  ProjectMaterialItem[]
+  stocktakeLines        StocktakeLine[]
 
   @@index([categoryId])
   @@index([sortOrder])
+  @@index([scaffoldMethod])
   @@schema("public")
 }
 
@@ -1842,6 +1848,85 @@ model MaterialRequisitionItem {
   materialItem   MaterialItem        @relation(fields: [materialItemId], references: [id])
 
   @@index([requisitionId])
+  @@index([materialItemId])
+  @@schema("public")
+}
+
+// ========================
+// 実地棚卸モデル（2026-09-11 追加）
+//
+// 目的は「大規模案件が重なったときに、材料を買うかレンタルで済ますかを判断する」こと（kei）。
+// その判断に必要な「いま土場に何本余っているか」を、これまでは
+// デスクトップの 🈟材料管理表.xlsx（土場 / ロック / 上野 の 3 シート・横持ち）で
+// 管理していた。日付が列に増える構造・数量欄に "many" "◎" "1900+上野" 等が混ざる
+// 問題があり集計できなかったため、縦持ちのテーブルへ移す。
+//
+// 棚卸は「置き場所 × 工法 × 日付」で 1 回。エクセルのシート = 置き場所 × 工法。
+//   土場シート   → 土場 / standard
+//   ロックシート → 土場 / lock（ロックは工法であって場所ではない＝kei 確認済み）
+//   上野シート   → 上野 / standard
+// ========================
+
+/// 材料の置き場所（土場 / 上野 …）。棚卸はこの単位で行う。
+/// 削除は isActive=false の論理削除（過去の棚卸から参照されるため物理削除しない）。
+model StorageLocation {
+  id         String      @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name       String
+  sortOrder  Int         @default(0)
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @default(now()) @updatedAt
+  stocktakes Stocktake[]
+
+  @@index([sortOrder])
+  @@schema("public")
+}
+
+/// 実地棚卸 1 回分（置き場所 × 工法 × 棚卸日）。
+model Stocktake {
+  id             String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  locationId     String
+  /// MaterialItem.scaffoldMethod と同じ値。'standard' | 'lock'
+  scaffoldMethod String          @default("standard")
+  /// 棚卸日。JST 0 時（= UTC 前日 15 時）で保存する（ProjectAssignment.date と同じ約束）
+  date           DateTime
+  /// 'draft' = 入力中（土場で打っている最中・在庫へは未反映）
+  /// 'confirmed' = 確定（MaterialItem.stockQuantity へ反映済み）
+  status         String          @default("draft")
+  notes          String?
+  createdBy      String?
+  createdByName  String          @default("")
+  confirmedAt    DateTime?
+  confirmedBy    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @default(now()) @updatedAt
+  location       StorageLocation @relation(fields: [locationId], references: [id])
+  lines          StocktakeLine[]
+
+  /// 同じ日・同じ置き場所・同じ工法の棚卸を二重に作らせない
+  @@unique([locationId, scaffoldMethod, date])
+  @@index([date])
+  @@index([status])
+  @@schema("public")
+}
+
+/// 棚卸の明細（品目 1 つ = 1 行）。
+model StocktakeLine {
+  id             String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  stocktakeId    String
+  materialItemId String
+  /// 数えた数。null = 「数えていない（未カウント）」＝ 0 本と明確に区別する。
+  /// エクセルの "many" "◎" "-" のように数値化できなかった値も null にし、原文は note に残す。
+  quantity       Int?
+  /// 但し書き（「色無800」「他上野多数」「3大かどちらか」等）。集計には使わない。
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now()) @updatedAt
+  stocktake      Stocktake    @relation(fields: [stocktakeId], references: [id], onDelete: Cascade)
+  materialItem   MaterialItem @relation(fields: [materialItemId], references: [id])
+
+  @@unique([stocktakeId, materialItemId])
+  @@index([stocktakeId])
   @@index([materialItemId])
   @@schema("public")
 }

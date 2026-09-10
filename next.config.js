@@ -40,6 +40,11 @@ const nextConfig = {
                 './public/fonts/NotoSansJP-Regular.ttf',
                 './public/fonts/NotoSansJP-Bold.ttf',
             ],
+            // 棚卸チェックシート（前回値入りの白紙表）もサーバーで PDF を作る
+            '/api/materials/stocktakes/[id]/sheet': [
+                './public/fonts/NotoSansJP-Regular.ttf',
+                './public/fonts/NotoSansJP-Bold.ttf',
+            ],
             // 人事システム向けの出勤簿Excelはサーバーでテンプレートを読むため、
             // public のテンプレートをサーバーレス関数のファイルトレースに含める
             '/api/external/attendance/workbook': [
