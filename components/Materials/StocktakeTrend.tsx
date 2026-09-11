@@ -49,19 +49,24 @@ export default function StocktakeTrend() {
     const [method, setMethod] = useState<'standard' | 'lock'>('standard');
     const [limit, setLimit] = useState(12);
     const [data, setData] = useState<TrendResponse | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    // 最初は読み込み中にしておく。false で始めると、置き場所を取りに行っている間に
+    // 「確定済みの棚卸がまだありません」が一瞬出てしまう
+    const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         void (async () => {
             try {
                 const res = await fetch('/api/master-data/storage-locations', { cache: 'no-store' });
-                if (!res.ok) return;
+                if (!res.ok) throw new Error();
                 const locs: StorageLocation[] = await res.json();
                 setLocations(locs);
                 setLocationId((prev) => prev || locs[0]?.id || '');
+                // 置き場所が 1 つも無いと推移の読み込みが始まらないので、ここで読み込み中を解く
+                if (locs.length === 0) setIsLoading(false);
             } catch {
                 toast.error('置き場所の読み込みに失敗しました');
+                setIsLoading(false);
             }
         })();
     }, []);
@@ -84,6 +89,15 @@ export default function StocktakeTrend() {
     useEffect(() => {
         void load();
     }, [load]);
+
+    // 開いたときは右端（最新の棚卸）が見える位置から始める（kei 指定）。
+    // 日付は古い→新しいの順に左から並べているので、何もしないと最新が画面の外の右にある。
+    // 表は読み込み中に一度消えて作り直されるので、置き場所・工法・回数を切り替えるたびに右端へ戻る。
+    // 品名で絞り込むだけなら表は作り直されず、見ていた位置のまま。
+    // useEffect だと一瞬左端が映ってから飛ぶので、描画前に走る callback ref で動かす
+    const scrollToLatest = useCallback((el: HTMLDivElement | null) => {
+        if (el) el.scrollLeft = el.scrollWidth;
+    }, []);
 
     const filtered = useMemo(() => {
         if (!data) return [];
@@ -154,16 +168,26 @@ export default function StocktakeTrend() {
                     確定済みの棚卸がまだありません。
                 </p>
             ) : (
-                // 列が多いので表だけ横スクロールさせる（ページ全体は横に伸ばさない）
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                // 表の中だけで縦横にスクロールさせる（ページ全体は伸ばさない）。
+                // 高さを約 20 行分に抑え、画面が低いときは画面に収まる高さにして、
+                // 下までスクロールしなくても横スクロールバーに届くようにする（kei 指定）。
+                // 見出し行は上、品目名の列は左に固定するので、どこまでスクロールしても何の数か分かる。
+                // 地の色（main の slate-50）が透けないよう背景は白で塗る
+                <div
+                    ref={scrollToLatest}
+                    className="max-h-[max(320px,min(700px,calc(100vh_-_270px)))] overflow-auto rounded-xl border border-slate-200 bg-white"
+                >
                     <table className="min-w-full text-sm">
-                        <thead className="bg-slate-50">
+                        <thead>
                             <tr>
-                                <th className="sticky left-0 z-10 bg-slate-50 text-left font-medium text-slate-600 px-3 py-2 min-w-[160px]">
+                                <th className="sticky left-0 top-0 z-30 min-w-[160px] bg-slate-50 px-3 py-2 text-left font-medium text-slate-600 shadow-[inset_-1px_-1px_0_#e2e8f0]">
                                     品目
                                 </th>
                                 {data.dates.map((d) => (
-                                    <th key={d} className="text-right font-medium text-slate-600 px-3 py-2 whitespace-nowrap">
+                                    <th
+                                        key={d}
+                                        className="sticky top-0 z-20 whitespace-nowrap bg-slate-50 px-3 py-2 text-right font-medium text-slate-600 shadow-[inset_0_-1px_0_#e2e8f0]"
+                                    >
                                         {formatShortDate(d)}
                                     </th>
                                 ))}
@@ -172,22 +196,20 @@ export default function StocktakeTrend() {
                         <tbody>
                             {filtered.map((cat) => (
                                 <React.Fragment key={cat.id}>
-                                    <tr className="bg-slate-50/60">
-                                        <td
-                                            colSpan={data.dates.length + 1}
-                                            className="sticky left-0 px-3 py-1.5 text-xs font-semibold text-slate-500"
-                                        >
+                                    {/* カテゴリ名は品目名の列に置いて左に固定する（横にスクロールしても消えないように） */}
+                                    <tr>
+                                        <td className="sticky left-0 z-10 whitespace-nowrap bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-[inset_-1px_0_0_#e2e8f0]">
                                             {cat.name}
                                         </td>
+                                        <td colSpan={data.dates.length} className="bg-slate-100" />
                                     </tr>
                                     {cat.items.map((item) => (
-                                        // 列が多く横に長い表なので、カーソルを合わせた行を色で追えるようにする。
-                                        // 品目名の列は sticky で自前の背景を持つため group-hover で一緒に塗る
-                                        <tr
-                                            key={item.materialItemId}
-                                            className="group border-t border-slate-100 transition-colors hover:bg-teal-50"
-                                        >
-                                            <td className="sticky left-0 z-10 bg-white px-3 py-1.5 text-slate-700 whitespace-nowrap transition-colors group-hover:bg-teal-50 group-hover:text-teal-800">
+                                        // カーソルを合わせた行を色で追えるようにする。
+                                        // 行（tr）の背景だけだと自前の背景を持つ固定列が塗られないので、全セルに group-hover を付ける。
+                                        // 色は teal-100。teal-50 は地の slate-50 とほぼ同じ色で見分けがつかなかった。
+                                        // 素早く動かしたときに色が遅れて付いて行を見失わないよう transition は付けない
+                                        <tr key={item.materialItemId} className="group border-t border-slate-100">
+                                            <td className="sticky left-0 z-10 whitespace-nowrap bg-white px-3 py-1.5 text-slate-700 shadow-[inset_-1px_0_0_#e2e8f0] group-hover:bg-teal-100 group-hover:text-teal-900">
                                                 {item.name}
                                                 {!item.isActive && (
                                                     <span className="ml-1 text-xs text-slate-400">（停止）</span>
@@ -197,7 +219,7 @@ export default function StocktakeTrend() {
                                                 <td
                                                     key={`${item.materialItemId}-${i}`}
                                                     title={item.notes[i] ?? undefined}
-                                                    className={`px-3 py-1.5 text-right tabular-nums whitespace-nowrap ${
+                                                    className={`whitespace-nowrap px-3 py-1.5 text-right tabular-nums group-hover:bg-teal-100 ${
                                                         v === null ? 'text-slate-300' : 'text-slate-700'
                                                     }`}
                                                 >
