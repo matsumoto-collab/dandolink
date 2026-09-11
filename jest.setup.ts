@@ -115,6 +115,8 @@ jest.mock('@/lib/prisma', () => ({
             delete: jest.fn(),
             deleteMany: jest.fn(),
             count: jest.fn(),
+            // 「作業履歴があるのに人件費0」の判定などで使う。既定は空（件数0）
+            groupBy: jest.fn().mockResolvedValue([]),
         },
         customer: {
             findMany: jest.fn(),
@@ -202,6 +204,8 @@ jest.mock('@/lib/prisma', () => ({
         },
         systemSettings: {
             findUnique: jest.fn(),
+            // 一人当たりの稼ぎの設定（loadValueAddedSettings）。未設定なら既定値が使われる
+            findFirst: jest.fn(),
             upsert: jest.fn(),
         },
         scheduleChangeHistory: {

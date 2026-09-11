@@ -1,16 +1,20 @@
 'use client';
 
 /**
- * 利益ダッシュボード「人工生産性」タブ（仕様3-4）。
+ * 利益ダッシュボード「一人当たりの稼ぎ」タブ（仕様3-4）。
  *
- * 区分別の表では **1件あたり加工高と1件あたり人工を必ず併記する**。人工単価だけを見ると
+ * 区分別の表では **1件あたりの稼ぎと1件あたり人工を必ず併記する**。一人当たりの稼ぎだけを見ると
  * 「大規模も住宅も同じ」という誤った結論になるため（実測で1件あたりは約9倍の差）。
+ *
+ * 期間・担当者・顧客・工事内容の絞り込みはタブ上部のバーが持っていて、ここは受け取った条件で取りに行く
+ * （kei 要望 2026-09-12）。稼ぎには原価が要るので、2026年4月までの過去データは対象にできない。
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import type { LaborProductivityGroup, LaborProductivitySummary } from '@/lib/laborProductivity';
 import { ValueAddedDot } from '@/components/ui/ValueAddedBadge';
+import { effectiveProfitFrom, isBackfillOnlyRange, spansBackfill, toQuery, type ProductivityFilter } from './productivityFilter';
 
 type Axis = 'content' | 'customer' | 'assignee';
 
@@ -62,31 +66,52 @@ function GroupTable({ rows, axisLabel }: { rows: LaborProductivityGroup[]; axisL
     );
 }
 
-export default function LaborProductivityPanel() {
+export default function LaborProductivityPanel({ filter }: { filter: ProductivityFilter }) {
     const [summary, setSummary] = useState<LaborProductivitySummary | null>(null);
-    const [months, setMonths] = useState(12);
     const [loading, setLoading] = useState(true);
     const [axis, setAxis] = useState<Axis>('content');
+    const reqId = useRef(0);
 
-    const load = useCallback(async (targetMonths: number) => {
+    // 期間が丸ごと 2026-04 以前なら原価が無いので取りに行かない
+    const backfillOnly = isBackfillOnlyRange(filter);
+    const query = toQuery(filter);
+
+    const load = useCallback(async (qs: string) => {
+        const id = ++reqId.current;
         setLoading(true);
         try {
-            const res = await fetch(`/api/profit-dashboard/labor-productivity?months=${targetMonths}`, {
-                cache: 'no-store',
-            });
+            const res = await fetch(`/api/profit-dashboard/labor-productivity?${qs}`, { cache: 'no-store' });
             if (!res.ok) throw new Error(`labor-productivity ${res.status}`);
             const json = await res.json() as { months: number; summary: LaborProductivitySummary };
+            if (id !== reqId.current) return; // 後から投げた方が正（原価エンジンは重く、順番が前後する）
             setSummary(json.summary);
-            setMonths(json.months);
         } catch (e) {
+            if (id !== reqId.current) return;
             logger.error('人工生産性の取得に失敗:', e);
             toast.error('一人当たりの稼ぎの集計に失敗しました');
         } finally {
-            setLoading(false);
+            if (id === reqId.current) setLoading(false);
         }
     }, []);
 
-    useEffect(() => { void load(12); }, [load]);
+    useEffect(() => {
+        if (backfillOnly) { setSummary(null); setLoading(false); return; }
+        void load(query);
+    }, [load, query, backfillOnly]);
+
+    if (backfillOnly) {
+        return (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
+                <h2 className="text-base font-semibold text-slate-800">一人当たりの稼ぎ</h2>
+                <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                    選んでいる期間は 2026年4月まで（過去データ）です。過去データには案件ごとの原価が入っていないので、
+                    稼ぎ（会社に残るお金）は出せません。上の「売上 ÷ 人工」で比べてください。
+                    <br />
+                    2026年5月からの期間を選ぶと、この下に一人当たりの稼ぎが出ます。
+                </p>
+            </div>
+        );
+    }
 
     if (loading && !summary) {
         return (
@@ -111,27 +136,19 @@ export default function LaborProductivityPanel() {
                     <div>
                         <h2 className="text-base font-semibold text-slate-800">一人当たりの稼ぎ</h2>
                         <p className="text-xs text-slate-500 mt-0.5">
-                            直近{months}ヶ月に請求のあった案件 {summary.includedCount + summary.excludedCount}件のうち
+                            {effectiveProfitFrom(filter.from)} 〜 {filter.to} に請求のあった案件 {summary.includedCount + summary.excludedCount}件のうち
                             <span className="font-medium text-slate-600"> {summary.includedCount}件</span>で集計
                         </p>
                     </div>
-                    <div className="flex items-center gap-1">
-                        {[6, 12, 24].map(m => (
-                            <button
-                                key={m}
-                                onClick={() => { void load(m); }}
-                                disabled={loading}
-                                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                                    months === m
-                                        ? 'bg-teal-600 text-white border-teal-600'
-                                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
-                                }`}
-                            >
-                                {m}ヶ月
-                            </button>
-                        ))}
-                    </div>
+                    {loading && <span className="text-xs text-slate-400">集計中...</span>}
                 </div>
+
+                {spansBackfill(filter) && (
+                    <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                        稼ぎには案件ごとの原価が要るので、この表は 2026年5月以降に請求した案件だけで数えています
+                        （それより前は過去データで原価がありません）。上の「売上 ÷ 人工」は期間全体です。
+                    </p>
+                )}
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">

@@ -3,8 +3,7 @@
 import React, { useState } from 'react';
 import type { MonthlySalesData } from '@/lib/profitDashboard';
 import MonthlySalesPanel from './MonthlySalesPanel';
-import LaborProductivityPanel from './LaborProductivityPanel';
-import SalesPerManDaySection from './SalesPerManDaySection';
+import ProductivityTabContent from './ProductivityTabContent';
 
 // 月次パネルが主役のシンプルな構成（kei決定 2026-07-10）。
 // 旧構成（フィルタパネル・KPIカード4枚・要注意案件・案件別/顧客別/工事種別/職長別テーブル）は
@@ -31,7 +30,7 @@ export default function ProfitDashboardClient({ monthlySales }: Props) {
                     <p className="hidden sm:block text-sm text-slate-500 mt-1">
                         {tab === 'monthly'
                             ? '月次の売上・原価・粗利を、期間（当月/年間/期間指定）×担当者別/顧客別×絞り込みで多角的に確認できます'
-                            : '稼ぎ（売上 − 人件費以外の原価）を投入した人工で割り、どの現場・どの顧客が会社に残しているかを見ます'}
+                            : '稼ぎ（売上 − 人件費以外の原価）を投入した人工で割り、どの現場・どの顧客が会社に残しているかを見ます（期間・担当者・顧客・工事内容で絞り込めます）'}
                     </p>
                 </div>
 
@@ -54,11 +53,8 @@ export default function ProfitDashboardClient({ monthlySales }: Props) {
                 {tab === 'monthly' ? (
                     <MonthlySalesPanel data={monthlySales} />
                 ) : (
-                    // 期別・月別の売上 ÷ 人工（過去データも含めて第11期〜第13期を比べる）を一番上に置く
-                    <div className="space-y-4">
-                        <SalesPerManDaySection />
-                        <LaborProductivityPanel />
-                    </div>
+                    // 絞り込み → 売上 ÷ 人工（過去データ込み）→ 一人当たりの稼ぎ の順
+                    <ProductivityTabContent />
                 )}
             </div>
         </div>

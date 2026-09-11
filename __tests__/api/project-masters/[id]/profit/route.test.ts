@@ -12,6 +12,10 @@ jest.mock('@/lib/prisma', () => ({
         projectMaster: { findUnique: jest.fn() },
         estimate: { findMany: jest.fn() },
         invoice: { findMany: jest.fn() },
+        // 一人当たりの稼ぎ（作業履歴の有無・過去データの延べ人工）
+        projectAssignment: { count: jest.fn(), aggregate: jest.fn() },
+        // 一人当たりの稼ぎの最低ライン等（未設定なら既定値）
+        systemSettings: { findFirst: jest.fn() },
     },
 }));
 
@@ -44,6 +48,9 @@ describe('/api/project-masters/[id]/profit', () => {
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
         (prisma.estimate.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.projectAssignment.count as jest.Mock).mockResolvedValue(0);
+        (prisma.projectAssignment.aggregate as jest.Mock).mockResolvedValue({ _sum: { memberCount: 0 } });
+        (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue(null);
         (computeProjectCosts as jest.Mock).mockResolvedValue(costResult(breakdown()));
     });
 

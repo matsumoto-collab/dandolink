@@ -183,6 +183,8 @@ describe('/api/project-masters/export-costs', () => {
             totalCost: 610000,
             laborHours: 39,
             laborManDays: 5,
+            // 一人当たりの稼ぎ（CSV の金額列と一緒に返す）。中身は valueAdded.test.ts で固定している
+            valueAdded: expect.objectContaining({ laborCost: 300000, headcount: 5 }),
         });
         expect(res.headers.get('Cache-Control')).toBe('no-store');
     });
