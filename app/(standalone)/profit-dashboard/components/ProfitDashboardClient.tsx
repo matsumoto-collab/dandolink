@@ -14,7 +14,7 @@ interface Props {
 
 const TABS = [
     { key: 'monthly' as const, label: '月次売上' },
-    { key: 'productivity' as const, label: '人工生産性' },
+    { key: 'productivity' as const, label: '一人当たりの稼ぎ' },
 ];
 
 export default function ProfitDashboardClient({ monthlySales }: Props) {
@@ -30,7 +30,7 @@ export default function ProfitDashboardClient({ monthlySales }: Props) {
                     <p className="hidden sm:block text-sm text-slate-500 mt-1">
                         {tab === 'monthly'
                             ? '月次の売上・原価・粗利を、期間（当月/年間/期間指定）×担当者別/顧客別×絞り込みで多角的に確認できます'
-                            : '加工高（売上 − 人件費以外の原価）を投入した人工で割り、どの現場・どの顧客が会社に残しているかを見ます'}
+                            : '稼ぎ（売上 − 人件費以外の原価）を投入した人工で割り、どの現場・どの顧客が会社に残しているかを見ます'}
                     </p>
                 </div>
 

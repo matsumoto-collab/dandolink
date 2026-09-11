@@ -53,7 +53,7 @@ export default function ValueAddedSettingsPanel() {
         // しきい値は空欄可（＝未設定＝判定色を出さない）
         const breakevenValue = breakeven.trim() === '' ? null : parseInt(breakeven, 10);
         if (breakevenValue !== null && (isNaN(breakevenValue) || breakevenValue < 0)) {
-            toast.error('損益分岐の人工単価は0以上の整数で入力してください');
+            toast.error('一人当たりの稼ぎの最低ラインは0以上の整数で入力してください');
             return;
         }
         const outsourcing = parseInt(outsourcingThreshold, 10);
@@ -93,16 +93,16 @@ export default function ValueAddedSettingsPanel() {
     return (
         <div className="max-w-2xl space-y-6">
             <div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-1">人工あたり加工高の判定</h3>
+                <h3 className="text-lg font-semibold text-slate-900 mb-1">一人当たりの稼ぎの判定</h3>
                 <p className="text-sm text-slate-500">
-                    案件詳細・案件一覧・利益ダッシュボードに出る「人工あたり加工高（加工高 ÷ 総人数）」の判定に使います。
-                    加工高は<span className="font-medium text-slate-600">売上 − 人件費以外の原価</span>で、人件費は引きません（月給制のため固定費として扱う）。
+                    案件詳細・案件一覧・利益ダッシュボードに出る「一人当たりの稼ぎ（稼ぎ ÷ 総人数）」の判定に使います。
+                    稼ぎ（会社に残るお金）は<span className="font-medium text-slate-600">売上 − 人件費以外の原価</span>で、人件費は引きません（月給制のため固定費として扱う）。
                 </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">損益分岐の人工単価</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">一人当たりの稼ぎの最低ライン</label>
                     <div className="flex items-center gap-2">
                         <input
                             type="number"
@@ -121,7 +121,7 @@ export default function ValueAddedSettingsPanel() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">「外注中心」と判定する労務外注比率</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">「外注中心」と判定する割合</label>
                     <div className="flex items-center gap-2">
                         <input
                             type="number"
@@ -134,7 +134,7 @@ export default function ValueAddedSettingsPanel() {
                         <span className="text-sm text-slate-600">%</span>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
-                        外注費 ÷（外注費 ＋ 自社人件費）。超えた案件は「外注中心」バッジを付け、判定色は労働生産性倍率で決めます。
+                        外注費 ÷（外注費 ＋ 自社人件費）。超えた案件は「外注中心」バッジを付け、判定色は人件費1円あたりの稼ぎで決めます。
                     </p>
                 </div>
 
@@ -170,14 +170,14 @@ export default function ValueAddedSettingsPanel() {
                         <span className="text-sm text-slate-600">%</span>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
-                        しきい値のこの割合を下回ると赤（要改善）になります。
+                        最低ラインのこの割合を下回ると赤（要改善）になります。
                     </p>
                 </div>
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500">
-                しきい値の目安は「（年間の人件費 ＋ 年間の固定費）÷ 年間の延べ人工」です。
-                実績は<span className="font-medium text-slate-600">利益ダッシュボードの「人工生産性」タブ</span>で確認できます。
+                最低ラインの目安は「（年間の人件費 ＋ 年間の固定費）÷ 年間の延べ人工」です。
+                実績は<span className="font-medium text-slate-600">利益ダッシュボードの「一人当たりの稼ぎ」タブ</span>で確認できます。
             </div>
 
             <button

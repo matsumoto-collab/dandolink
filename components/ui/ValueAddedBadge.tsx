@@ -72,7 +72,7 @@ export function ValueAddedCell({ data, loading }: { data?: ValueAddedResult; loa
             {data.outsourcingHeavy && (
                 <span
                     className="text-[10px] px-1 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200"
-                    title="外注中心（判定は労働生産性倍率で付けています）"
+                    title="外注中心（判定は人件費1円あたりの稼ぎで付けています）"
                 >
                     外
                 </span>

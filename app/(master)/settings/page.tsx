@@ -79,7 +79,7 @@ export default function SettingsPage() {
 
         // 金額を含む判定設定は admin / manager のみ
         if (canSeeFinancials) {
-            baseTabs.push({ id: 'valueAdded' as const, label: '人工あたり加工高', count: null });
+            baseTabs.push({ id: 'valueAdded' as const, label: '一人当たりの稼ぎ', count: null });
         }
 
         // Add user management tab if user is admin

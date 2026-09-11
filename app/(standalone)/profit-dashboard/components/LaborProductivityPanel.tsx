@@ -35,10 +35,10 @@ function GroupTable({ rows, axisLabel }: { rows: LaborProductivityGroup[]; axisL
                     <tr className="border-b border-slate-200 text-xs text-slate-500">
                         <th className="px-3 py-2 text-left font-medium">{axisLabel}</th>
                         <th className="px-3 py-2 text-right font-medium">案件数</th>
-                        <th className="px-3 py-2 text-right font-medium">加工高</th>
+                        <th className="px-3 py-2 text-right font-medium whitespace-nowrap">稼ぎ（会社に残るお金）</th>
                         <th className="px-3 py-2 text-right font-medium">総人数</th>
-                        <th className="px-3 py-2 text-right font-medium whitespace-nowrap">人工あたり加工高</th>
-                        <th className="px-3 py-2 text-right font-medium whitespace-nowrap">1件あたり加工高</th>
+                        <th className="px-3 py-2 text-right font-medium whitespace-nowrap">一人当たりの稼ぎ</th>
+                        <th className="px-3 py-2 text-right font-medium whitespace-nowrap">1件あたりの稼ぎ</th>
                         <th className="px-3 py-2 text-right font-medium whitespace-nowrap">1件あたり人工</th>
                     </tr>
                 </thead>
@@ -80,7 +80,7 @@ export default function LaborProductivityPanel() {
             setMonths(json.months);
         } catch (e) {
             logger.error('人工生産性の取得に失敗:', e);
-            toast.error('人工生産性の集計に失敗しました');
+            toast.error('一人当たりの稼ぎの集計に失敗しました');
         } finally {
             setLoading(false);
         }
@@ -109,7 +109,7 @@ export default function LaborProductivityPanel() {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
                 <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
                     <div>
-                        <h2 className="text-base font-semibold text-slate-800">人工生産性</h2>
+                        <h2 className="text-base font-semibold text-slate-800">一人当たりの稼ぎ</h2>
                         <p className="text-xs text-slate-500 mt-0.5">
                             直近{months}ヶ月に請求のあった案件 {summary.includedCount + summary.excludedCount}件のうち
                             <span className="font-medium text-slate-600"> {summary.includedCount}件</span>で集計
@@ -135,19 +135,19 @@ export default function LaborProductivityPanel() {
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                        <div className="text-xs text-slate-500">人工あたり加工高</div>
+                        <div className="text-xs text-slate-500">一人当たりの稼ぎ</div>
                         <div className="text-2xl font-bold tabular-nums text-slate-800 mt-1">
                             {summary.overall.perManday !== null ? yen(summary.overall.perManday) : '—'}
                             <span className="text-sm font-normal text-slate-500 ml-1">円</span>
                         </div>
                         {summary.threshold !== null && summary.overall.perManday !== null && (
                             <div className="text-xs text-slate-400 mt-1">
-                                しきい値 {yen(summary.threshold)}円 の {Math.round((summary.overall.perManday / summary.threshold) * 100)}%
+                                最低ライン {yen(summary.threshold)}円 の {Math.round((summary.overall.perManday / summary.threshold) * 100)}%
                             </div>
                         )}
                     </div>
                     <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                        <div className="text-xs text-slate-500">加工高 合計</div>
+                        <div className="text-xs text-slate-500">稼ぎ 合計</div>
                         <div className="text-2xl font-bold tabular-nums text-slate-800 mt-1">
                             {yen(summary.overall.valueAddedTotal)}
                             <span className="text-sm font-normal text-slate-500 ml-1">円</span>
@@ -179,7 +179,7 @@ export default function LaborProductivityPanel() {
                 )}
                 {summary.threshold === null && (
                     <p className="text-xs text-amber-600 mt-2">
-                        しきい値（損益分岐の人工単価）が未設定です。設定＞システム で入力すると判定色と下位リストが出ます。
+                        一人当たりの稼ぎの最低ラインが未設定です。設定＞一人当たりの稼ぎ で入力すると判定色と下位リストが出ます。
                     </p>
                 )}
             </div>
@@ -207,18 +207,18 @@ export default function LaborProductivityPanel() {
             {/* しきい値を下回った案件 */}
             {summary.shortfalls.length > 0 && (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
-                    <h3 className="text-sm font-semibold text-slate-800 mb-1">しきい値を下回った案件</h3>
+                    <h3 className="text-sm font-semibold text-slate-800 mb-1">最低ラインを下回った案件</h3>
                     <p className="text-xs text-slate-500 mb-3">
-                        不足額 =（しきい値 − 人工あたり加工高）× 総人数。大きい順に並べています。
+                        不足額 =（最低ライン − 一人当たりの稼ぎ）× 総人数。大きい順に並べています。
                     </p>
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-sm">
                             <thead>
                                 <tr className="border-b border-slate-200 text-xs text-slate-500">
                                     <th className="px-3 py-2 text-left font-medium">現場名</th>
-                                    <th className="px-3 py-2 text-right font-medium whitespace-nowrap">人工あたり加工高</th>
+                                    <th className="px-3 py-2 text-right font-medium whitespace-nowrap">一人当たりの稼ぎ</th>
                                     <th className="px-3 py-2 text-right font-medium">総人数</th>
-                                    <th className="px-3 py-2 text-right font-medium whitespace-nowrap">しきい値まで</th>
+                                    <th className="px-3 py-2 text-right font-medium whitespace-nowrap">最低ラインまで</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">

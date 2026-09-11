@@ -84,7 +84,7 @@ export default function EstimateValueAddedHint({ subtotal, projectMaster }: Prop
         return (
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
                 案件マスタの<span className="font-medium text-slate-600">予定組立人工・予定解体人工</span>を入れると、
-                この見積での「人工あたり加工高」の目安が出ます。
+                この見積での「一人当たりの稼ぎ」の目安が出ます。
             </div>
         );
     }
@@ -97,32 +97,32 @@ export default function EstimateValueAddedHint({ subtotal, projectMaster }: Prop
     return (
         <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
             <div className="flex items-baseline flex-wrap gap-2">
-                <span className="text-xs text-slate-500">この見積だと</span>
+                <span className="text-xs text-slate-500">この見積だと 一人当たりの稼ぎは</span>
                 <span className="text-xl font-bold tabular-nums text-slate-800">
                     {preview.perManday !== null ? yen(preview.perManday) : '—'}
                 </span>
-                <span className="text-xs text-slate-500">円 / 人工</span>
+                <span className="text-xs text-slate-500">円</span>
                 <ValueAddedJudgementBadge judgement={preview.judgement} size="sm" />
             </div>
 
             <p className="mt-1.5 text-xs text-slate-500">
-                加工高 {yen(preview.valueAdded)}円（見積 {yen(subtotal)} − 人件費以外の予定原価 {yen(nonLaborCost)}）
+                稼ぎ {yen(preview.valueAdded)}円（見積 {yen(subtotal)} − 人件費以外の予定原価 {yen(nonLaborCost)}）
                 ÷ 予定人工 {plannedManDays} 人工
                 {settings?.breakevenPerManday != null && preview.achievementRate !== null
-                    ? ` ／ しきい値 ${yen(settings.breakevenPerManday)}円 の ${preview.achievementRate}%`
+                    ? ` ／ 最低ライン ${yen(settings.breakevenPerManday)}円 の ${preview.achievementRate}%`
                     : ''}
             </p>
 
             {preview.requiredSales !== null && (
                 <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    しきい値を満たすには、見積額を <span className="font-semibold tabular-nums">{yen(preview.requiredSales)}円</span> 以上にするか、
+                    最低ラインを満たすには、見積額を <span className="font-semibold tabular-nums">{yen(preview.requiredSales)}円</span> 以上にするか、
                     予定人工を <span className="font-semibold tabular-nums">{preview.allowedManDays}</span> 人工以内に収める必要があります。
                 </p>
             )}
 
             {settings?.breakevenPerManday == null && (
                 <p className="mt-2 text-xs text-slate-400">
-                    しきい値が未設定のため判定は出ません（設定＞システムで入力できます）。
+                    最低ラインが未設定のため判定は出ません（設定＞一人当たりの稼ぎ で入力できます）。
                 </p>
             )}
         </div>

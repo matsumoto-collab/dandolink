@@ -1414,7 +1414,7 @@ function ProjectMasterListPageContent() {
 
                             {isAdminOrManager && (
                                 <div>
-                                    <label htmlFor="f-judgement" className="mb-1 block text-xs font-medium text-slate-600">人工あたり加工高</label>
+                                    <label htmlFor="f-judgement" className="mb-1 block text-xs font-medium text-slate-600">一人当たりの稼ぎ</label>
                                     <select
                                         id="f-judgement"
                                         value={filterJudgement}
@@ -1624,9 +1624,9 @@ function ProjectMasterListPageContent() {
                                                     setSortDir('desc');
                                                 }
                                             }}
-                                            title="加工高（売上 − 人件費以外の原価）÷ 総人数。クリックで並び替え"
+                                            title="稼ぎ（売上 − 人件費以外の原価）÷ 総人数。クリックで並び替え"
                                         >
-                                            人工あたり加工高
+                                            一人当たりの稼ぎ
                                             <span className="ml-1 text-[10px] text-slate-500">
                                                 {sortKey === 'valueAdded' ? (sortDir === 'desc' ? '▼' : '▲') : '↕'}
                                             </span>
