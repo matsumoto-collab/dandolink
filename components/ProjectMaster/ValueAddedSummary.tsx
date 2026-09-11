@@ -64,8 +64,41 @@ const TIPS = {
     ),
 };
 
-export default function ValueAddedSummary({ data }: { data: ValueAddedResult }) {
+export default function ValueAddedSummary({ data, isBackfilled }: { data: ValueAddedResult; isBackfilled?: boolean }) {
     const unavailable = valueAddedUnavailableReason(data);
+
+    // 過去データ（DandoLink 導入前）の案件は原価が無いので、一人当たりの稼ぎは出さず延べ人工と売上だけ出す（仕様 3-3）
+    if (isBackfilled) {
+        return (
+            <div className="mt-6 pt-5 border-t border-slate-200">
+                <div className="flex items-center flex-wrap gap-2 mb-3">
+                    <h4 className="flex items-center gap-1 text-sm font-semibold text-slate-700">
+                        一人当たりの稼ぎ
+                        <InfoTip title="一人当たりの稼ぎ">{TIPS.perManday}</InfoTip>
+                    </h4>
+                    <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                        過去データ
+                    </span>
+                </div>
+                <p className="text-sm text-slate-500 mb-3">
+                    DandoLink 導入前の過去データには案件別の原価が無いため、一人当たりの稼ぎは出しません。
+                </p>
+                <dl className="space-y-1.5 text-sm">
+                    <div className="flex justify-between gap-3">
+                        <dt className="text-slate-600">売上（税抜）</dt>
+                        <dd className="font-medium tabular-nums text-slate-800">{yen(data.sales)} 円</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                        <dt className="text-slate-600">延べ人工</dt>
+                        <dd className="text-right">
+                            <span className="font-medium tabular-nums text-slate-800">{data.headcount} 人工</span>
+                            <span className="text-xs text-slate-400 ml-2">（段取日報の自社の人数）</span>
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        );
+    }
     // 判定色は「外注中心」の案件だけ人件費1円あたりの稼ぎ（productivityRatio）のほうに付ける
     const badgeOnPerManday = data.judgedBy === 'perManday';
     const badgeOnProductivity = data.judgedBy === 'productivity';

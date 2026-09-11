@@ -80,6 +80,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const body = await req.json();
 
+        // 過去データ（段取日報から取り込んだ作業履歴）は書き換えさせない（カレンダーにも出していない）
+        const backfillCheck = await prisma.projectAssignment.findUnique({ where: { id }, select: { isBackfilled: true } });
+        if (backfillCheck?.isBackfilled) return errorResponse('過去データの作業履歴は変更できません', 400);
+
         // 'unassigned'（職長未割当センチネル）への書き換えは拒否。
         // create系3経路（POST単発/batch/batch-create）は封鎖済みだが、このPATCHだけ
         // ガードが無く、確定配置を孤児化できる穴が残っていた（2026-06-11 孤児配置の再発防止）。
@@ -320,6 +324,9 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         if (!canDispatch(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
+
+        const backfillCheck = await prisma.projectAssignment.findUnique({ where: { id }, select: { isBackfilled: true } });
+        if (backfillCheck?.isBackfilled) return errorResponse('過去データの作業履歴は削除できません', 400);
 
         // 誤削除の「元に戻す」用に、削除前の配置をスナップショットとして控える。
         // テーブル未作成（マイグレ未適用）等で控えに失敗しても削除自体は継続する（best-effort）。

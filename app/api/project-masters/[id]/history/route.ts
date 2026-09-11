@@ -45,12 +45,17 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         const toolMap = new Map(toolRecords.map(t => [t.id, t.name]));
 
         const history = assignments.map(a => {
+            // 過去データ（段取日報から取り込んだ作業履歴）は、職長が既存ユーザーと一致しない行もあるので
+            // 取込元の職長名を正にする。区分（自社/外注）と人数補完の印も画面に渡す
+            const backfill = a.isBackfilled
+                ? (a.backfillInfo as { foremanName?: string; category?: string; headcountFilled?: boolean; originalHeadcount?: number } | null)
+                : null;
             const workerIds = a.confirmedWorkerIds ? parseJsonField<string[]>(a.confirmedWorkerIds, []) : parseJsonField<string[]>(a.workers, []);
             const vehicleIdList = a.confirmedVehicleIds ? parseJsonField<string[]>(a.confirmedVehicleIds, []) : parseJsonField<string[]>(a.vehicles, []);
             const toolIdList = a.confirmedToolIds ? parseJsonField<string[]>(a.confirmedToolIds, []) : parseJsonField<string[]>(a.tools, []);
             return {
                 id: a.id, date: a.date.toISOString(), foremanId: a.assignedEmployeeId,
-                foremanName: userMap.get(a.assignedEmployeeId) || '不明',
+                foremanName: (backfill?.foremanName || userMap.get(a.assignedEmployeeId)) || '不明',
                 constructionType: a.constructionType ?? a.projectMaster.constructionType, constructionContent: a.projectMaster.constructionContent,
                 memberCount: a.memberCount,
                 workerIds, workerNames: workerIds.map(wid => userMap.get(wid) || wid).filter(name => name !== userMap.get(a.assignedEmployeeId)),
@@ -62,6 +67,10 @@ export async function GET(_req: NextRequest, context: RouteContext) {
                     return sum + Math.max(0, calcTimeDiffMinutes(wi.startTime, wi.endTime) - (wi.breakMinutes || 0));
                 }, 0) || null,
                 createdAt: a.createdAt.toISOString(),
+                isBackfilled: a.isBackfilled,
+                backfillCategory: backfill?.category ?? null,
+                backfillHeadcountFilled: backfill?.headcountFilled ?? false,
+                backfillOriginalHeadcount: backfill?.originalHeadcount ?? null,
             };
         });
 

@@ -107,6 +107,8 @@ interface ProfitData {
     costConsumptionRate?: number | null;
     /** 人工あたり加工高。権限のないユーザーにはAPIが返さない（このAPI自体が admin/manager 限定） */
     valueAdded?: ValueAddedResult;
+    /** 過去データ（DandoLink 導入前を CSV から取り込んだ案件）。原価が無いので一人当たりの稼ぎは出さない */
+    isBackfilled?: boolean;
 }
 
 interface ProjectProfitDisplayProps {
@@ -802,7 +804,9 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                     </div>
 
                     {/* 人工あたり加工高（原価内訳の下）。権限が無いユーザーにはAPIが返さないので出ない */}
-                    {profitData.valueAdded && <ValueAddedSummary data={profitData.valueAdded} />}
+                    {profitData.valueAdded && (
+                        <ValueAddedSummary data={profitData.valueAdded} isBackfilled={profitData.isBackfilled} />
+                    )}
                 </div>
             </div>
         </div>

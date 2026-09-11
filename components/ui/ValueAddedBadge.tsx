@@ -56,7 +56,23 @@ function shortReason(data: ValueAddedResult): string {
 }
 
 /** 案件一覧の「人工あたり加工高」列 */
-export function ValueAddedCell({ data, loading }: { data?: ValueAddedResult; loading?: boolean }) {
+export function ValueAddedCell({
+    data,
+    loading,
+    isBackfilled,
+}: {
+    data?: ValueAddedResult;
+    loading?: boolean;
+    /** 過去データ（DandoLink 導入前）の案件。原価が無いので一人当たりの稼ぎは出さない */
+    isBackfilled?: boolean;
+}) {
+    if (isBackfilled) {
+        return (
+            <span className="text-xs text-slate-400" title="過去データは原価が無いため、一人当たりの稼ぎは出しません">
+                過去データ
+            </span>
+        );
+    }
     if (!data) {
         return <span className="text-slate-300 text-sm">{loading ? '…' : '—'}</span>;
     }

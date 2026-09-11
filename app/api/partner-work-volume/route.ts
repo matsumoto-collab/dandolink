@@ -174,7 +174,8 @@ export async function GET(req: NextRequest) {
 
         // 月内の配置を取得（配置は実時刻入り DateTime で表示は JST 日付 → JST 日境界で絞る）
         const assignments = await prisma.projectAssignment.findMany({
-            where: { date: { gte: range.jstStart, lt: range.jstEnd } },
+            // 過去データの外注行は協力会社のユーザーに照合されているが、出来高の対象ではない（外注費の根拠が無い）
+            where: { date: { gte: range.jstStart, lt: range.jstEnd }, isBackfilled: false },
             select: {
                 id: true,
                 date: true,

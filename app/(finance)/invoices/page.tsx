@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useInvoices } from '@/hooks/useInvoices';
+import { parseInvoiceDates } from '@/stores/financeSlices/invoiceSlice';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCompany } from '@/hooks/useCompany';
 import { useCustomers } from '@/hooks/useCustomers';
@@ -73,6 +74,12 @@ export default function InvoiceListPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    // 過去データ（DandoLink 導入前の請求書PDFから取り込んだ売上 1,902 件）。既定では出さず、
+    // 「過去データを含む」を付けたときだけ別に取りに行く（共通の請求書ストアには入れない）
+    const [includeBackfilled, setIncludeBackfilled] = useState(false);
+    const [backfilledInvoices, setBackfilledInvoices] = useState<Invoice[]>([]);
+    const [backfilledLoading, setBackfilledLoading] = useState(false);
+    const backfilledLoadedRef = useRef(false);
     // 案件担当者フィルタ（その請求書に含まれる案件の担当者で絞り込み）
     const [assigneeIdFilter, setAssigneeIdFilter] = useState('');
     // 作成日フィルタ（範囲・YYYY-MM-DD。空なら無制限）
@@ -301,11 +308,37 @@ export default function InvoiceListPage() {
             .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
     }, [invoices, getInvoiceAssigneeIds, userMap]);
 
+    useEffect(() => {
+        if (!includeBackfilled || backfilledLoadedRef.current) return;
+        backfilledLoadedRef.current = true;
+        setBackfilledLoading(true);
+        (async () => {
+            try {
+                const res = await fetch('/api/invoices?backfilled=only', { cache: 'no-store' });
+                if (!res.ok) throw new Error(`invoices backfilled ${res.status}`);
+                const data = (await res.json()) as Record<string, unknown>[];
+                setBackfilledInvoices(data.map(parseInvoiceDates));
+            } catch (e) {
+                backfilledLoadedRef.current = false;
+                logger.error('過去データの請求書の取得に失敗:', e);
+                toast.error('過去データの請求書を読み込めませんでした');
+            } finally {
+                setBackfilledLoading(false);
+            }
+        })();
+    }, [includeBackfilled]);
+
+    /** 一覧に並べる請求書（過去データを含むときは後ろに足す。並びは作成日の新しい順で混ざる） */
+    const listedInvoices = useMemo(
+        () => (includeBackfilled ? [...invoices, ...backfilledInvoices] : invoices),
+        [includeBackfilled, invoices, backfilledInvoices],
+    );
+
     // フィルタリング（useMemoでメモ化）
     const filteredInvoices = useMemo(() => {
         const fromTs = createdFrom ? new Date(`${createdFrom}T00:00:00`).getTime() : null;
         const toTs = createdTo ? new Date(`${createdTo}T23:59:59.999`).getTime() : null;
-        return invoices
+        return listedInvoices
             .filter(inv => {
                 const q = debouncedSearchTerm;
                 const matched = matchesSearch(inv.title, q) ||
@@ -329,12 +362,12 @@ export default function InvoiceListPage() {
                 // 作成日が同一（同じ締め日でまとめた請求書など）でも並びが揺れないよう請求番号で決定的に並べる
                 return (b.invoiceNumber || '').localeCompare(a.invoiceNumber || '', 'ja', { numeric: true });
             });
-    }, [invoices, debouncedSearchTerm, statusFilter, assigneeIdFilter, createdFrom, createdTo, getProjectName, getCustomerName, getSourceCustomerNames, getInvoiceAssigneeNames, getInvoiceAssigneeIds]);
+    }, [listedInvoices, debouncedSearchTerm, statusFilter, assigneeIdFilter, createdFrom, createdTo, getProjectName, getCustomerName, getSourceCustomerNames, getInvoiceAssigneeNames, getInvoiceAssigneeIds]);
 
     // フィルター変更時にページをリセット
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedSearchTerm, statusFilter, assigneeIdFilter, createdFrom, createdTo]);
+    }, [debouncedSearchTerm, statusFilter, assigneeIdFilter, createdFrom, createdTo, includeBackfilled]);
 
     const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
     const paginatedInvoices = useMemo(() => {
@@ -408,6 +441,11 @@ export default function InvoiceListPage() {
     };
 
     const handleOpenDetail = (invoice: Invoice) => {
+        if (invoice.isBackfilled) {
+            // 過去データは請求書PDFの内容を持っていない（現場名と金額だけ）ので再発行させない
+            toast('過去データの請求書は再発行できません（DandoLink 導入前の請求書PDFから取り込んだ売上です）');
+            return;
+        }
         setSelectedInvoice(invoice);
         setIsDetailModalOpen(true);
     };
@@ -599,6 +637,18 @@ export default function InvoiceListPage() {
                             </button>
                         )}
                     </div>
+
+                    {/* 過去データ（2026年4月以前の請求書PDFから取り込んだ売上）を含める */}
+                    <label className="flex items-center gap-2 px-3 py-2.5 border border-slate-200 rounded-xl bg-white shadow-sm text-sm text-slate-700 cursor-pointer whitespace-nowrap">
+                        <input
+                            type="checkbox"
+                            checked={includeBackfilled}
+                            onChange={(e) => setIncludeBackfilled(e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                        />
+                        過去データを含む
+                        {backfilledLoading && <span className="text-xs text-slate-400">読み込み中…</span>}
+                    </label>
                 </div>
 
                 {/* CSV出力＋新規追加ボタン（sm+ のみ。モバイルはタイトル行に表示）
@@ -659,8 +709,11 @@ export default function InvoiceListPage() {
                                     <div className="flex items-start justify-between mb-3">
                                         <span className="text-base font-semibold text-slate-600">
                                             {invoice.invoiceNumber}
+                                            {invoice.isBackfilled && (
+                                                <span className="ml-2 align-middle px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-500">過去データ</span>
+                                            )}
                                         </span>
-                                        {canEdit && (
+                                        {canEdit && !invoice.isBackfilled && (
                                         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
@@ -705,8 +758,8 @@ export default function InvoiceListPage() {
                                         ¥{invoice.total.toLocaleString()}
                                     </div>
 
-                                    {/* 入金状況（タップでその場から入金を登録・ホバーで入金履歴） */}
-                                    <div className="mb-3">
+                                    {/* 入金状況（タップでその場から入金を登録・ホバーで入金履歴）。過去データは触らせない */}
+                                    <div className={`mb-3 ${invoice.isBackfilled ? 'pointer-events-none opacity-60' : ''}`}>
                                         <InvoicePaymentHistoryHover payments={invoice.payments} summary={invoice.paymentSummary}>
                                             <button
                                                 type="button"
@@ -726,7 +779,7 @@ export default function InvoiceListPage() {
                                             value={invoice.status}
                                             options={INVOICE_STATUS_OPTIONS}
                                             colorClass={`${statusInfo.bg} ${statusInfo.color}`}
-                                            disabled={statusUpdatingId === invoice.id}
+                                            disabled={statusUpdatingId === invoice.id || !!invoice.isBackfilled}
                                             onChange={(s) => handleStatusChange(invoice, s)}
                                         />
                                         <span className="text-xs text-slate-500">
@@ -815,6 +868,9 @@ export default function InvoiceListPage() {
                                             <span className="text-[12px] font-semibold text-slate-600">
                                                 {invoice.invoiceNumber}
                                             </span>
+                                            {invoice.isBackfilled && (
+                                                <span className="block mt-0.5 w-fit px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 text-slate-500">過去データ</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 min-w-[220px]">
                                             <span className="text-[12px] text-slate-800 break-words">
@@ -835,7 +891,7 @@ export default function InvoiceListPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] font-semibold text-slate-900">
                                             ¥{invoice.total.toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className={`px-6 py-4 whitespace-nowrap ${invoice.isBackfilled ? 'pointer-events-none opacity-60' : ''}`}>
                                             <InvoicePaymentHistoryHover payments={invoice.payments} summary={invoice.paymentSummary}>
                                                 <button
                                                     type="button"
@@ -853,7 +909,7 @@ export default function InvoiceListPage() {
                                                 value={invoice.status}
                                                 options={INVOICE_STATUS_OPTIONS}
                                                 colorClass={`${statusInfo.bg} ${statusInfo.color}`}
-                                                disabled={statusUpdatingId === invoice.id}
+                                                disabled={statusUpdatingId === invoice.id || !!invoice.isBackfilled}
                                                 onChange={(s) => handleStatusChange(invoice, s)}
                                             />
                                         </td>
@@ -864,7 +920,7 @@ export default function InvoiceListPage() {
                                             {formatDate(invoice.createdAt, 'full')}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-[12px] font-medium" onClick={(e) => e.stopPropagation()}>
-                                            {canEdit && (
+                                            {canEdit && !invoice.isBackfilled && (
                                             <>
                                             <button
                                                 onClick={() => handleEdit(invoice)}

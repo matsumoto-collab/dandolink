@@ -27,6 +27,13 @@ export async function GET(req: NextRequest) {
         const ALLOWED_STATUSES = ['active', 'completed', 'cancelled'] as const;
         const where: Record<string, unknown> = {};
 
+        // 過去データ（DandoLink 導入前を CSV から取り込んだ案件）の扱い。
+        //   既定（指定なし）… 含めない。カレンダー・案件検索・見積や請求の案件選びは全部この既定で呼ぶので、
+        //                     過去の案件 3,681 件が紛れ込まない
+        //   backfilled=only … 過去データだけ（案件一覧の「過去データを含む」で別に取りに行く）
+        const backfilledParam = searchParams.get('backfilled');
+        where.isBackfilled = backfilledParam === 'only';
+
         // ロールベースフィルタリング: worker, partner はアサイン済み案件のみ（foreman2 は全件閲覧可）
         const role = session!.user.role;
         if (role === 'worker' || role === 'partner') {

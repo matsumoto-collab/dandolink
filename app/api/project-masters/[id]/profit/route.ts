@@ -29,7 +29,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const projectMaster = await prisma.projectMaster.findUnique({
             where: { id },
-            select: { id: true, title: true, contractAmount: true, revenueOverride: true },
+            select: { id: true, title: true, contractAmount: true, revenueOverride: true, isBackfilled: true },
         });
         if (!projectMaster) return notFoundResponse('案件');
 
@@ -125,7 +125,15 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         // 人工あたり加工高（加工高 ÷ 総人数）。総人数は利益サマリーと同じ実績ベース。
         // このAPIは既に admin/manager 以外を 403 で弾いているので、ここに来る時点で権限あり。
-        const headcount = detail.labor.reduce((sum, row) => sum + (row.workerCount || 0), 0);
+        // 過去データ（DandoLink 導入前）の案件は日報が無いので原価エンジンの人数は 0 になる。
+        // 段取日報から取り込んだ自社の人数（外注の行は 0 で入っている）を延べ人工として使う。
+        // 原価は無いので一人当たりの稼ぎは no_cost で出ず、延べ人工と売上だけが画面に出る（仕様 3-3）
+        const headcount = projectMaster.isBackfilled
+            ? (await prisma.projectAssignment.aggregate({
+                where: { projectMasterId: id, isBackfilled: true },
+                _sum: { memberCount: true },
+            }))._sum.memberCount ?? 0
+            : detail.labor.reduce((sum, row) => sum + (row.workerCount || 0), 0);
         const hasManualCost =
             Object.values(detail.manualItems ?? emptyManualItems).some(items =>
                 (items as { amount: number }[]).some(item => Number(item.amount) !== 0),
@@ -168,6 +176,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             estimatedRevenue, confirmedRevenue, isBilled,
             estimatedProfit, confirmedProfit, costConsumptionRate,
             valueAdded,
+            isBackfilled: projectMaster.isBackfilled,
         });
     } catch (error) {
         return serverErrorResponse('利益計算', error);

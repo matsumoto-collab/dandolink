@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
             // 当月の配置から「常用(joyo)化した配置」を特定する。
             // = 自社が職長(assignedEmployeeId)ではないが、自社メンバーが confirmedWorkerIds に含まれる配置。
             const monthAssignments = await prisma.projectAssignment.findMany({
-                where: { date: { gte: jstStart, lt: jstEnd } },
+                where: { date: { gte: jstStart, lt: jstEnd }, isBackfilled: false },
                 select: { id: true, assignedEmployeeId: true, confirmedWorkerIds: true },
             });
             const joyoAssignmentIdSet = new Set<string>();

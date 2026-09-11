@@ -105,6 +105,9 @@ export async function GET(req: NextRequest) {
         const projects = await prisma.projectMaster.findMany({
             where: {
                 status: { not: 'cancelled' },
+                // 過去データ（DandoLink 導入前）の案件は請求待ちに出さない。
+                // 過去の月を開くと、請求書の無い「日報のみ」の過去案件が未請求として大量に並ぶため
+                isBackfilled: false,
                 assignments: { some: { date: { gte: start, lte: end } } },
             },
             select: {
@@ -128,6 +131,8 @@ export async function GET(req: NextRequest) {
 
         const [invoices, assignments, estimates, pendingDrafts, decisions] = await Promise.all([
             prisma.invoice.findMany({
+                // 過去データの請求書は過去データの案件にしか付かない（上で外している）ので読まない
+                where: { isBackfilled: false },
                 select: { status: true, subtotal: true, items: true, projectMasterId: true, createdAt: true },
             }),
             prisma.projectAssignment.findMany({

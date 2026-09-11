@@ -45,6 +45,8 @@ export interface Invoice {
     paymentSummary?: PaymentSummary;
     // 入金履歴（一覧APIが付与。入金日昇順。一覧のホバー表示用）
     payments?: InvoicePaymentRecord[];
+    /** 過去データ（DandoLink 導入前の請求書PDFから取り込んだ売上）。再発行・編集・入金登録はさせない */
+    isBackfilled?: boolean;
 }
 
 // 請求書作成時の入力データ

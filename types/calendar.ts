@@ -187,6 +187,12 @@ export interface ProjectMaster {
     hasEstimate?: boolean;             // 紐付く見積書が存在するか（一覧表示用）
     hasInvoice?: boolean;              // 紐付く請求書が存在するか（一覧表示用）
     workHistory?: ProjectWorkHistoryItem[]; // 作業履歴（一覧の表示・絞り込み用・日付昇順）
+    // 過去データ（DandoLink 導入前 2024-01〜2026-04 を CSV から取り込んだ案件）
+    isBackfilled?: boolean;
+    /** 取り込み元: '請求書+日報' | '請求書' | '日報のみ' */
+    dataSource?: string | null;
+    /** 土場・研修など現場ではない作業（一覧の既定表示と集計から外す） */
+    isNonSite?: boolean;
 }
 
 /**

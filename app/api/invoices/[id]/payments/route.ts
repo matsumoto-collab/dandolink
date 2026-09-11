@@ -43,8 +43,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
         if (error) return error;
 
         const { id } = await context.params;
-        const invoice = await prisma.invoice.findUnique({ where: { id }, select: { total: true, status: true } });
+        const invoice = await prisma.invoice.findUnique({ where: { id }, select: { total: true, status: true, isBackfilled: true } });
         if (!invoice) return notFoundResponse('請求書');
+        // 過去データの請求書は支払済み扱いで取り込んでいる（入金記録は持たない）
+        if (invoice.isBackfilled) return validationErrorResponse('過去データの請求書には入金を登録できません');
 
         const body = await req.json();
         const validation = validateRequest(createInvoicePaymentSchema, body);

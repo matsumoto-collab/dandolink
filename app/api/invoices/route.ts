@@ -128,6 +128,10 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const page = searchParams.get('page');
         const limit = searchParams.get('limit');
+        // 過去データ（請求書PDFから取り込んだ 2026-04 以前の売上）の扱い。
+        // 既定は含めない（共通の請求書ストアに入り、見積・請求予定・案件検索などにも使われるため）。
+        // 請求書一覧の「過去データを含む」だけが backfilled=only で別に取りに行く
+        const where = { isBackfilled: searchParams.get('backfilled') === 'only' };
 
         if (page && limit) {
             const pageNum = parseInt(page, 10);
@@ -136,8 +140,8 @@ export async function GET(req: NextRequest) {
                 return validationErrorResponse('無効なページネーションパラメータです');
             }
             const [invoices, total] = await Promise.all([
-                prisma.invoice.findMany({ skip: (pageNum - 1) * limitNum, take: limitNum, orderBy: { createdAt: 'desc' } }),
-                prisma.invoice.count(),
+                prisma.invoice.findMany({ where, skip: (pageNum - 1) * limitNum, take: limitNum, orderBy: { createdAt: 'desc' } }),
+                prisma.invoice.count({ where }),
             ]);
             const [pmMap, paymentsMap] = await Promise.all([
                 loadProjectMastersByInvoice(invoices.map(i => i.id)),
@@ -151,7 +155,7 @@ export async function GET(req: NextRequest) {
             }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
-        const invoices = await prisma.invoice.findMany({ orderBy: { createdAt: 'desc' } });
+        const invoices = await prisma.invoice.findMany({ where, orderBy: { createdAt: 'desc' } });
         const [pmMap, paymentsMap] = await Promise.all([
             loadProjectMastersByInvoice(invoices.map(i => i.id)),
             loadPaymentsByInvoice(invoices.map(i => i.id)),

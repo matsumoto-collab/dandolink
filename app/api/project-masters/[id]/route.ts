@@ -98,6 +98,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
         const existing = await prisma.projectMaster.findUnique({ where: { id } });
         if (!existing) return notFoundResponse('案件マスター');
+        // 過去データ（CSV から取り込んだ案件）は取り込み直すと上書きされるので、画面からは直させない
+        if (existing.isBackfilled) {
+            return errorResponse('過去データの案件は編集できません（CSV を直して取り込み直してください）', 400);
+        }
 
         const updateData: Record<string, unknown> = {};
         if (body.name !== undefined) updateData.name = body.name || null;
@@ -355,6 +359,11 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         if (!isManagerOrAbove(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
+        // 過去データの案件は「設定 > 過去データ取込」の取り消しで消す（ここで消すと再取り込みの突き合わせが崩れる）
+        const target = await prisma.projectMaster.findUnique({ where: { id }, select: { isBackfilled: true } });
+        if (target?.isBackfilled) {
+            return errorResponse('過去データの案件はここでは削除できません（設定 > 過去データ取込 から取り消してください）', 400);
+        }
         await prisma.projectMaster.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {

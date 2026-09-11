@@ -30,6 +30,7 @@ import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { logger } from '@/lib/logger';
+import { parseProjectMasterDates } from '@/stores/calendarSlices/types';
 import { matchesSearch } from '@/utils/searchNormalize';
 import { getConstructionContentLabel } from '@/lib/constructionContent';
 import { ValueAddedCell } from '@/components/ui/ValueAddedBadge';
@@ -147,6 +148,13 @@ function ProjectMasterListPageContent() {
     const [valueAddedById, setValueAddedById] = useState<Record<string, ValueAddedResult>>({});
     const [valueAddedLoading, setValueAddedLoading] = useState(false);
     const [filterJudgement, setFilterJudgement] = useState('');
+    // 過去データ（DandoLink 導入前を CSV から取り込んだ案件 3,681 件）。既定では出さず、
+    // 「過去データを含む」を付けたときだけ別に取りに行く。カレンダーなどと共通の案件ストアには入れない
+    // （入れると案件検索や見積・請求の案件選びに過去の案件が紛れ込むため）。
+    const [includeBackfilled, setIncludeBackfilled] = useState(false);
+    const [backfilledMasters, setBackfilledMasters] = useState<ProjectMaster[]>([]);
+    const [backfilledLoading, setBackfilledLoading] = useState(false);
+    const backfilledLoadedRef = useRef(false);
     const [sortKey, setSortKey] = useState<'updated' | 'valueAdded'>('updated');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     // 工事種別ID → 名称・色（作業履歴のチップ表示と、種別での絞り込みに使う）
@@ -520,9 +528,9 @@ function ProjectMasterListPageContent() {
 
     /** 適用中の絞り込み数（検索窓とステータスを除く。バッジ表示用）。 */
     const activeFilterCount = useMemo(
-        () => [filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus]
+        () => [filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus, includeBackfilled]
             .filter(Boolean).length,
-        [filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus],
+        [filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus, includeBackfilled],
     );
 
     const clearExtraFilters = useCallback(() => {
@@ -532,6 +540,7 @@ function ProjectMasterListPageContent() {
         setFilterCtypeName('');
         setFilterForemanId('');
         setFilterBillingStatus('');
+        setIncludeBackfilled(false);
     }, []);
 
     /**
@@ -599,8 +608,34 @@ function ProjectMasterListPageContent() {
         return () => { cancelled = true; };
     }, [valueAddedKey]);
 
+    useEffect(() => {
+        if (!includeBackfilled || backfilledLoadedRef.current) return;
+        backfilledLoadedRef.current = true;
+        setBackfilledLoading(true);
+        (async () => {
+            try {
+                const res = await fetch('/api/project-masters?backfilled=only', { cache: 'no-store' });
+                if (!res.ok) throw new Error(`project-masters backfilled ${res.status}`);
+                const data = await res.json();
+                setBackfilledMasters((data as Array<ProjectMaster & { createdAt: string; updatedAt: string }>).map(parseProjectMasterDates));
+            } catch (e) {
+                backfilledLoadedRef.current = false;
+                logger.error('過去データの案件の取得に失敗:', e);
+                toast.error('過去データの案件を読み込めませんでした');
+            } finally {
+                setBackfilledLoading(false);
+            }
+        })();
+    }, [includeBackfilled]);
+
+    /** 一覧に並べる案件（過去データを含むときは、共通ストアの案件の後ろに過去データを足す） */
+    const listedMasters = useMemo(
+        () => (includeBackfilled ? [...projectMasters, ...backfilledMasters] : projectMasters),
+        [includeBackfilled, projectMasters, backfilledMasters],
+    );
+
     const filteredMasters = useMemo(() => {
-        let results = projectMasters;
+        let results = listedMasters;
 
         // Status filter（進行中/未着工はカレンダーの配置件数から導出。lib/projectMasterStatus に一本化）
         if (filterStatus !== 'all') {
@@ -661,7 +696,7 @@ function ProjectMasterListPageContent() {
             return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
         });
     }, [
-        projectMasters, searchTerm, filterStatus, filterAssigneeId,
+        listedMasters, searchTerm, filterStatus, filterAssigneeId,
         workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus,
         filterJudgement, valueAddedById, sortKey, sortDir,
         getAssigneeIds, resolveCtypeNameById, resolveBillingStatus,
@@ -670,7 +705,7 @@ function ProjectMasterListPageContent() {
     // 絞り込み・検索が変わったらページを先頭へ戻す
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterStatus, filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus, filterJudgement]);
+    }, [searchTerm, filterStatus, filterAssigneeId, workFrom, workTo, filterCtypeName, filterForemanId, filterBillingStatus, filterJudgement, includeBackfilled]);
 
     const totalPages = Math.ceil(filteredMasters.length / ITEMS_PER_PAGE);
 
@@ -1035,7 +1070,7 @@ function ProjectMasterListPageContent() {
                 initialEditMode={openModalInEditMode}
                 onCreateEstimate={isAdminOrManager ? handleCreateEstimate : undefined}
                 onViewEstimate={isAdminOrManager && estimateForDetailPm ? handleViewEstimate : undefined}
-                readOnly={isForeman2}
+                readOnly={isForeman2 || !!detailPm?.isBackfilled}
             />
             {/* 完了連動: 貸出中が残る案件の完了警告 */}
             {archiveWarn && (
@@ -1430,6 +1465,26 @@ function ProjectMasterListPageContent() {
                                 </div>
                             )}
 
+                            {!isForeman2 && (
+                                <div className="flex items-end">
+                                    <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 cursor-pointer w-full">
+                                        <input
+                                            type="checkbox"
+                                            checked={includeBackfilled}
+                                            onChange={(e) => {
+                                                const on = e.target.checked;
+                                                setIncludeBackfilled(on);
+                                                // 過去データは全部「完了」なので、既定の「進行中/未着工」のままだと 1 件も出ない
+                                                if (on && filterStatus === DEFAULT_PROJECT_LIST_STATUS_FILTER) setFilterStatus('all');
+                                            }}
+                                            className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                                        />
+                                        過去データを含む（2026年4月以前）
+                                        {backfilledLoading && <span className="text-xs text-slate-400">読み込み中…</span>}
+                                    </label>
+                                </div>
+                            )}
+
                             {(workFrom || workTo) && (filterCtypeName || filterForemanId) && (
                                 <p className="text-[11px] leading-relaxed text-slate-500 sm:col-span-2 lg:col-span-3">
                                     工事種別・職長は「指定した期間内の作業履歴」に対して判定します
@@ -1461,6 +1516,16 @@ function ProjectMasterListPageContent() {
                                 <div className="p-3">
                                     <div className="flex items-center gap-2 flex-wrap mb-1">
                                         <h3 className="text-base font-bold text-slate-800">{buildListTitle(pm)}</h3>
+                                        {pm.isBackfilled && (
+                                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-500" title={`DandoLink 導入前の過去データ（${pm.dataSource ?? ''}）`}>
+                                                過去データ
+                                            </span>
+                                        )}
+                                        {pm.isNonSite && (
+                                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-500" title="土場・研修など現場ではない作業（集計には入れません）">
+                                                非現場
+                                            </span>
+                                        )}
                                         {pm.constructionContent && (
                                             <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
                                                 {getConstructionContentLabel(pm.constructionContent)}
@@ -1684,6 +1749,16 @@ function ProjectMasterListPageContent() {
                                                 <span className="text-[12px] font-semibold text-slate-900">
                                                     {buildListTitle(pm)}
                                                 </span>
+                                                {pm.isBackfilled && (
+                                                    <span className="px-2 py-0.5 text-[12px] font-medium rounded-full bg-slate-100 text-slate-500" title={`DandoLink 導入前の過去データ（${pm.dataSource ?? ''}）`}>
+                                                        過去データ
+                                                    </span>
+                                                )}
+                                                {pm.isNonSite && (
+                                                    <span className="px-2 py-0.5 text-[12px] font-medium rounded-full bg-slate-100 text-slate-500" title="土場・研修など現場ではない作業（集計には入れません）">
+                                                        非現場
+                                                    </span>
+                                                )}
                                                 {resolveProjectListStatus(pm) === 'unstarted' && (
                                                     <span className="px-2 py-0.5 text-[12px] font-medium rounded-full bg-amber-50 text-amber-700">
                                                         未着工
@@ -1748,7 +1823,7 @@ function ProjectMasterListPageContent() {
                                         {isAdminOrManager && (
                                             <>
                                                 <td className="px-4 py-4 whitespace-nowrap text-right">
-                                                    <ValueAddedCell data={valueAddedById[pm.id]} loading={valueAddedLoading} />
+                                                    <ValueAddedCell data={valueAddedById[pm.id]} loading={valueAddedLoading} isBackfilled={pm.isBackfilled} />
                                                 </td>
                                                 <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                     {(() => {

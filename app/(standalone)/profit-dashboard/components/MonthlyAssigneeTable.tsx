@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, ChevronDown, Download, Search, X } from 'lucide-react';
 import { formatCurrency } from '@/utils/costCalculation';
 import type { MonthlyAssigneeBreakdown, MonthlyAssigneeRow, BreakdownAxis } from '@/lib/profitDashboard';
+import { LIVE_DATA_START_MONTH } from '@/lib/backfill/constants';
 
 // データ取得は親（MonthlySalesPanel）が行い、この表は表示と絞り込みに専念する。
 // 期間（当月/年間/期間指定）のトグルもパネル側へ移動済み。
@@ -74,6 +75,9 @@ export default function MonthlyAssigneeTable({ data, isLoading, axis, onAxisChan
                 : `${data.year}年${data.month}月`;
     const groupColLabel = axis === 'assignee' ? '案件担当者' : '顧客';
     const totalLabel = filterActive ? '合計（絞り込み中）' : '合計';
+    // 期間の始まりが 2026-04 以前なら過去データ（原価なし）を含む
+    const periodStartKey = !data ? '' : `${data.year}-${String(data.period === 'year' ? 1 : data.month).padStart(2, '0')}`;
+    const includesBackfill = !!data && periodStartKey < LIVE_DATA_START_MONTH;
 
     // 説明文（PC=常時表示 / モバイル=折りたたみ）で共用
     const explainer = (
@@ -108,6 +112,14 @@ export default function MonthlyAssigneeTable({ data, isLoading, axis, onAxisChan
                     {isLoading && <span className="text-xs text-slate-400">読み込み中…</span>}
                 </div>
             </div>
+
+            {includesBackfill && (
+                <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 leading-relaxed">
+                    2026年4月以前は DandoLink 導入前の過去データ（請求書PDF・売上入金表から取り込んだ売上）で数えています。
+                    過去データには案件別の原価が無いため、この期間の原価は 0、粗利は売上と同じ額で出ます。
+                    「売上調整（過去データ）」は請求書を出さずに処理された売上など、現場名の分からない売上です。
+                </p>
+            )}
 
             {/* 絞り込み: フリーワード（案件名/顧客名/グループ名）＋グループ（軸に応じて担当者/顧客） */}
             <div className="flex flex-wrap items-center gap-2 mb-2">

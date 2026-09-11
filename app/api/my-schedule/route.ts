@@ -40,6 +40,8 @@ export async function GET(req: NextRequest) {
                     gte: new Date(startDate),
                     lte: new Date(endDate),
                 },
+                // 過去データ（DandoLink 導入前の作業履歴）はマイ工程には出さない
+                isBackfilled: false,
             },
             include: {
                 projectMaster: {

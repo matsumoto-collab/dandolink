@@ -256,7 +256,8 @@ export async function getCrewAvailability(dateStr: string): Promise<CrewAvailabi
 
     const [assignments, foremen, vacation, adjustment, resolveTotalMembers] = await Promise.all([
         prisma.projectAssignment.findMany({
-            where: { date: { gte: dayStart, lt: dayEnd } },
+            // 過去データ（DandoLink 導入前の作業履歴）は空き状況の計算に使わない
+            where: { date: { gte: dayStart, lt: dayEnd }, isBackfilled: false },
             select: {
                 assignedEmployeeId: true,
                 estimatedHours: true,
@@ -356,7 +357,7 @@ export async function getCrewAvailabilitySummaryRange(
 
     const [assignments, vacations, adjustments, resolveTotalMembers] = await Promise.all([
         prisma.projectAssignment.findMany({
-            where: { date: { gte: start, lt: end } },
+            where: { date: { gte: start, lt: end }, isBackfilled: false },
             select: { date: true, assignedEmployeeId: true, memberCount: true, dateStatus: true },
         }),
         prisma.vacationRecord.findMany({ where: { dateKey: { in: dateKeys } } }),

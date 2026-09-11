@@ -33,8 +33,10 @@ export async function GET(request: NextRequest) {
 
         // 1) 対象期間に請求がある案件を集める（まとめ請求は明細のシェアで案件へ振り分ける）
         //    請求日は Invoice.createdAt（請求書フォームの請求日がここに入る＝月次売上と同じ扱い）
+        // 過去データ（DandoLink 導入前）の案件は原価が無く、どのみち no_cost で集計から外れるので候補にしない
+        // （原価エンジンを 1,000 件以上余計に回さないため）。期別・月別の「売上 ÷ 人工」は別の API で過去データも数える
         const recentInvoices = await prisma.invoice.findMany({
-            where: { status: { in: [...SALES_INVOICE_STATUSES] }, createdAt: { gte: from } },
+            where: { status: { in: [...SALES_INVOICE_STATUSES] }, createdAt: { gte: from }, isBackfilled: false },
             select: { items: true, projectMasterId: true },
         });
         const targetIds = new Set<string>();
@@ -66,7 +68,7 @@ export async function GET(request: NextRequest) {
                 select: { projectMasterId: true, subtotal: true },
             }),
             prisma.invoice.findMany({
-                where: { status: { in: [...SALES_INVOICE_STATUSES] } },
+                where: { status: { in: [...SALES_INVOICE_STATUSES] }, isBackfilled: false },
                 select: { subtotal: true, items: true, projectMasterId: true },
             }),
             computeProjectCosts(ids, { withDetail: true }),

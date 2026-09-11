@@ -121,6 +121,9 @@ export async function collectBillingWatchItems(): Promise<WatchItem[]> {
     const projects = await prisma.projectMaster.findMany({
         where: {
             status: { not: 'cancelled' },
+            // 過去データ（DandoLink 導入前）の案件は請求漏れの見張りの対象外。
+            // 「日報のみ」の過去案件は請求書が無いので、入れると担当者へ「未請求」の通知が大量に飛ぶ
+            isBackfilled: false,
             customerId: { in: Array.from(windowsByCustomer.keys()) },
             assignments: { some: { date: { gte: start, lte: end } } },
         },

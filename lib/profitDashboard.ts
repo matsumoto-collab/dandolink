@@ -2,6 +2,12 @@ import { prisma } from '@/lib/prisma';
 import { parseJsonField } from '@/lib/json-utils';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { computeProjectCosts } from '@/lib/projectCost';
+import {
+    LIVE_DATA_START_MONTH,
+    countsInPeriodAggregate,
+    jstYearMonthOf,
+    withConsumptionTax,
+} from '@/lib/backfill/constants';
 
 // 旧: 案件一覧・summary・顧客/工事種別/職長別集計（fetchProfitDashboardData /
 // fetchDashboardFilterOptions と関連型）はダッシュボード再編（月次中心化・
@@ -56,13 +62,22 @@ export async function fetchMonthlySales(
     const rangeStart = new Date(Date.UTC(y, m - (monthsBack - 1), 1, -9, 0, 0, 0));
     const rangeEnd = new Date(Date.UTC(y, m + 1, 1, -9, 0, 0, 0));
 
-    const invoices = await prisma.invoice.findMany({
-        where: {
-            createdAt: { gte: rangeStart, lt: rangeEnd },
-            status: { in: [...SALES_INVOICE_STATUSES] },
-        },
-        select: { total: true, createdAt: true },
-    });
+    const startMonth = new Date(Date.UTC(y, m - (monthsBack - 1), 1));
+    const startKey = `${startMonth.getUTCFullYear()}-${String(startMonth.getUTCMonth() + 1).padStart(2, '0')}`;
+    const [invoices, adjustments] = await Promise.all([
+        prisma.invoice.findMany({
+            where: {
+                createdAt: { gte: rangeStart, lt: rangeEnd },
+                status: { in: [...SALES_INVOICE_STATUSES] },
+            },
+            select: { total: true, createdAt: true, isBackfilled: true },
+        }),
+        // 過去データの売上調整（顧客別・月別。現場名を持たない売上）。2026-04 までの月にだけある
+        prisma.revenueAdjustment.findMany({
+            where: { yearMonth: { gte: startKey, lt: LIVE_DATA_START_MONTH } },
+            select: { yearMonth: true, amountExclTax: true },
+        }),
+    ]);
 
     // 月バケットを古い順に生成（Date.UTC は月のアンダーフローを正規化＝年跨ぎ対応）
     const trend: MonthlySalesPoint[] = [];
@@ -76,11 +91,20 @@ export async function fetchMonthlySales(
     }
 
     for (const inv of invoices) {
+        // 2026-04 までは過去データ、2026-05 からは DandoLink の請求書で数える（試用期間の重なりを二重にしない）
+        if (!countsInPeriodAggregate(inv.isBackfilled, jstYearMonthOf(inv.createdAt))) continue;
         const jst = new Date(inv.createdAt.getTime() + 9 * 60 * 60 * 1000);
         const idx = indexByKey.get(`${jst.getUTCFullYear()}-${jst.getUTCMonth()}`);
         if (idx == null) continue;
         trend[idx].sales += Number(inv.total);
         trend[idx].invoiceCount += 1;
+    }
+    // 売上調整は税抜で持っているので、月商（税込）に合わせて税込に戻して足す
+    for (const adj of adjustments) {
+        const [ay, am] = adj.yearMonth.split('-').map(Number);
+        const idx = indexByKey.get(`${ay}-${am - 1}`);
+        if (idx == null) continue;
+        trend[idx].sales += withConsumptionTax(adj.amountExclTax);
     }
 
     const current = trend[trend.length - 1];
@@ -215,7 +239,7 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     const [allInvoices, allUsers] = await Promise.all([
         prisma.invoice.findMany({
             where: { status: { in: [...SALES_INVOICE_STATUSES] } },
-            select: { createdAt: true, subtotal: true, total: true, items: true, projectMasterId: true },
+            select: { createdAt: true, subtotal: true, total: true, items: true, projectMasterId: true, isBackfilled: true },
         }),
         prisma.user.findMany({ select: { id: true, displayName: true } }),
     ]);
@@ -247,9 +271,15 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     let projectlessSales = 0;                                           // 期間内・案件なし
     let salesTaxIncluded = 0;                                           // 期間内の税込売上合計（月商KPI用・fetchMonthlySales と同じ計上規則）
     const monthSalesByProject = new Map<string, Map<string, number>>(); // 全期間: pid → (月キー → 按分売上)
+    const backfilledPids = new Set<string>();                           // 過去データの案件（原価が無い）
     for (const inv of allInvoices) {
         const { byProject, projectless } = attributeInvoice(inv);
-        const inRange = inv.createdAt >= rangeStart && inv.createdAt < rangeEnd;
+        // 期間内売上に数えるのは「2026-04 までの過去データ」か「2026-05 からの DandoLink の請求書」だけ。
+        // 繰越の区切り（monthSalesByProject）は従来どおり全部の請求書で作る
+        // ＝ 2026-05 以降の月の原価の区切りは取り込みの前後で変わらない。
+        const inRange = inv.createdAt >= rangeStart && inv.createdAt < rangeEnd
+            && countsInPeriodAggregate(inv.isBackfilled, jstYearMonthOf(inv.createdAt));
+        if (inv.isBackfilled) for (const pid of byProject.keys()) backfilledPids.add(pid);
         if (inRange) {
             projectlessSales += projectless;
             salesTaxIncluded += Number(inv.total) || 0;
@@ -297,8 +327,14 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
         const months = [...(monthSalesByProject.get(pid) ?? new Map<string, number>())]
             .filter(([, amt]) => amt > 0).map(([k]) => k).sort();
         const latest = months[months.length - 1];
-        const lastInPeriod = months.filter(k => k >= periodStartKey && k <= periodEndKey).pop();
-        const prevBefore = months.filter(k => k < periodStartKey).pop();
+        // 進行中の案件（DandoLink のデータ）は 2026-05 から数える。5月をまたぐ期間では、試用期間
+        // （〜2026-04）の請求月までの原価を「期間より前」に回し、売上から外した分と原価をそろえる。
+        // 期間が 2026-05 以降だけなら effectiveStart = periodStartKey で従来と同じ。
+        const effectiveStart = !backfilledPids.has(pid) && periodStartKey < LIVE_DATA_START_MONTH
+            ? LIVE_DATA_START_MONTH
+            : periodStartKey;
+        const lastInPeriod = months.filter(k => k >= effectiveStart && k <= periodEndKey).pop();
+        const prevBefore = months.filter(k => k < effectiveStart).pop();
         // billedPids の定義上 lastInPeriod は必ず存在する（同じ按分で期間内売上>0）。万一欠けても上限なしに落として安全側。
         const upper: Date | null = !lastInPeriod || lastInPeriod === latest ? null : endOfMonthKey(lastInPeriod);
         costCutsByPid.set(pid, {
@@ -354,6 +390,28 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
             assigneeId: UNASSIGNED_ASSIGNEE_ID,
             sales: s, cost: 0, grossProfit: s,
         });
+    }
+
+    // 過去データの売上調整（顧客別・月別。現場名を持たない売上。2026-04 までの月にだけある）。
+    // 案件ではないので顧客ごとに 1 行「売上調整（過去データ）」として足す（期間の売上合計を売上入金表に合わせるため）
+    if (periodStartKey < LIVE_DATA_START_MONTH) {
+        const adjustments = await prisma.revenueAdjustment.findMany({
+            where: { yearMonth: { gte: periodStartKey, lte: periodEndKey, lt: LIVE_DATA_START_MONTH } },
+            select: { customerName: true, amountExclTax: true },
+        });
+        const byCustomer = new Map<string, number>();
+        for (const a of adjustments) {
+            byCustomer.set(a.customerName, (byCustomer.get(a.customerName) ?? 0) + a.amountExclTax);
+            salesTaxIncluded += withConsumptionTax(a.amountExclTax);
+        }
+        for (const [customerName, amount] of byCustomer) {
+            if (amount === 0) continue;
+            aggs.push({
+                projectId: '', projectName: '売上調整（過去データ）', customerName,
+                assigneeId: UNASSIGNED_ASSIGNEE_ID,
+                sales: amount, cost: 0, grossProfit: amount,
+            });
+        }
     }
 
     // ---- 軸でグルーピング ----

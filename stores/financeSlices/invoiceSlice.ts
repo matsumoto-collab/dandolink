@@ -2,7 +2,7 @@ import { Invoice, InvoiceInput } from '@/types/invoice';
 import { logger } from '@/lib/logger';
 import { FinanceSlice, FinanceState, FinanceActions } from './types';
 
-function parseInvoiceDates(invoice: Record<string, unknown>): Invoice {
+export function parseInvoiceDates(invoice: Record<string, unknown>): Invoice {
     const projectMasters = invoice.projectMasters as Array<{ id: string; title: string }> | undefined;
     const projectMasterIds = invoice.projectMasterIds as string[] | undefined;
     return {

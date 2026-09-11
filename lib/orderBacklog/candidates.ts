@@ -303,6 +303,8 @@ export async function buildOrderBacklogCandidates(
             // 請求書は全件（本番でも数百件）。請求済み合計は案件別に按分するので、
             // 案件で先に絞ると「まとめ請求のうちこの案件ぶん」を取りこぼす経路が生まれる。
             prisma.invoice.findMany({
+                // 過去データの請求書は過去データの案件（完了扱いで受注残の対象外）にしか付かないので読まない
+                where: { isBackfilled: false },
                 select: {
                     id: true,
                     status: true,

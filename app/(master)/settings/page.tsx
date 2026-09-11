@@ -17,6 +17,7 @@ import CostMasterSettings from '@/components/Settings/CostMasterSettings';
 import ExpenseCategorySettings from '@/components/Settings/ExpenseCategorySettings';
 import SystemSettingsPanel from '@/components/Settings/SystemSettingsPanel';
 import ValueAddedSettingsPanel from '@/components/Settings/ValueAddedSettingsPanel';
+import BackfillImportPanel from '@/components/Settings/BackfillImportPanel';
 import NotificationSettings from '@/components/Settings/NotificationSettings';
 import DispatchOrderSettings from '@/components/Settings/DispatchOrderSettings';
 import ToolMasterSettings from '@/components/Settings/ToolMasterSettings';
@@ -36,7 +37,7 @@ export default function SettingsPage() {
         deleteMemberCountEntry,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded' | 'backfill'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [editingRate, setEditingRate] = useState(''); // 車両の日額（編集中）
@@ -58,7 +59,7 @@ export default function SettingsPage() {
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded' | 'backfill'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: null },
             { id: 'tools' as const, label: '電動工具', count: null },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
@@ -86,6 +87,8 @@ export default function SettingsPage() {
         if (isUserAdmin) {
             baseTabs.push({ id: 'users' as const, label: 'ユーザー管理', count: null });
             baseTabs.push({ id: 'partners' as const, label: '協力会社', count: null });
+            // 過去データ取込（DandoLink 導入前のデータを CSV から入れる）は管理者だけ
+            baseTabs.push({ id: 'backfill' as const, label: '過去データ取込', count: null });
         }
 
         return baseTabs;
@@ -383,6 +386,9 @@ export default function SettingsPage() {
                         ) : activeTab === 'valueAdded' ? (
                             // 人工あたり加工高の判定設定
                             <ValueAddedSettingsPanel />
+                        ) : activeTab === 'backfill' && isUserAdmin ? (
+                            // 過去データ取込（管理者のみ）
+                            <BackfillImportPanel />
                         ) : activeTab === 'notifications' ? (
                             // プッシュ通知設定
                             <NotificationSettings />

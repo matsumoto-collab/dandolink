@@ -23,6 +23,10 @@ interface WorkHistoryItem {
     isConfirmed: boolean;
     remarks?: string;
     workTimeMinutes?: number | null;
+    /** 過去データ（段取日報から取り込んだ作業履歴） */
+    isBackfilled?: boolean;
+    backfillCategory?: '自社' | '外注' | null;
+    backfillHeadcountFilled?: boolean;
 }
 
 interface WorkHistoryDisplayProps {
@@ -118,20 +122,37 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                                 <span className="font-semibold text-slate-800 text-sm">
                                     {formatDate(item.date)}
                                 </span>
-                                <span
-                                    className="px-1.5 py-0.5 font-medium rounded-full leading-none"
-                                    style={{
-                                        backgroundColor: `${ctInfo.color}30`,
-                                        color: '#000000',
-                                        fontSize: '10px',
-                                    }}
-                                >
-                                    {ctInfo.label}
-                                </span>
+                                {item.isBackfilled ? (
+                                    // 過去データは工事種別を持たないので、代わりに過去データの印を出す
+                                    <span
+                                        className="px-1.5 py-0.5 font-medium rounded-full leading-none bg-slate-100 text-slate-500"
+                                        style={{ fontSize: '10px' }}
+                                        title="DandoLink 導入前の段取日報から取り込んだ作業履歴"
+                                    >
+                                        過去
+                                    </span>
+                                ) : (
+                                    <span
+                                        className="px-1.5 py-0.5 font-medium rounded-full leading-none"
+                                        style={{
+                                            backgroundColor: `${ctInfo.color}30`,
+                                            color: '#000000',
+                                            fontSize: '10px',
+                                        }}
+                                    >
+                                        {ctInfo.label}
+                                    </span>
+                                )}
                                 <span className="text-slate-600">
                                     {item.foremanName}
                                     {item.memberCount > 0 && <span className="text-slate-400 ml-0.5">({item.memberCount}名)</span>}
                                 </span>
+                                {item.backfillCategory === '外注' && (
+                                    <span className="text-slate-400" title="外注の人数は人工に数えません（外注費として原価側で扱うため）">外注</span>
+                                )}
+                                {item.backfillHeadcountFilled && (
+                                    <span className="text-slate-400" title="段取日報で空欄だった人数を、直前の同じ職長の人数で補ったもの">補完</span>
+                                )}
                                 {item.workTimeMinutes != null && (
                                     <span className="text-slate-400">{formatMinutes(item.workTimeMinutes)}</span>
                                 )}

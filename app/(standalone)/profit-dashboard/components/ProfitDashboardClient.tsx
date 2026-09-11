@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import type { MonthlySalesData } from '@/lib/profitDashboard';
 import MonthlySalesPanel from './MonthlySalesPanel';
 import LaborProductivityPanel from './LaborProductivityPanel';
+import SalesPerManDaySection from './SalesPerManDaySection';
 
 // 月次パネルが主役のシンプルな構成（kei決定 2026-07-10）。
 // 旧構成（フィルタパネル・KPIカード4枚・要注意案件・案件別/顧客別/工事種別/職長別テーブル）は
@@ -50,7 +51,15 @@ export default function ProfitDashboardClient({ monthlySales }: Props) {
                     ))}
                 </div>
 
-                {tab === 'monthly' ? <MonthlySalesPanel data={monthlySales} /> : <LaborProductivityPanel />}
+                {tab === 'monthly' ? (
+                    <MonthlySalesPanel data={monthlySales} />
+                ) : (
+                    // 期別・月別の売上 ÷ 人工（過去データも含めて第11期〜第13期を比べる）を一番上に置く
+                    <div className="space-y-4">
+                        <SalesPerManDaySection />
+                        <LaborProductivityPanel />
+                    </div>
+                )}
             </div>
         </div>
     );

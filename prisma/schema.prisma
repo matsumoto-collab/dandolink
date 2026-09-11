@@ -112,6 +112,17 @@ model ProjectMaster {
   purchaseInvoices           PurchaseInvoice[]
   purchaseInvoiceAllocations PurchaseInvoiceAllocation[]
   receipts                   Receipt[]
+  /// 過去データ（DandoLink 導入前 2024-01〜2026-04）を CSV から取り込んだ案件なら true。
+  /// 取り込みは lib/backfill。進行中の案件（false）には取り込みが一切触れない
+  isBackfilled               Boolean                          @default(false)
+  /// 取り込み元: '請求書+日報' | '請求書' | '日報のみ'（過去データのみ）
+  dataSource                 String?
+  /// 土場・実習生OJT・研修など現場ではない作業。案件一覧の既定表示と集計から外す
+  isNonSite                  Boolean                          @default(false)
+  /// 取り込みバッチ（BackfillImportBatch.id）。バッチ単位で取り消すときの目印
+  importBatchId              String?
+  /// 取り込み元の行の一意キー（案件ID "H00001" など）。再取り込みはこれで突き合わせて上書きする
+  externalKey                String?                          @unique
 
   @@index([title])
   @@index([customerId])
@@ -121,6 +132,8 @@ model ProjectMaster {
   @@index([billingDecision])
   @@index([customerId], map: "idx_project_master_customer")
   @@index([title], map: "idx_project_master_title")
+  @@index([isBackfilled])
+  @@index([importBatchId])
   @@schema("public")
 }
 
@@ -204,7 +217,19 @@ model ProjectAssignment {
   scheduleChangeHistories   ScheduleChangeHistory[]
   workReportReplies         WorkReportReply[]
   projectMaster             ProjectMaster         @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
+  /// 過去データ（段取日報から取り込んだ作業履歴）なら true。
+  /// 案件詳細の作業履歴と集計にだけ使い、週間カレンダー・手配・日報・出来高など段取りの画面には出さない（kei 決定 2026-09-11）
+  isBackfilled              Boolean               @default(false)
+  /// 取り込みバッチ（BackfillImportBatch.id）
+  importBatchId             String?
+  /// 取り込み元の行の一意キー（"<案件ID>-<作業日>-<職長>-<連番>"）
+  externalKey               String?               @unique
+  /// 取り込み元の情報（職長名・区分・人数補完・元の現場名・元請・元の人数）。
+  /// 職長が既存ユーザーと一致しない行（外注の一部・職長欄が空）もあるので、表示名はここを正にする
+  backfillInfo              Json?
 
+  @@index([isBackfilled])
+  @@index([importBatchId])
   @@index([projectMasterId])
   @@index([assignedEmployeeId])
   @@index([date])
@@ -411,7 +436,15 @@ model Invoice {
   customerId      String?
   billingDrafts   BillingDraft[]
   payments        InvoicePayment[]
+  /// 過去データ（請求書PDFから取り込んだ現場別の売上）なら true。再発行・編集はさせない
+  isBackfilled    Boolean   @default(false)
+  /// 取り込みバッチ（BackfillImportBatch.id）
+  importBatchId   String?
+  /// 取り込み元の行の一意キー（"<案件ID>-<請求日>-<連番>"）
+  externalKey     String?   @unique
 
+  @@index([isBackfilled])
+  @@index([importBatchId])
   @@index([invoiceNumber])
   @@index([projectMasterId])
   @@index([customerId])
@@ -1849,6 +1882,58 @@ model MaterialRequisitionItem {
 
   @@index([requisitionId])
   @@index([materialItemId])
+  @@schema("public")
+}
+
+// ========================
+// 過去データ取込（2026-09-11 追加）
+//
+// DandoLink 導入前（2024-01〜2026-04）の案件・売上・作業履歴を CSV から取り込む（lib/backfill）。
+// 案件・売上・作業履歴は既存の ProjectMaster / Invoice / ProjectAssignment に isBackfilled=true で入れ、
+// 現場名を持たない「顧客別・月別の売上調整」だけをこの RevenueAdjustment に入れる。
+// 期間の集計は 2026-04 までを過去データ、2026-05 以降を DandoLink で数える（kei 決定）。
+// ========================
+
+/// 顧客別・月別の売上調整（売上入金表と、請求書PDF由来の現場別売上との差）。
+/// 案件には紐づけない。月次の売上合計にだけ加算し、案件別の一覧には出さない。
+model RevenueAdjustment {
+  id                   String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  customerName         String
+  /// 'YYYY-MM'
+  yearMonth            String
+  /// 調整額（税抜・円）。マイナスもある（表記ゆれで売上入金表側に寄らなかった分など）
+  amountExclTax        Int
+  /// 取り込み元の参考値（税抜）: 売上入金表 / 請求書PDF
+  ledgerAmountExclTax  Int?
+  invoiceAmountExclTax Int?
+  note                 String?
+  importBatchId        String?
+  /// 取り込み元の行の一意キー（"<顧客>|<年月>"）
+  externalKey          String?  @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now()) @updatedAt
+
+  @@index([yearMonth])
+  @@index([importBatchId])
+  @@schema("public")
+}
+
+/// 過去データの取り込み 1 回分。取り消し（バッチ単位の削除）と履歴表示に使う。
+model BackfillImportBatch {
+  id            String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  /// 'applied'（取り込み済み）| 'rolled_back'（取り消し済み）
+  status        String    @default("applied")
+  createdBy     String?
+  createdByName String    @default("")
+  /// 取り込んだ 4 ファイルの名前
+  fileNames     Json?
+  /// 件数・金額・同期で消した件数などの控え
+  summary       Json?
+  createdAt     DateTime  @default(now())
+  rolledBackAt  DateTime?
+  rolledBackBy  String?
+
+  @@index([createdAt])
   @@schema("public")
 }
 

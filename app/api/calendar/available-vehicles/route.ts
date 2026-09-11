@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         const requestedKey = Date.UTC(y, m - 1, d);
 
         const assignments = await prisma.projectAssignment.findMany({
-            where: { date: { gte: windowStart, lt: windowEnd } },
+            where: { date: { gte: windowStart, lt: windowEnd }, isBackfilled: false },
             select: { id: true, vehicles: true, assignedEmployeeId: true, date: true },
         });
 

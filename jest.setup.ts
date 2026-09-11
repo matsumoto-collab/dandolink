@@ -427,6 +427,17 @@ jest.mock('@/lib/prisma', () => ({
             delete: jest.fn(),
             count: jest.fn().mockResolvedValue(0),
         },
+        revenueAdjustment: {
+            findMany: jest.fn().mockResolvedValue([]),
+            count: jest.fn().mockResolvedValue(0),
+            deleteMany: jest.fn(),
+        },
+        backfillImportBatch: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+        },
         storageLocation: {
             findMany: jest.fn().mockResolvedValue([]),
             findUnique: jest.fn(),

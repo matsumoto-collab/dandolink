@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
             where: {
                 assignedEmployeeId: foremanId,
                 date: { gte: range.start, lt: range.end },
+                isBackfilled: false,
             },
             select: { confirmedWorkerIds: true, isDispatchConfirmed: true },
         });

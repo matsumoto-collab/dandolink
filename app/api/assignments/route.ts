@@ -23,7 +23,9 @@ export async function GET(req: NextRequest) {
         const projectMasterId = searchParams.get('projectMasterId');
         const idsParam = searchParams.get('ids');
 
-        const where: Record<string, unknown> = {};
+        // 過去データ（DandoLink 導入前の作業履歴）は週間カレンダー・手配などの段取りの画面には出さない
+        // （kei 決定 2026-09-11。案件詳細の作業履歴と集計にだけ使う）
+        const where: Record<string, unknown> = { isBackfilled: false };
 
         // Realtime同期のまとめ取り用: id指定の一括取得（上限100件）
         if (idsParam) {

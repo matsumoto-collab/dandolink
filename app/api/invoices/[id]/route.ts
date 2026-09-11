@@ -40,6 +40,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
         const existingInvoice = await prisma.invoice.findUnique({ where: { id } });
         if (!existingInvoice) return notFoundResponse('請求書');
+        if (existingInvoice.isBackfilled) return validationErrorResponse('過去データの請求書は編集・削除できません（DandoLink 導入前の請求書PDFから取り込んだ売上です。直すときは CSV を直して取り込み直してください）');
 
         const data = validation.data;
         const updateData: Prisma.InvoiceUpdateInput = { updatedBy: session!.user.id };
@@ -101,6 +102,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const existingInvoice = await prisma.invoice.findUnique({ where: { id } });
         if (!existingInvoice) return notFoundResponse('請求書');
+        if (existingInvoice.isBackfilled) return validationErrorResponse('過去データの請求書は編集・削除できません（DandoLink 導入前の請求書PDFから取り込んだ売上です。直すときは CSV を直して取り込み直してください）');
 
         // 中間テーブルも削除
         await prisma.invoiceProjectMaster.deleteMany({ where: { invoiceId: id } });

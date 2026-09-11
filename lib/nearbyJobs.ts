@@ -335,7 +335,8 @@ export async function findNearbyJobs(params: FindNearbyJobsParams): Promise<Near
     if (!resolved) return empty(null);
 
     const assignments = await prisma.projectAssignment.findMany({
-        where: { date: { gte: start, lt: end } },
+        // 過去データ（DandoLink 導入前の作業履歴）は近くの現場の候補に出さない
+        where: { date: { gte: start, lt: end }, isBackfilled: false },
         orderBy: { date: 'asc' },
         select: {
             date: true,
