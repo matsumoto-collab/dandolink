@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
                 {
                     year, month, foremen, groups: [],
                     totals: emptyOwnCrewVolumeTotals(),
-                    settings: { ...rates, breakevenPerManday: valueAddedSettings.breakevenPerManday },
+                    settings: { ...rates, breakevenPerManday: valueAddedSettings.breakevenPerManday, judgeWarningRatio: valueAddedSettings.judgeWarningRatio },
                 },
                 { headers: { 'Cache-Control': 'no-store' } },
             );
@@ -244,7 +244,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(
             {
                 year, month, foremen, groups, totals,
-                settings: { ...rates, breakevenPerManday: valueAddedSettings.breakevenPerManday },
+                settings: { ...rates, breakevenPerManday: valueAddedSettings.breakevenPerManday, judgeWarningRatio: valueAddedSettings.judgeWarningRatio },
             },
             { headers: { 'Cache-Control': 'no-store' } },
         );

@@ -62,7 +62,7 @@ describe('/api/own-crew-volume GET', () => {
         expect(res.headers.get('Cache-Control')).toBe('no-store');
         expect(json).toMatchObject({ year: 2026, month: 8, foremen: [], groups: [] });
         expect(json.totals.rowCount).toBe(0);
-        expect(json.settings).toEqual({ revenueRate: 60, assemblyRate: 60, demolitionRate: 40, breakevenPerManday: 40000 });
+        expect(json.settings).toEqual({ revenueRate: 60, assemblyRate: 60, demolitionRate: 40, breakevenPerManday: 40000, judgeWarningRatio: 0.8 });
     });
 
     it('協力業者の職長は除外し、自社職長の行と職長リストを返す', async () => {

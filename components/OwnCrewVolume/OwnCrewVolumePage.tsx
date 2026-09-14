@@ -34,6 +34,8 @@ interface OwnCrewVolumeResponse {
         assemblyRate: number;
         demolitionRate: number;
         breakevenPerManday: number | null;
+        /** 注意（黄色）判定の下限。自社情報の設定値 */
+        judgeWarningRatio: number;
     };
 }
 
@@ -55,12 +57,12 @@ function yen(n: number | null | undefined): string {
 /**
  * 最低ラインとの比較。lib/valueAdded.ts の judgeBy と同じ規則
  * （しきい値以上＝良好／しきい値×注意割合以上＝注意／それ未満＝要改善）。
- * 注意割合は自社情報の設定値だが、この画面には最低ラインだけを渡しているので既定値で判定する。
+ * 注意割合は自社情報の設定値（API の settings.judgeWarningRatio）を使う。
  */
-function judgePerManday(value: number | null, threshold: number | null): ValueAddedJudgement {
+function judgePerManday(value: number | null, threshold: number | null, warningRatio: number): ValueAddedJudgement {
     if (value === null || threshold === null || !(threshold > 0)) return 'unknown';
     if (value >= threshold) return 'good';
-    if (value >= threshold * DEFAULT_VALUE_ADDED_SETTINGS.judgeWarningRatio) return 'warning';
+    if (value >= threshold * warningRatio) return 'warning';
     return 'bad';
 }
 
@@ -105,6 +107,7 @@ export default function OwnCrewVolumePage() {
     const [groups, setGroups] = useState<OwnCrewVolumeGroup[]>([]);
     const [totals, setTotals] = useState<OwnCrewVolumeTotals>(() => emptyOwnCrewVolumeTotals());
     const [breakeven, setBreakeven] = useState<number | null>(null);
+    const [warningRatio, setWarningRatio] = useState<number>(DEFAULT_VALUE_ADDED_SETTINGS.judgeWarningRatio);
     const [loading, setLoading] = useState(false);
     const [loaded, setLoaded] = useState(false);
 
@@ -120,6 +123,7 @@ export default function OwnCrewVolumePage() {
             setGroups(data.groups ?? []);
             setTotals(data.totals ?? emptyOwnCrewVolumeTotals());
             setBreakeven(data.settings?.breakevenPerManday ?? null);
+            setWarningRatio(data.settings?.judgeWarningRatio ?? DEFAULT_VALUE_ADDED_SETTINGS.judgeWarningRatio);
             // 月を変えて選択中の職長がその月にいなければ「全班」に戻す
             if (foremanId !== ALL_FOREMEN && !(data.foremen ?? []).some((f) => f.id === foremanId)) {
                 setForemanId(ALL_FOREMEN);
@@ -145,7 +149,7 @@ export default function OwnCrewVolumePage() {
     };
 
     const monthLabel = useMemo(() => ymLabel(year, month), [year, month]);
-    const judgement = judgePerManday(totals.perManday, breakeven);
+    const judgement = judgePerManday(totals.perManday, breakeven, warningRatio);
 
     if (!canView) {
         return (
