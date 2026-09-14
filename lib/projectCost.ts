@@ -30,6 +30,12 @@ export interface LaborCostRow {
     autoCost: number;
     override: number | null;
     effectiveCost: number;
+    /** 配置の職長（ProjectAssignment.assignedEmployeeId）。班＝職長で行を束ねるのに使う */
+    foremanId: string | null;
+    /** 手配時の予定人数（a.memberCount）。日報が無い行(workerCount=0)の参考表示用 */
+    memberCount: number;
+    /** 実際に原価計上した作業者ID。日報も確定メンバーも無い行の合成ID(`__fb__:`)は含めない */
+    workerIds: string[];
 }
 export interface VehicleCostRow {
     assignmentId: string;
@@ -344,6 +350,10 @@ export async function computeProjectCosts(
                         hours: Math.round((assignmentMinutes / 60) * 10) / 10,
                         foremanName, workerCount: workerIdsCosted.size,
                         autoCost: autoLabor, override: a.laborCostOverride, effectiveCost: effLabor,
+                        foremanId: a.assignedEmployeeId ?? null,
+                        memberCount: a.memberCount ?? 0,
+                        // 合成ID(`__fb__:`)は実在しない人なので外に出さない（常用判定・人物照会で参照されるため）
+                        workerIds: [...workerIdsCosted].filter(id => !id.startsWith('__fb__:')),
                     });
                 }
             }
