@@ -30,6 +30,7 @@ export type PageType =
     | 'credit-card'      // クレジットカード（明細仕分け・レシート照合。canAccessCashbook 個別許可）
     | 'payees'           // 振込先マスター
     | 'partner-work-volume' // 協力業者出来高
+    | 'own-crew-volume'  // 自社班の出来高（職長班 × 月の作業一覧）
     | 'settings';        // 設定
 
 interface NavigationContextType {
