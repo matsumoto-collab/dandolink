@@ -1,104 +1,65 @@
 'use client';
 
+/**
+ * 利益サマリーの「お金の行き先」ドーナツ（kei 要望 2026-09-15）。
+ * 売上があって黒字なら 売上 ＝ 利益 ＋ 原価の内訳 を 1 周で見せ、真ん中に利益率を出す。
+ * 赤字・売上なしのときは原価の内訳だけを描き、赤字額を下に添える。
+ */
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/utils/costCalculation';
+import DonutChart from '@/components/charts/DonutChart';
+import { CHART_COLORS, formatYenCompact } from '@/components/charts/chartTheme';
+import { buildProfitComposition, type ProfitCompositionCosts, type ProfitCompositionKey } from '@/lib/chartData';
 
-interface CostBreakdown {
-    laborCost: number;
-    loadingCost: number;
-    vehicleCost: number;
-    materialCost: number;
-    subcontractorCost: number;
-    otherExpenses: number;
-}
+/** 人件費はどの画面でも青、外注は橙、利益はティール（chartTheme の色の決め事） */
+const SEGMENT_COLORS: Record<ProfitCompositionKey, string> = {
+    profit: CHART_COLORS.teal,
+    subcontractor: CHART_COLORS.orange,
+    labor: CHART_COLORS.blue,
+    material: CHART_COLORS.yellow,
+    loading: CHART_COLORS.magenta,
+    vehicle: CHART_COLORS.violet,
+    other: CHART_COLORS.other,
+};
 
-interface ProjectProfitChartProps {
-    costBreakdown: CostBreakdown;
+interface Props {
+    costBreakdown: ProfitCompositionCosts;
     revenue: number;
     grossProfit: number;
+    /** API の利益率（見出しの「利益率 〇%」と同じ数字を真ん中に出す） */
+    profitMargin: number;
 }
 
-const COLORS = ['#334155', '#64748b', '#94a3b8', '#cbd5e1', '#e2e8f0', '#f1f5f9'];
-
-export default function ProjectProfitChart({ costBreakdown, revenue, grossProfit }: ProjectProfitChartProps) {
-    const data = [
-        { name: '人件費', value: costBreakdown.laborCost },
-        { name: '積込費', value: costBreakdown.loadingCost },
-        { name: '車両費', value: costBreakdown.vehicleCost },
-        { name: '材料費', value: costBreakdown.materialCost },
-        { name: '外注費', value: costBreakdown.subcontractorCost },
-        { name: 'その他', value: costBreakdown.otherExpenses },
-    ].filter(d => d.value > 0);
-
-    const totalCost = data.reduce((sum, d) => sum + d.value, 0);
-
-    if (data.length === 0 || totalCost === 0) return null;
-
-    // 売上に対する利益と原価の比率バー
-    const profitRatio = revenue > 0 ? Math.max(0, Math.min(100, (grossProfit / revenue) * 100)) : 0;
+export default function ProjectProfitChart({ costBreakdown, revenue, grossProfit, profitMargin }: Props) {
+    const composition = buildProfitComposition(costBreakdown, revenue, grossProfit);
+    if (!composition) return null;
+    const isRevenue = composition.mode === 'revenue';
 
     return (
-        <div className="space-y-4">
-            {/* 売上に対する利益率バー */}
-            {revenue > 0 && (
-                <div>
-                    <div className="flex justify-between text-xs text-slate-500 mb-1">
-                        <span>原価 {formatCurrency(totalCost)}</span>
-                        <span>粗利 {formatCurrency(grossProfit)}</span>
-                    </div>
-                    <div className="h-3 bg-slate-200 rounded-full overflow-hidden flex">
-                        <div
-                            className="bg-slate-400 transition-all"
-                            style={{ width: `${100 - profitRatio}%` }}
-                        />
-                        <div
-                            className="bg-slate-700 transition-all"
-                            style={{ width: `${profitRatio}%` }}
-                        />
-                    </div>
-                    <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
-                        <span>{(100 - profitRatio).toFixed(1)}%</span>
-                        <span>{profitRatio.toFixed(1)}%</span>
-                    </div>
-                </div>
-            )}
-
-            {/* 原価構成ドーナツ */}
-            <div>
-                <div className="text-xs font-medium text-slate-500 mb-2">原価構成</div>
-                <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                        <Pie
-                            data={data}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={40}
-                            outerRadius={70}
-                            paddingAngle={2}
-                            dataKey="value"
-                        >
-                            {data.map((_, i) => (
-                                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <Tooltip
-                            formatter={(value, name) => [
-                                `${formatCurrency(Number(value))}（${Math.round(Number(value) / totalCost * 100)}%）`,
-                                name,
-                            ]}
-                        />
-                    </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center">
-                    {data.map((d, i) => (
-                        <div key={d.name} className="flex items-center gap-1 text-[11px] text-slate-600">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                            {d.name}
-                        </div>
-                    ))}
-                </div>
+        <div data-testid="profit-composition-chart">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2 mb-2">
+                <span className="text-xs font-medium text-slate-500">
+                    {isRevenue ? 'お金の行き先（売上の内訳）' : '原価の内訳'}
+                </span>
+                <span className="text-[11px] text-slate-400">
+                    {isRevenue
+                        ? `売上 ${formatCurrency(revenue)} を100%とした割合`
+                        : `原価 ${formatCurrency(composition.totalCost)} を100%とした割合`}
+                </span>
             </div>
+            <DonutChart
+                segments={composition.segments.map((s) => ({ ...s, color: SEGMENT_COLORS[s.key] }))}
+                formatValue={formatCurrency}
+                valueLabel="金額"
+                centerLabel={isRevenue ? '利益率' : '原価'}
+                centerValue={isRevenue ? `${profitMargin}%` : formatYenCompact(composition.totalCost)}
+                ariaLabel={isRevenue ? '売上を利益と原価の内訳に分けたドーナツグラフ' : '原価の内訳のドーナツグラフ'}
+            />
+            {composition.lossAmount > 0 && (
+                <p className="mt-2 text-xs text-red-600">
+                    原価が売上を {formatCurrency(composition.lossAmount)} 上回っています（赤字）
+                </p>
+            )}
         </div>
     );
 }

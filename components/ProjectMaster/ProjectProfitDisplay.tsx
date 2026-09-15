@@ -9,6 +9,7 @@ import { logger } from '@/lib/logger';
 import { summarizeLaborHeadcount, formatLaborHeadcountGroups } from '@/lib/laborHeadcount';
 import type { ValueAddedResult } from '@/lib/valueAdded';
 import ValueAddedSummary from '@/components/ProjectMaster/ValueAddedSummary';
+import ProjectProfitChart from '@/components/ProjectMaster/ProjectProfitChart';
 
 interface CostBreakdown {
     laborCost: number;
@@ -557,6 +558,14 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
 
                 {!editMode && (
                     <div className="border-t border-slate-100 pt-4 space-y-4">
+                        {/* お金の行き先（売上＝利益＋原価の内訳）のドーナツ */}
+                        <ProjectProfitChart
+                            costBreakdown={costBreakdown}
+                            revenue={revenue}
+                            grossProfit={grossProfit}
+                            profitMargin={profitMargin}
+                        />
+
                         {/* 見込み（見積基準） vs 確定（請求基準） */}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="rounded-xl border border-slate-200 p-3">
@@ -686,7 +695,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                             各項目とも<span className="font-medium text-slate-600">手入力分</span>に発生日（任意）＋摘要（例: 5月〇〇請求）＋金額の行を追加できます。発生日を入れると利益ダッシュボードの月次内訳で<span className="font-medium text-slate-600">その日以降の最初の請求月</span>の原価に計上されます（空欄は初回請求月・金額のない行は保存されません）。人件費・車両費・外注費は配置(日付)ごとの自動計上も<span className="font-medium text-slate-600">行ごと</span>に上書きできます。外注費の<span className="font-medium text-sky-700">出来高</span>バッジの行は協力業者出来高で確定した金額のため、変更は出来高の画面で行います。
                         </p>
                     )}
-                    <div className="divide-y divide-slate-100">
+                    <div className="divide-y divide-slate-100" data-testid="cost-breakdown-list">
                         {sections.map(section => {
                             const opened = !!openSections[section.key];
                             return (

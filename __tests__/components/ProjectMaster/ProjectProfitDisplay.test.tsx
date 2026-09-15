@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDisplay';
 
 jest.mock('@/components/ui/Loading', () => ({
@@ -64,8 +64,9 @@ describe('ProjectProfitDisplay', () => {
         });
 
         expect(screen.getByText('請求済・税別')).toBeInTheDocument();
-        expect(screen.getByText('利益')).toBeInTheDocument();
-        expect(screen.getByText('¥300,000')).toBeInTheDocument();
+        // 「利益」「¥300,000」は見出しと、お金の行き先のドーナツの凡例の 2 か所に出る
+        expect(screen.getAllByText('利益').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('¥300,000').length).toBeGreaterThan(0);
         expect(screen.getByText('売上')).toBeInTheDocument();
         expect(screen.getByText('¥1,000,000')).toBeInTheDocument();
         // 「原価」「¥700,000(総原価)」は見込み/確定カードと原価行で複数箇所に出るため getAllByText
@@ -132,12 +133,48 @@ describe('ProjectProfitDisplay', () => {
             expect(screen.getByText('原価内訳')).toBeInTheDocument();
         });
 
-        expect(screen.getByText('人件費')).toBeInTheDocument();
-        expect(screen.getByText('積込費')).toBeInTheDocument();
-        expect(screen.getByText('車両費')).toBeInTheDocument();
-        expect(screen.getByText('材料費')).toBeInTheDocument();
-        expect(screen.getByText('外注費')).toBeInTheDocument();
-        expect(screen.getByText('その他')).toBeInTheDocument();
+        // 同じ項目名がドーナツの凡例にも出るので、原価内訳の一覧の中で確かめる
+        const list = within(screen.getByTestId('cost-breakdown-list'));
+        expect(list.getByText('人件費')).toBeInTheDocument();
+        expect(list.getByText('積込費')).toBeInTheDocument();
+        expect(list.getByText('車両費')).toBeInTheDocument();
+        expect(list.getByText('材料費')).toBeInTheDocument();
+        expect(list.getByText('外注費')).toBeInTheDocument();
+        expect(list.getByText('その他')).toBeInTheDocument();
+    });
+
+    it('お金の行き先のドーナツに、利益と原価の内訳を売上に対する割合つきで出す', async () => {
+        global.fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, json: () => Promise.resolve(mockProfitData) })
+        ) as jest.Mock;
+
+        render(<ProjectProfitDisplay projectMasterId="pm1" />);
+
+        const chart = await screen.findByTestId('profit-composition-chart');
+        expect(within(chart).getByText('お金の行き先（売上の内訳）')).toBeInTheDocument();
+        // 真ん中は利益率（見出しと同じ数字）
+        expect(within(chart).getByText('利益率')).toBeInTheDocument();
+        // 売上 1,000,000 = 利益 300,000 + 原価 700,000。凡例に項目・金額・割合が並ぶ
+        const legend = within(within(chart).getByRole('list'));
+        expect(legend.getByText('利益')).toBeInTheDocument();
+        expect(legend.getByText('30%')).toBeInTheDocument();
+        expect(legend.getByText('人件費')).toBeInTheDocument();
+        expect(legend.getByText('35%')).toBeInTheDocument();
+        expect(legend.getByText('¥350,000')).toBeInTheDocument();
+    });
+
+    it('赤字のときはドーナツを原価の内訳にして、原価が売上を上回った額を出す', async () => {
+        const lossData = { ...mockProfitData, revenue: 600000, grossProfit: -100000, profitMargin: -16.7 };
+        global.fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, json: () => Promise.resolve(lossData) })
+        ) as jest.Mock;
+
+        render(<ProjectProfitDisplay projectMasterId="pm1" />);
+
+        const chart = await screen.findByTestId('profit-composition-chart');
+        expect(within(chart).getByText('原価の内訳')).toBeInTheDocument();
+        expect(within(chart).queryByText('利益')).not.toBeInTheDocument();
+        expect(within(chart).getByText(/赤字/)).toHaveTextContent('原価が売上を ¥100,000 上回っています（赤字）');
     });
 
     it('should show trending up icon for positive profit', async () => {
