@@ -15,6 +15,7 @@ import {
     type OwnCrewVolumeTotals,
 } from '@/lib/ownCrewVolume';
 import OwnCrewVolumeTable from './OwnCrewVolumeTable';
+import OwnCrewVolumeCharts from './OwnCrewVolumeCharts';
 
 const ALL_FOREMEN = 'all';
 
@@ -110,6 +111,8 @@ export default function OwnCrewVolumePage() {
     const [warningRatio, setWarningRatio] = useState<number>(DEFAULT_VALUE_ADDED_SETTINGS.judgeWarningRatio);
     const [loading, setLoading] = useState(false);
     const [loaded, setLoaded] = useState(false);
+    // グラフの日付は取得済みデータの年月で描く（月送りの直後は、まだ前の月のデータが出ているため）
+    const [dataYm, setDataYm] = useState(initial);
 
     const fetchRows = useCallback(async () => {
         if (!canView) return;
@@ -121,6 +124,7 @@ export default function OwnCrewVolumePage() {
             const data = (await res.json()) as OwnCrewVolumeResponse;
             setForemen(data.foremen ?? []);
             setGroups(data.groups ?? []);
+            setDataYm({ year: data.year, month: data.month });
             setTotals(data.totals ?? emptyOwnCrewVolumeTotals());
             setBreakeven(data.settings?.breakevenPerManday ?? null);
             setWarningRatio(data.settings?.judgeWarningRatio ?? DEFAULT_VALUE_ADDED_SETTINGS.judgeWarningRatio);
@@ -216,6 +220,16 @@ export default function OwnCrewVolumePage() {
                                     更新中...
                                 </div>
                             </div>
+                        )}
+                        {groups.some((g) => g.rows.length > 0) && (
+                            <OwnCrewVolumeCharts
+                                groups={groups}
+                                totals={totals}
+                                grouped={foremanId === ALL_FOREMEN}
+                                year={dataYm.year}
+                                month={dataYm.month}
+                                breakeven={breakeven}
+                            />
                         )}
                         <OwnCrewVolumeTable
                             groups={groups}
