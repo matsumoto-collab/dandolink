@@ -14,9 +14,14 @@ import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import type { LaborProductivityGroup, LaborProductivitySummary } from '@/lib/laborProductivity';
 import { ValueAddedDot } from '@/components/ui/ValueAddedBadge';
+import ThresholdBarChart, { type ThresholdBarDatum } from '@/components/charts/ThresholdBarChart';
+import { formatYen } from '@/components/charts/chartTheme';
 import { effectiveProfitFrom, isBackfillOnlyRange, spansBackfill, toQuery, type ProductivityFilter } from './productivityFilter';
 
 type Axis = 'content' | 'customer' | 'assignee';
+
+/** 区分別の横棒に出す件数（顧客別は数十件になるので、表の上から順に上位だけ） */
+const CHART_TOP_N = 12;
 
 const AXIS_LABELS: { key: Axis; label: string }[] = [
     { key: 'content', label: '工事内容別' },
@@ -127,6 +132,24 @@ export default function LaborProductivityPanel({ filter }: { filter: Productivit
             : axis === 'customer' ? summary.byCustomer
                 : summary.byAssignee;
     const axisLabel = AXIS_LABELS.find(a => a.key === axis)?.label ?? '';
+    // 区分別の横棒（表と同じ並び＝稼ぎの多い順の上位だけ）。一人当たりの稼ぎが出ない区分は棒にしない
+    const chartData: ThresholdBarDatum[] = rows
+        .slice(0, CHART_TOP_N)
+        .flatMap(row => row.perManday === null ? [] : [{
+            key: row.key,
+            label: row.label,
+            value: row.perManday,
+            details: [
+                { key: 'valueAdded', label: '稼ぎ', value: formatYen(row.valueAddedTotal) },
+                { key: 'headcount', label: '総人数', value: `${row.headcountTotal} 人工` },
+                { key: 'projects', label: '案件数', value: `${row.projectCount} 件` },
+            ],
+        }]);
+    const achievement = summary.threshold !== null && summary.threshold > 0 && summary.overall.perManday !== null
+        ? Math.round((summary.overall.perManday / summary.threshold) * 100)
+        : null;
+    // 最低ラインを下回った案件は不足額の大きい順なので、先頭がいちばん大きい
+    const maxShortfall = summary.shortfalls[0]?.shortfallTotal ?? 0;
 
     return (
         <div className="space-y-4">
@@ -157,10 +180,19 @@ export default function LaborProductivityPanel({ filter }: { filter: Productivit
                             {summary.overall.perManday !== null ? yen(summary.overall.perManday) : '—'}
                             <span className="text-sm font-normal text-slate-500 ml-1">円</span>
                         </div>
-                        {summary.threshold !== null && summary.overall.perManday !== null && (
-                            <div className="text-xs text-slate-400 mt-1">
-                                最低ライン {yen(summary.threshold)}円 の {Math.round((summary.overall.perManday / summary.threshold) * 100)}%
-                            </div>
+                        {achievement !== null && summary.threshold !== null && (
+                            <>
+                                <div className="text-xs text-slate-400 mt-1">
+                                    最低ライン {yen(summary.threshold)}円 の {achievement}%
+                                </div>
+                                {/* 最低ラインに対する達成度のメーター（100%で満タン・届いていなければ赤） */}
+                                <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 overflow-hidden" aria-hidden="true">
+                                    <div
+                                        className={`h-full rounded-full ${achievement >= 100 ? 'bg-teal-600' : 'bg-red-500'}`}
+                                        style={{ width: `${Math.min(100, Math.max(0, achievement))}%` }}
+                                    />
+                                </div>
+                            </>
                         )}
                     </div>
                     <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
@@ -218,6 +250,24 @@ export default function LaborProductivityPanel({ filter }: { filter: Productivit
                         </button>
                     ))}
                 </div>
+                {chartData.length > 0 && (
+                    <div className="mb-4">
+                        <h3 className="text-sm font-semibold text-slate-700">{axisLabel}の一人当たりの稼ぎ</h3>
+                        <p className="text-xs text-slate-400 mt-0.5 mb-2">
+                            {rows.length > CHART_TOP_N
+                                ? `稼ぎの多い上位${CHART_TOP_N}件を、下の表と同じ並びで出しています。`
+                                : '下の表と同じ並び（稼ぎの多い順）です。'}
+                            {summary.threshold === null && ' 最低ラインを設定すると縦線が出ます。'}
+                        </p>
+                        <ThresholdBarChart
+                            data={chartData}
+                            threshold={summary.threshold}
+                            valueLabel="一人当たりの稼ぎ"
+                            formatValue={formatYen}
+                            ariaLabel={`${axisLabel}の一人当たりの稼ぎの横棒グラフ`}
+                        />
+                    </div>
+                )}
                 <GroupTable rows={rows} axisLabel={axisLabel} />
             </div>
 
@@ -255,7 +305,16 @@ export default function LaborProductivityPanel({ filter }: { filter: Productivit
                                         <td className="px-3 py-2 text-right tabular-nums text-slate-700">{yen(row.perManday)}</td>
                                         <td className="px-3 py-2 text-right tabular-nums text-slate-600">{row.headcount}</td>
                                         <td className="px-3 py-2 text-right tabular-nums font-semibold text-red-600">
-                                            −{yen(row.shortfallTotal)}
+                                            <span className="inline-flex items-center justify-end gap-2">
+                                                {/* 不足額の大きさを棒でも見せる（いちばん大きい案件を満タンに） */}
+                                                <span className="hidden sm:inline-block w-20 h-1.5 rounded-full bg-red-50 overflow-hidden" aria-hidden="true">
+                                                    <span
+                                                        className="block h-full rounded-full bg-red-400"
+                                                        style={{ width: `${maxShortfall > 0 ? Math.max(2, (row.shortfallTotal / maxShortfall) * 100) : 0}%` }}
+                                                    />
+                                                </span>
+                                                −{yen(row.shortfallTotal)}
+                                            </span>
                                         </td>
                                     </tr>
                                 ))}

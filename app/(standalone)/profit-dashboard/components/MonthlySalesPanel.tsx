@@ -11,22 +11,14 @@ import { formatCurrency } from '@/utils/costCalculation';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { MonthlySalesData, MonthlyAssigneeBreakdown, BreakdownAxis, BreakdownPeriod } from '@/lib/profitDashboard';
 import MonthlyAssigneeTable, { Segmented } from './MonthlyAssigneeTable';
+import BreakdownCharts from './BreakdownCharts';
+import { formatYenAxis } from '@/components/charts/chartTheme';
 
 // 選択中の月のバーのみ teal-600（保存=ティールの配色方針）、その他は slate-300
 const SLATE_300 = '#cbd5e1';
 const TEAL_600 = '#0d9488';
 
-// 「千万」丸めだと 1,500万 が「2千万」になり 2,000万 と重複表示されるため、
-// 億未満は万単位カンマ区切りで一意に表示する（600万 / 1,000万 / 1,500万 / 2,000万）
-function formatYAxis(value: number): string {
-    if (value === 0) return '0';
-    if (value >= 100000000) {
-        const v = value / 100000000;
-        return `${Number.isInteger(v) ? v : v.toFixed(1)}億`;
-    }
-    if (value >= 10000) return `${Math.round(value / 10000).toLocaleString()}万`;
-    return `${value}`;
-}
+// 金額の軸目盛りは formatYenAxis（components/charts/chartTheme.ts・他のグラフと共通）
 
 interface ChartDatum {
     index: number;
@@ -291,7 +283,7 @@ export default function MonthlySalesPanel({ data }: { data: MonthlySalesData }) 
                         >
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                             <XAxis dataKey="label" tick={{ fontSize: isNarrow ? 10 : 11, fill: '#64748b' }} interval={isNarrow ? 1 : 0} />
-                            <YAxis tickFormatter={formatYAxis} tick={{ fontSize: isNarrow ? 10 : 11, fill: '#64748b' }} width={isNarrow ? 44 : 48} />
+                            <YAxis tickFormatter={formatYenAxis} tick={{ fontSize: isNarrow ? 10 : 11, fill: '#64748b' }} width={isNarrow ? 44 : 48} />
                             <Tooltip content={<MonthlyTooltip />} cursor={{ fill: 'rgba(148,163,184,0.12)' }} />
                             <Bar dataKey="sales" radius={[4, 4, 0, 0]} maxBarSize={48}>
                                 {chartData.map((d) => (
@@ -318,6 +310,9 @@ export default function MonthlySalesPanel({ data }: { data: MonthlySalesData }) 
                     tone={marginPercent != null && marginPercent < 10 ? 'warn' : 'default'}
                 />
             </div>
+
+            {/* 担当者別/顧客別の売上・粗利と売上の割合のグラフ（下の表と同じ期間・軸。表の絞り込みは効かない） */}
+            <BreakdownCharts data={breakdown} isLoading={isLoading} />
 
             {/* 内訳（担当者別/顧客別・絞り込み可）。データは上の fetch を共有 */}
             <MonthlyAssigneeTable data={breakdown} isLoading={isLoading} axis={axis} onAxisChange={setAxis} />

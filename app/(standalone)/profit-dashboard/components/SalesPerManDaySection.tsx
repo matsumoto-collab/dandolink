@@ -11,6 +11,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { SalesPerManDayGroup, SalesPerManDaySummary } from '@/lib/salesPerManDay';
 import type { ProductivityFilter } from './productivityFilter';
+import SalesPerManDayChart from './SalesPerManDayChart';
 
 const yen = (n: number) => n.toLocaleString('ja-JP');
 const GROUP_PREVIEW = 20;
@@ -129,6 +130,7 @@ export default function SalesPerManDaySection({ data, loading, filter }: Props) 
                     {/* 月別 or 日別 */}
                     <div>
                         <h3 className="text-sm font-semibold text-slate-700 mb-1.5">{isDaily ? '日別' : '月別'}</h3>
+                        <SalesPerManDayChart data={data} />
                         <div ref={scrollRef} className="max-h-[420px] overflow-auto rounded-xl border border-slate-200">
                             <table className="min-w-full text-sm">
                                 <thead>
