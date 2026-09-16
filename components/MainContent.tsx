@@ -19,7 +19,7 @@ const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
     'profit-dashboard', 'estimates', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog',
     'partners', 'customers', 'company',
-    'materials', 'inventory', 'stocktake', 'loading-list', 'material-returns', 'equipment', 'settings', 'chat',
+    'materials', 'inventory', 'stocktake', 'loading-list', 'material-returns', 'equipment', 'kakoi-calc', 'settings', 'chat',
     'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'own-crew-volume',
 ];
 
@@ -94,6 +94,9 @@ const MaterialReturnPage = dynamic(() => import('@/components/Materials/Material
     loading: () => <LoadingSpinner />,
 });
 const EquipmentPage = dynamic(() => import('@/components/Equipment/EquipmentPage'), {
+    loading: () => <LoadingSpinner />,
+});
+const KakoiCalcPage = dynamic(() => import('@/components/Materials/KakoiCalcPage'), {
     loading: () => <LoadingSpinner />,
 });
 const MySchedulePage = dynamic(() => import('@/components/MySchedule/MySchedulePage'), {
@@ -291,6 +294,7 @@ export default function MainContent() {
         'loading-list': '積み込みリスト',
         'material-returns': '材料返却',
         'equipment': '機材台帳',
+        'kakoi-calc': '仮囲い計算',
         'settings': '設定',
         'chat': 'チャット',
         'payment-schedules': '支払予定',
@@ -465,6 +469,10 @@ export default function MainContent() {
                 }
                 return <EquipmentPage />;
 
+            case 'kakoi-calc':
+                // 仮囲い計算（別アプリ「カコイ拾い」を画面内に表示するだけ。DandoLink のデータとは無関係）
+                return <KakoiCalcPage />;
+
             case 'customers':
                 return <CustomersPage />;
 
@@ -545,7 +553,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             `}>
-                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'own-crew-volume', 'materials'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
+                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'own-crew-volume', 'materials', 'kakoi-calc'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}

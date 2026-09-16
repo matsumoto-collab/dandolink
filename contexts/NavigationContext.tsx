@@ -22,6 +22,7 @@ export type PageType =
     | 'loading-list'     // 積込リスト
     | 'material-returns' // 材料返却
     | 'equipment'        // 機材台帳（車両・電動工具の車検/整備履歴/使用履歴）
+    | 'kakoi-calc'       // 仮囲い計算（外部アプリ「カコイ拾い」を画面内に表示）
     | 'attendance'       // 出勤簿
     | 'chat'             // チャット
     | 'payment-schedules'// 支払予定

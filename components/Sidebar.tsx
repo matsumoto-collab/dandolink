@@ -17,7 +17,7 @@ import { useOpenChat } from '@/hooks/useOpenChat';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'order-backlog' | 'materials' | 'inventory' | 'stocktake' | 'loading-list' | 'material-returns' | 'equipment' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'own-crew-volume' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'order-backlog' | 'materials' | 'inventory' | 'stocktake' | 'loading-list' | 'material-returns' | 'equipment' | 'kakoi-calc' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'own-crew-volume' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
     /** true なら User.canAccessCashbook を持つユーザーにのみ表示（ロールでは表現できない個別許可制） */
@@ -65,6 +65,7 @@ const navigationSections: NavSection[] = [
             { name: '出庫伝票', page: 'materials' },
             { name: '返却', page: 'material-returns' },
             { name: '機材台帳', page: 'equipment' },
+            { name: '仮囲い計算', page: 'kakoi-calc' },
         ],
     },
     {
@@ -265,7 +266,7 @@ export default function Sidebar() {
                                     return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'chat') };
                                 }
                                 if (filteredSection.title === '材料管理') {
-                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'inventory' || item.page === 'stocktake' || item.page === 'material-returns') };
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'inventory' || item.page === 'stocktake' || item.page === 'material-returns' || item.page === 'kakoi-calc') };
                                 }
                                 return null;
                             }
