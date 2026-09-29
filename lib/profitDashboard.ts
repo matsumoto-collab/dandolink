@@ -129,23 +129,46 @@ export const UNASSIGNED_ASSIGNEE_ID = '__unassigned__';
  * 月次内訳（fetchMonthlyAssigneeBreakdown）と案件詳細の利益タブ（project-masters/[id]/profit）で共有し、
  * まとめ請求（1枚で複数案件）の全額二重計上・取りこぼしを防ぐ唯一の按分規則とする。
  * 注意: 中間表(InvoiceProjectMaster)のみの紐付けはシェアを持たない（金額の根拠が無いため計上しない）。
+ *
+ * 按分の分母は **タグの無い明細も含めた明細合計**。タグ付きだけを分母にすると、
+ * 同じ請求書にある「案件を紐付けていない明細」の金額まで、タグ付きの案件へ上乗せされてしまう
+ * （2026-09-29 kei 指摘: 90,000 の案件に、同じ請求書のタグ無し 106,000 まで乗って 196,000 と出ていた）。
+ * 明細合計と請求書の小計は実データ全件（2,135枚）で一致しているので、この分母なら
+ * 案件ごとの計上額は明細の実額と一致し、案件一覧の請求バッジ（computeInvoicedByProject）とも揃う。
+ * どの案件にも配られなかったぶん（= 1 - Σshare）は `unassignedShare` で「案件なし」として拾う。
  */
 export function invoiceProjectShares(inv: { items: string | null; projectMasterId: string | null }): Map<string, number> {
     const items = parseJsonField<Array<{ projectMasterId?: string | null; amount?: number | string | null }>>(inv.items, []);
     const projAmount = new Map<string, number>();
+    let untaggedAmount = 0;
     for (const it of items) {
-        if (!it.projectMasterId) continue;
         const n = Number(it.amount);
-        projAmount.set(it.projectMasterId, (projAmount.get(it.projectMasterId) || 0) + (Number.isFinite(n) ? n : 0));
+        const amount = Number.isFinite(n) ? n : 0;
+        if (!it.projectMasterId) { untaggedAmount += amount; continue; }
+        projAmount.set(it.projectMasterId, (projAmount.get(it.projectMasterId) || 0) + amount);
     }
     const totalTagged = [...projAmount.values()].reduce((s, v) => s + v, 0);
+    const totalItems = totalTagged + untaggedAmount;
     const shares = new Map<string, number>();
-    if (projAmount.size > 0 && totalTagged > 0) {
-        for (const [pid, amt] of projAmount) shares.set(pid, amt / totalTagged);
+    // totalItems <= 0（値引き行で相殺される等）は按分できないので代表案件へのフォールバックに任せる
+    if (projAmount.size > 0 && totalTagged > 0 && totalItems > 0) {
+        for (const [pid, amt] of projAmount) shares.set(pid, amt / totalItems);
     } else if (inv.projectMasterId) {
         shares.set(inv.projectMasterId, 1);
     }
     return shares;
+}
+
+/**
+ * `invoiceProjectShares` でどの案件にも配られなかった割合（0..1）。
+ * 案件を紐付けていない明細があるときだけ 0 より大きくなる。
+ * 売上の総額を保つため、月次内訳や一人当たりの稼ぎではこのぶんを「案件なし請求」に計上する。
+ */
+export function unassignedShare(shares: Map<string, number>): number {
+    if (shares.size === 0) return 1;
+    let sum = 0;
+    for (const v of shares.values()) sum += v;
+    return Math.min(1, Math.max(0, 1 - sum));
 }
 
 // 集計の軸（担当者別 / 顧客別）と期間（当月 / 年間＝暦年1-12月 / 任意の月範囲）。
@@ -259,6 +282,8 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
             return { byProject, projectless };
         }
         for (const [pid, share] of shares) byProject.set(pid, subtotal * share);
+        // 案件を紐付けていない明細ぶんは案件に配らず「案件なし請求」へ回す（売上の総額は保つ）
+        projectless = subtotal * unassignedShare(shares);
         return { byProject, projectless };
     };
 

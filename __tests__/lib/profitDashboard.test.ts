@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { fetchMonthlySales, fetchMonthlyAssigneeBreakdown } from '@/lib/profitDashboard';
+import { fetchMonthlySales, fetchMonthlyAssigneeBreakdown, invoiceProjectShares, unassignedShare } from '@/lib/profitDashboard';
 import { prisma } from '@/lib/prisma';
 import { computeProjectCosts } from '@/lib/projectCost';
 
@@ -240,6 +240,21 @@ describe('lib/profitDashboard', () => {
             expect(r.rows[0]).toMatchObject({ key: '__unassigned__', name: '(担当者未設定)', sales: 50000 });
         });
 
+        it('案件を紐付けていない明細ぶんは案件に乗せず「案件なし請求」へ回す', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { subtotal: 196000, items: '[{"projectMasterId":"p1","amount":90000},{"amount":106000}]', projectMasterId: 'p1', createdAt: new Date('2026-06-10T00:00:00Z') },
+            ]);
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
+
+            const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
+
+            const byId = Object.fromEntries(r.rows.map(x => [x.key, x.sales]));
+            expect(byId['u1']).toBe(90000);              // 明細どおり（196,000 が丸ごと乗らない）
+            expect(byId['__unassigned__']).toBe(106000); // 紐付けの無いぶんは案件なしへ
+            expect(r.totals.sales).toBe(196000);         // 売上の総額は変わらない
+        });
+
         it('顧客別に集計できる（axis=customer・案件名は正式名称＋顧客名）', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
                 { subtotal: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1', createdAt: new Date('2026-06-10T00:00:00Z') },
@@ -411,6 +426,50 @@ describe('lib/profitDashboard', () => {
                 expect(r.totals).toMatchObject({ sales: 200000, cost: 70000, grossProfit: 130000 });
                 expect(prisma.revenueAdjustment.findMany).not.toHaveBeenCalled();
             });
+        });
+    });
+
+    // 2026-09-29 kei 指摘: 明細に案件を紐付けていない行があると、その金額まで
+    // タグ付きの案件に上乗せされていた（北井門No.7様に 90,000 ではなく 196,000 が計上）。
+    describe('invoiceProjectShares / unassignedShare', () => {
+        it('明細タグの金額比で按分する', () => {
+            const shares = invoiceProjectShares({
+                items: '[{"projectMasterId":"p1","amount":30000},{"projectMasterId":"p2","amount":70000}]',
+                projectMasterId: 'p1',
+            });
+            expect(shares.get('p1')).toBeCloseTo(0.3);
+            expect(shares.get('p2')).toBeCloseTo(0.7);
+            expect(unassignedShare(shares)).toBeCloseTo(0);
+        });
+
+        it('案件を紐付けていない明細の金額は、タグ付きの案件に上乗せしない', () => {
+            const shares = invoiceProjectShares({
+                items: '[{"projectMasterId":"p1","amount":90000},{"amount":106000}]',
+                projectMasterId: 'p1',
+            });
+            // 請求書の小計 196,000 のうち、この案件に乗るのは明細どおりの 90,000 だけ
+            expect(shares.get('p1')! * 196000).toBeCloseTo(90000);
+            expect(unassignedShare(shares) * 196000).toBeCloseTo(106000);
+        });
+
+        it('明細にタグが1つも無ければ代表案件に全額（レガシー請求書）', () => {
+            const shares = invoiceProjectShares({ items: '[{"amount":50000}]', projectMasterId: 'p9' });
+            expect(shares.get('p9')).toBe(1);
+            expect(unassignedShare(shares)).toBe(0);
+        });
+
+        it('明細タグも代表案件も無ければ空Map＝案件なし請求', () => {
+            const shares = invoiceProjectShares({ items: '[]', projectMasterId: null });
+            expect(shares.size).toBe(0);
+            expect(unassignedShare(shares)).toBe(1);
+        });
+
+        it('タグ付き明細が全部0円なら代表案件へフォールバックする', () => {
+            const shares = invoiceProjectShares({
+                items: '[{"projectMasterId":"p1","amount":0},{"amount":50000}]',
+                projectMasterId: 'p9',
+            });
+            expect(shares.get('p9')).toBe(1);
         });
     });
 });

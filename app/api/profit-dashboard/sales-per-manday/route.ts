@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { computeProjectCosts } from '@/lib/projectCost';
-import { SALES_INVOICE_STATUSES, invoiceProjectShares } from '@/lib/profitDashboard';
+import { SALES_INVOICE_STATUSES, invoiceProjectShares, unassignedShare } from '@/lib/profitDashboard';
 import { normalizeConstructionContent } from '@/lib/constructionContent';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { LIVE_DATA_START, LIVE_DATA_START_MONTH, jstYearMonthOf } from '@/lib/backfill/constants';
@@ -198,14 +198,15 @@ export async function GET(request: NextRequest) {
                 const date = jstDateOf(inv.createdAt);
                 const yearMonth = jstYearMonthOf(inv.createdAt);
                 const subtotal = Number(inv.subtotal);
-                if (shares.size === 0) {
-                    // 案件なし請求は請求書の顧客で数える
+                // 案件なし請求（＝どの明細にも案件を紐付けていない）と、
+                // まとめ請求のうち案件を紐付けていない明細ぶんは、請求書の顧客で数える
+                const unassigned = subtotal * unassignedShare(shares);
+                if (unassigned > 0) {
                     pushFact({
-                        date, yearMonth, sales: subtotal, manDays: 0,
+                        date, yearMonth, sales: unassigned, manDays: 0,
                         customerName: inv.customerId ? customerNameById.get(inv.customerId) ?? null : null,
                         content: null, assigneeId: null, assigneeName: null,
                     });
-                    continue;
                 }
                 for (const [pid, share] of shares) {
                     pushFact({ date, yearMonth, sales: subtotal * share, manDays: 0, ...metaOf(pid) });
