@@ -4,9 +4,17 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useEstimates } from '@/hooks/useEstimates';
+import { useInvoices } from '@/hooks/useInvoices';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import {
+    computeInvoicedByProject,
+    getBillingStatus,
+    resolveBillingBasis,
+    type BillingStatus,
+    type InvoiceForBillingSummary,
+} from '@/lib/billing/billingStatus';
 import { Invoice, InvoiceInput, InvoiceItem, BillingTitle } from '@/types/invoice';
-import { Project } from '@/types/calendar';
+import { Project, ProjectMaster } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 import { UnitPriceMaster } from '@/types/unitPrice';
 import toast from 'react-hot-toast';
@@ -93,6 +101,8 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { customers, addCustomer, ensureDataLoaded } = useCustomers();
     const { estimates, ensureDataLoaded: ensureEstimatesLoaded } = useEstimates();
+    // 案件チェックリストの請求バッジ（未請求/一部請求/請求済）を出すために既存の請求書も読む
+    const { invoices, ensureDataLoaded: ensureInvoicesLoaded } = useInvoices();
 
     // 請求項目マスタ
     const [billingTitles, setBillingTitles] = useState<BillingTitle[]>([]);
@@ -101,11 +111,12 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         fetchProjectMasters();
         ensureDataLoaded();
         ensureEstimatesLoaded();
+        ensureInvoicesLoaded?.();
         fetch('/api/master-data/billing-titles')
             .then(r => r.ok ? r.json() : [])
             .then(setBillingTitles)
             .catch(() => {});
-    }, [fetchProjectMasters, ensureDataLoaded, ensureEstimatesLoaded]);
+    }, [fetchProjectMasters, ensureDataLoaded, ensureEstimatesLoaded, ensureInvoicesLoaded]);
 
     // 基本情報
     const [customerId, setCustomerId] = useState(initialData?.customerId || '');
@@ -220,6 +231,42 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         setDueDate(dueDateFromClosing(yy, mm - 1, 'nextMonthEnd'));
     }, [customerId, customers, isExistingInvoice, hasPresetCustomer]);
 
+    // ── 案件チェックリストの請求バッジ（案件一覧・請求待ちボードと同じ判定）──
+    // 案件ごとの請求済み合計（税抜・明細按分、cancelled 除外）。
+    // 編集中の請求書ぶんも含まれる＝「この案件はすでに請求書が出ている」を正しく示す。
+    const invoicedByProject = React.useMemo(
+        () => computeInvoicedByProject((invoices ?? []) as unknown as InvoiceForBillingSummary[]),
+        [invoices],
+    );
+
+    // 案件ID → その案件の見積（税抜 subtotal）。判定の分母を見積にフォールバックするため。
+    const estimatesByProject = React.useMemo(() => {
+        const m = new Map<string, Array<{ id: string; subtotal: number }>>();
+        for (const e of estimates) {
+            if (!e.projectId) continue;
+            const entry = { id: e.id, subtotal: Number(e.subtotal) || 0 };
+            const arr = m.get(e.projectId);
+            if (arr) arr.push(entry);
+            else m.set(e.projectId, [entry]);
+        }
+        return m;
+    }, [estimates]);
+
+    // override があれば優先、無ければ基準額（見積 or 契約金額）ベースの自動判定
+    const resolveBillingStatusFor = React.useCallback(
+        (pm: ProjectMaster): BillingStatus =>
+            (pm.billingStatusOverride as BillingStatus | undefined) ||
+            getBillingStatus(
+                resolveBillingBasis({
+                    contractAmount: pm.contractAmount ?? null,
+                    billingEstimateIds: pm.billingEstimateIds,
+                    estimates: estimatesByProject.get(pm.id) ?? [],
+                }).amount,
+                invoicedByProject[pm.id] ?? 0,
+            ),
+        [estimatesByProject, invoicedByProject],
+    );
+
     // 顧客に紐付く案件一覧。
     // 既に選択済みの案件は、その案件の元請が選択中の顧客と違っても必ず残す。
     // （A社の現場をA社の依頼でB社へ請求するケースで、請求先をB社にしたとたんに
@@ -241,8 +288,12 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 !matchedIds.has(pm.id) &&
                 (selectedProjectIds.includes(pm.id) || openedWithProjectIdsRef.current.includes(pm.id))
         );
-        return [...matched, ...extras].map(pm => ({ id: pm.id, title: pm.title }));
-    }, [customerId, customers, projectMasters, selectedProjectIds]);
+        return [...matched, ...extras].map(pm => ({
+            id: pm.id,
+            title: pm.title,
+            billingStatus: resolveBillingStatusFor(pm),
+        }));
+    }, [customerId, customers, projectMasters, selectedProjectIds, resolveBillingStatusFor]);
 
     // 選択中の案件の元請のうち、請求先（customerId）と異なるもの。
     // 請求先を切り替えた請求書で「もとはどこの現場か」を画面に出すために使う。

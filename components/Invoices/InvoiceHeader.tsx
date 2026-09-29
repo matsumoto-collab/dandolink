@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Customer } from '@/types/customer';
 import { matchesSearch } from '@/utils/searchNormalize';
 import SearchableCustomerSelect from '@/components/ui/SearchableCustomerSelect';
 import { DUE_DATE_PRESETS, dueDateFromClosing } from '@/lib/closingDay';
+import type { BillingStatus } from '@/lib/billing/billingStatus';
+import { BILLING_STATUS_META } from '@/lib/billing/billingStatusMeta';
 
 function TitleAutocomplete({ value, onChange, inputClass }: { value: string; onChange: (v: string) => void; inputClass: string }) {
     const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string }>>([]);
@@ -78,7 +80,8 @@ interface InvoiceHeaderProps {
     // 案件選択
     selectedProjectIds: string[];
     onToggleProject: (pmId: string) => void;
-    customerProjects: Array<{ id: string; title: string }>;
+    /** 請求ステータス（billingStatus）は案件一覧・請求待ちボードと同じ判定を渡してもらう。 */
+    customerProjects: Array<{ id: string; title: string; billingStatus: BillingStatus }>;
     /** 選択中の案件の元請のうち、請求先と異なるもの（請求先を切り替えたときだけ入る）。 */
     sourceCustomerNames?: string[];
 }
@@ -100,6 +103,42 @@ export default function InvoiceHeader({
 }: InvoiceHeaderProps) {
     const inputClass = "w-full px-3 py-3 md:py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm";
     const labelClass = "block text-sm font-semibold text-slate-700 mb-1.5";
+
+    // 案件チェックリストの請求ステータス絞り込み（すべて／未請求／一部請求／請求済／契約未設定）
+    const [billingFilter, setBillingFilter] = useState<BillingStatus | 'all'>('all');
+
+    // 請求先を切り替えたら絞り込みは解除する（案件の顔ぶれが変わって 0 件のまま見えなくなるのを防ぐ）
+    useEffect(() => {
+        setBillingFilter('all');
+    }, [customerId]);
+
+    const billingCounts = useMemo(() => {
+        const counts: Record<BillingStatus, number> = { none: 0, unbilled: 0, partial: 0, full: 0 };
+        for (const pm of customerProjects) counts[pm.billingStatus] += 1;
+        return counts;
+    }, [customerProjects]);
+
+    // 「契約未設定（判定の基準額なし）」は該当があるときだけボタンを出す
+    const billingFilterChoices = useMemo(() => {
+        const choices: Array<{ value: BillingStatus | 'all'; label: string; count: number }> = [
+            { value: 'all', label: 'すべて', count: customerProjects.length },
+            { value: 'unbilled', label: BILLING_STATUS_META.unbilled.label, count: billingCounts.unbilled },
+            { value: 'partial', label: BILLING_STATUS_META.partial.label, count: billingCounts.partial },
+            { value: 'full', label: BILLING_STATUS_META.full.label, count: billingCounts.full },
+        ];
+        if (billingCounts.none > 0) {
+            choices.push({ value: 'none', label: BILLING_STATUS_META.none.label, count: billingCounts.none });
+        }
+        return choices;
+    }, [customerProjects.length, billingCounts]);
+
+    // 絞り込んでも選択中の案件は必ず残す（チェックを外せなくなるのを防ぐ）
+    const visibleProjects = useMemo(() => {
+        if (billingFilter === 'all') return customerProjects;
+        return customerProjects.filter(
+            pm => pm.billingStatus === billingFilter || selectedProjectIds.includes(pm.id),
+        );
+    }, [customerProjects, billingFilter, selectedProjectIds]);
 
     return (
         <>
@@ -195,29 +234,68 @@ export default function InvoiceHeader({
             {/* 案件選択（顧客選択後に表示） */}
             {customerId && (
                 <div>
-                    <label className={labelClass}>案件を選択</label>
+                    <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                        <label className="block text-sm font-semibold text-slate-700">案件を選択</label>
+                        {customerProjects.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {billingFilterChoices.map(choice => {
+                                    const active = billingFilter === choice.value;
+                                    const disabled = choice.count === 0 && choice.value !== 'all';
+                                    return (
+                                        <button
+                                            key={choice.value}
+                                            type="button"
+                                            onClick={() => setBillingFilter(choice.value)}
+                                            disabled={disabled}
+                                            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                                active
+                                                    ? 'border-slate-700 bg-slate-700 text-white'
+                                                    : disabled
+                                                      ? 'cursor-not-allowed border-slate-200 bg-white text-slate-300'
+                                                      : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            {choice.label}
+                                            <span className={`ml-1 ${active ? 'text-white/80' : 'text-slate-400'}`}>{choice.count}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                     {customerProjects.length === 0 ? (
                         <p className="text-sm text-slate-500 py-2">この顧客に紐付く案件がありません</p>
+                    ) : visibleProjects.length === 0 ? (
+                        <p className="text-sm text-slate-500 py-2">この絞り込みに当てはまる案件がありません</p>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {customerProjects.map(pm => (
-                                <label
-                                    key={pm.id}
-                                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                                        selectedProjectIds.includes(pm.id)
-                                            ? 'border-slate-500 bg-slate-50'
-                                            : 'border-slate-200 hover:border-slate-300'
-                                    }`}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedProjectIds.includes(pm.id)}
-                                        onChange={() => onToggleProject(pm.id)}
-                                        className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
-                                    />
-                                    <span className="text-sm text-slate-800 truncate">{pm.title}</span>
-                                </label>
-                            ))}
+                            {visibleProjects.map(pm => {
+                                const meta = BILLING_STATUS_META[pm.billingStatus];
+                                return (
+                                    <label
+                                        key={pm.id}
+                                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                                            selectedProjectIds.includes(pm.id)
+                                                ? 'border-slate-500 bg-slate-50'
+                                                : 'border-slate-200 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedProjectIds.includes(pm.id)}
+                                            onChange={() => onToggleProject(pm.id)}
+                                            className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
+                                        />
+                                        <span className="flex-1 min-w-0 truncate text-sm text-slate-800">{pm.title}</span>
+                                        <span
+                                            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${meta.badgeClassName}`}
+                                            title={meta.title}
+                                        >
+                                            {meta.label}
+                                        </span>
+                                    </label>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
