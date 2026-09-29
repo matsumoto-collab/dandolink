@@ -101,8 +101,10 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { customers, addCustomer, ensureDataLoaded } = useCustomers();
     const { estimates, ensureDataLoaded: ensureEstimatesLoaded } = useEstimates();
-    // 案件チェックリストの請求バッジ（未請求/一部請求/請求済）を出すために既存の請求書も読む
-    const { invoices, ensureDataLoaded: ensureInvoicesLoaded } = useInvoices();
+    // 案件チェックリストの請求バッジ（未請求/一部請求/請求済）を出すために既存の請求書も読む。
+    // 請求待ちボードや見積一覧から開いたときは未ロードなので、読み込めるまでバッジは出さない
+    // （空の状態で判定すると全案件が「未請求」に見えてしまう）。
+    const { invoices, ensureDataLoaded: ensureInvoicesLoaded, isInitialized: invoicesInitialized } = useInvoices();
 
     // 請求項目マスタ
     const [billingTitles, setBillingTitles] = useState<BillingTitle[]>([]);
@@ -808,6 +810,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 onToggleProject={handleToggleProject}
                 customerProjects={customerProjects}
                 sourceCustomerNames={sourceCustomerNames}
+                billingStatusReady={!!invoicesInitialized}
             />
 
             {/* 案件ごとの明細セクション */}

@@ -119,3 +119,14 @@ describe('InvoiceHeader 案件の請求ステータス絞り込み', () => {
         expect(screen.getAllByRole('button', { name: /契約未設定\s*1/ }).length).toBeGreaterThan(0);
     });
 });
+
+describe('InvoiceHeader 請求実績の読み込み前', () => {
+    it('billingStatusReady=false のあいだはバッジも絞り込みも出さない（全件「未請求」に見えるのを防ぐ）', () => {
+        renderHeader({ billingStatusReady: false });
+        expect(screen.queryByRole('button', { name: /^未請求/ })).not.toBeInTheDocument();
+        const card = screen.getByText('案件チャーリー').closest('label');
+        expect(card!.textContent).not.toContain('請求済');
+        // 案件そのものは今まで通り全件出す
+        expect(visibleProjectTitles()).toEqual(['案件アルファ', '案件ブラボー', '案件チャーリー']);
+    });
+});

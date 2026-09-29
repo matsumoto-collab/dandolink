@@ -82,6 +82,11 @@ interface InvoiceHeaderProps {
     onToggleProject: (pmId: string) => void;
     /** 請求ステータス（billingStatus）は案件一覧・請求待ちボードと同じ判定を渡してもらう。 */
     customerProjects: Array<{ id: string; title: string; billingStatus: BillingStatus }>;
+    /**
+     * 請求実績（既存の請求書）の読み込みが終わったか。
+     * 読み込み前は全案件が「未請求」に見えてしまうので、終わるまでバッジと絞り込みを出さない。
+     */
+    billingStatusReady?: boolean;
     /** 選択中の案件の元請のうち、請求先と異なるもの（請求先を切り替えたときだけ入る）。 */
     sourceCustomerNames?: string[];
 }
@@ -100,6 +105,7 @@ export default function InvoiceHeader({
     onToggleProject,
     customerProjects,
     sourceCustomerNames,
+    billingStatusReady = true,
 }: InvoiceHeaderProps) {
     const inputClass = "w-full px-3 py-3 md:py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm";
     const labelClass = "block text-sm font-semibold text-slate-700 mb-1.5";
@@ -134,11 +140,11 @@ export default function InvoiceHeader({
 
     // 絞り込んでも選択中の案件は必ず残す（チェックを外せなくなるのを防ぐ）
     const visibleProjects = useMemo(() => {
-        if (billingFilter === 'all') return customerProjects;
+        if (billingFilter === 'all' || !billingStatusReady) return customerProjects;
         return customerProjects.filter(
             pm => pm.billingStatus === billingFilter || selectedProjectIds.includes(pm.id),
         );
-    }, [customerProjects, billingFilter, selectedProjectIds]);
+    }, [customerProjects, billingFilter, selectedProjectIds, billingStatusReady]);
 
     return (
         <>
@@ -236,7 +242,7 @@ export default function InvoiceHeader({
                 <div>
                     <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
                         <label className="block text-sm font-semibold text-slate-700">案件を選択</label>
-                        {customerProjects.length > 0 && (
+                        {billingStatusReady && customerProjects.length > 0 && (
                             <div className="flex flex-wrap items-center gap-1.5">
                                 {billingFilterChoices.map(choice => {
                                     const active = billingFilter === choice.value;
@@ -287,12 +293,14 @@ export default function InvoiceHeader({
                                             className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
                                         />
                                         <span className="flex-1 min-w-0 truncate text-sm text-slate-800">{pm.title}</span>
-                                        <span
-                                            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${meta.badgeClassName}`}
-                                            title={meta.title}
-                                        >
-                                            {meta.label}
-                                        </span>
+                                        {billingStatusReady && (
+                                            <span
+                                                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${meta.badgeClassName}`}
+                                                title={meta.title}
+                                            >
+                                                {meta.label}
+                                            </span>
+                                        )}
                                     </label>
                                 );
                             })}
