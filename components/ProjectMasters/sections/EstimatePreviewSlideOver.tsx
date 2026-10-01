@@ -328,7 +328,7 @@ export function EstimatePreviewSlideOver({ isOpen, onClose, projectMasterId, onA
                             </div>
 
                             {selected.items.length > 0 && (
-                                <p className="text-[11px] text-slate-400 pt-2 border-t border-slate-100">
+                                <p className="text-[11px] text-slate-500 pt-2 border-t border-slate-100">
                                     最終更新: {new Date(selected.updatedAt).toLocaleString('ja-JP')}
                                 </p>
                             )}

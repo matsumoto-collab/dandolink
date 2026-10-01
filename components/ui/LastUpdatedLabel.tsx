@@ -48,7 +48,7 @@ export default function LastUpdatedLabel({ updatedAt, updatedBy }: LastUpdatedLa
   });
 
   return (
-    <p className="text-xs text-slate-400">
+    <p className="text-xs text-slate-500">
       最終更新: {formatted}{updatedByName ? ` ${updatedByName}` : ''}
     </p>
   );

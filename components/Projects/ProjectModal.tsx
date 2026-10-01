@@ -135,87 +135,95 @@ export default function ProjectModal({
 
             {/* モーダルコンテンツ */}
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:max-h-[90vh]">
-                {/* ヘッダー */}
-                <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0 mr-3">
-                        <div className="min-w-0">
-                            <h2 className="text-lg md:text-xl font-semibold text-slate-900 truncate">{modalTitle}</h2>
+                {/* ヘッダー
+                    PC（lg）          : 1段目＝見出し・最終更新・閉じる ／ 2段目＝操作ボタン（入りきらなければ折り返す）
+                    スマホ・タブレット : 従来どおり1段（見出しの右にボタン）
+                    ボタンを足すときは下の「操作ボタン」の div の中に足すこと（PC では2段目で折り返すので見出しは潰れない）。
+                    経緯: docs/指示書_案件詳細モーダル上部の表示修正.md */}
+                <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between lg:flex-wrap lg:gap-y-3">
+                    <div className="flex items-center gap-3 min-w-0 mr-3 lg:flex-1">
+                        <div className="min-w-0 lg:flex lg:items-baseline lg:gap-3">
+                            <h2 className="text-lg md:text-xl font-semibold text-slate-900 truncate lg:overflow-visible">{modalTitle}</h2>
                             {initialData && <LastUpdatedLabel updatedAt={initialData.updatedAt} updatedBy={initialData.updatedBy} />}
                         </div>
                         {otherEditingUsers.length > 0 && (
                             <EditingIndicator users={otherEditingUsers} />
                         )}
                     </div>
-                    <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-                        {!isEditMode && initialData?.id && initialData?.projectMasterId && (
-                            <button
-                                onClick={() => setShowChat((v) => !v)}
-                                title={showChat ? '詳細を表示' : 'チャット'}
-                                className={`hidden lg:flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border rounded-lg transition-colors ${
-                                    showChat
-                                        ? 'border-teal-300 bg-teal-50 text-teal-700 hover:bg-teal-100'
-                                        : 'border-slate-300 text-slate-700 hover:bg-slate-50'
-                                }`}
-                            >
-                                <MessageSquare className="w-4 h-4" />
-                                <span className="hidden md:inline">{showChat ? '詳細を表示' : 'チャット'}</span>
-                            </button>
-                        )}
-                        {!readOnly && !isEditMode && !showChat && initialData?.id && (
-                            <button
-                                onClick={() => setIsEditMode(true)}
-                                title="編集"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
-                            >
-                                <Pencil className="w-4 h-4" />
-                                <span className="hidden md:inline">編集</span>
-                            </button>
-                        )}
-                        {!isEditMode && !showChat && initialData?.id && initialData?.projectMasterId && onEditProjectMaster && (
-                            <button
-                                onClick={onEditProjectMaster}
-                                title="案件マスタを編集"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                                <span className="hidden md:inline">案件マスタを編集</span>
-                            </button>
-                        )}
-                        {/* チャット表示中は「削除」「見積書を作成」を出さない（メンバー選択画面を消す操作と誤認されるため） */}
-                        {!readOnly && !isEditMode && !showChat && initialData?.id && onDelete && (
-                            <button
-                                onClick={handleDelete}
-                                title="削除"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-red-300 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                                <span className="hidden md:inline">削除</span>
-                            </button>
-                        )}
-                        {!isEditMode && !showChat && initialData?.projectMasterId && canViewEstimates && (
-                            <button
-                                onClick={() => setShowEstimates(true)}
-                                title="見積書"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
-                            >
-                                <FileSearch className="w-4 h-4" />
-                                <span className="hidden md:inline">見積書</span>
-                            </button>
-                        )}
-                        {!readOnly && !isEditMode && !showChat && onCreateEstimate && (
-                            <button
-                                onClick={onCreateEstimate}
-                                title="見積書を作成"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
-                            >
-                                <FileText className="w-4 h-4" />
-                                <span className="hidden md:inline">見積書を作成</span>
-                            </button>
-                        )}
+                    {/* lg では枠を消し（contents）、中の「操作ボタン」と「閉じる」をヘッダー直下の並びとして扱う */}
+                    <div className="flex items-center gap-1.5 md:gap-2 shrink-0 lg:contents">
+                        {/* 操作ボタン。lg では2段目に全幅で並べる。1つも出ないとき（編集中・新規登録）は段ごと消す */}
+                        <div className="contents lg:order-3 lg:flex lg:basis-full lg:flex-wrap lg:items-center lg:gap-2 lg:empty:hidden">
+                            {!isEditMode && initialData?.id && initialData?.projectMasterId && (
+                                <button
+                                    onClick={() => setShowChat((v) => !v)}
+                                    title={showChat ? '詳細を表示' : 'チャット'}
+                                    className={`hidden lg:flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border rounded-lg transition-colors ${
+                                        showChat
+                                            ? 'border-teal-300 bg-teal-50 text-teal-700 hover:bg-teal-100'
+                                            : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <MessageSquare className="w-4 h-4" />
+                                    <span className="hidden md:inline">{showChat ? '詳細を表示' : 'チャット'}</span>
+                                </button>
+                            )}
+                            {!readOnly && !isEditMode && !showChat && initialData?.id && (
+                                <button
+                                    onClick={() => setIsEditMode(true)}
+                                    title="編集"
+                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                    <span className="hidden md:inline">編集</span>
+                                </button>
+                            )}
+                            {!isEditMode && !showChat && initialData?.id && initialData?.projectMasterId && onEditProjectMaster && (
+                                <button
+                                    onClick={onEditProjectMaster}
+                                    title="案件マスタを編集"
+                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                    <span className="hidden md:inline">案件マスタを編集</span>
+                                </button>
+                            )}
+                            {/* チャット表示中は「削除」「見積書を作成」を出さない（メンバー選択画面を消す操作と誤認されるため） */}
+                            {!readOnly && !isEditMode && !showChat && initialData?.id && onDelete && (
+                                <button
+                                    onClick={handleDelete}
+                                    title="削除"
+                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-red-300 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    <span className="hidden md:inline">削除</span>
+                                </button>
+                            )}
+                            {!isEditMode && !showChat && initialData?.projectMasterId && canViewEstimates && (
+                                <button
+                                    onClick={() => setShowEstimates(true)}
+                                    title="見積書"
+                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                    <FileSearch className="w-4 h-4" />
+                                    <span className="hidden md:inline">見積書</span>
+                                </button>
+                            )}
+                            {!readOnly && !isEditMode && !showChat && onCreateEstimate && (
+                                <button
+                                    onClick={onCreateEstimate}
+                                    title="見積書を作成"
+                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    <span className="hidden md:inline">見積書を作成</span>
+                                </button>
+                            )}
+                        </div>
                         <button
                             onClick={onClose}
                             title="閉じる"
-                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="shrink-0 lg:order-2 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
