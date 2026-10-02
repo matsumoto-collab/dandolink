@@ -148,6 +148,7 @@ export function buildAttendanceMonthlyPdfData(
             dow,
             weekday: WEEK_LABEL[dow],
             statusLabel,
+            status,
             kind,
             earlyStart: minutesToHm(r?.earlyStartMinutes ?? 0),
             morningLoading: minutesToHm(r?.morningLoadingMinutes ?? 0),

@@ -4,8 +4,8 @@
  * 出勤簿のExcel出力（紙の出勤簿と同じ見た目）。
  *
  * public/templates/attendance-monthly-template.xlsx を取得し、
- * 罫線・塗り・列幅・行高・結合セル・条件付き書式・印刷設定はそのままに、
- * セルの値だけを差し替えて配布する（詳細は attendanceMonthlyExcelBuilder.ts）。
+ * 罫線・列幅・行高・結合セル・条件付き書式・印刷設定はそのままに、
+ * セルの値を差し替え、日別行を区分に合わせて塗って配布する（詳細は attendanceMonthlyExcelBuilder.ts）。
  * 集計はPDF出力と同じ buildAttendanceMonthlyPdfData を使うので、PDFとExcelで数字は必ず一致する。
  */
 import {

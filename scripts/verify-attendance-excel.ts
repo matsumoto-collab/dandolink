@@ -5,6 +5,7 @@
  *   - 各シートXMLが well-formed で、条件付き書式・結合セル・データ検証・印刷設定が残っていること
  *   - 数式（<f>）が1つも残っていないこと（残ると開いた瞬間に再計算されて値が壊れる）
  *   - セルの値が buildAttendanceMonthlyPdfData（PDFと共通の集計）と一致すること
+ *   - 日別行の C〜M の塗りが区分どおり。塗り以外の書式は素の行と同じ
  *   - まとめ出力のシート順・シート名の一意化
  * を検証する。DBへは一切アクセスしない。
  *
@@ -19,11 +20,13 @@ import {
     type AttendancePdfRecord,
 } from '../utils/attendanceMonthlyPdf';
 import {
+    attendanceRowFillOf,
     buildAttendanceWorkbook,
     excelSerialFromDate,
     normalizeMinusSign,
     parseHmToMinutes,
     type AttendanceExcelSheetInput,
+    type AttendanceRowFill,
 } from '../utils/attendanceMonthlyExcelBuilder';
 
 const TEMPLATE_PATH = path.join(process.cwd(), 'public', 'templates', 'attendance-monthly-template.xlsx');
@@ -81,7 +84,8 @@ function pad2(n: number): string {
 
 /**
  * 濃いめの合成データ:
- *  - 出勤・休日・有給・欠勤が混在
+ *  - 出勤・休日・有給・欠勤・休日出勤が混在
+ *  - 12日は記録なし（2026年7月は日曜＝休日扱いで塗る／2026年6月は金曜＝未登録の平日で塗らない）
  *  - 早終あり（earlyEndTime）
  *  - 備考に XML 特殊文字（& < > " '）
  *  - 時間外合計が 24 時間を超える（月合計は時刻シリアルでは表現できない）
@@ -103,6 +107,14 @@ function makeRecords(userId: string, year: number, month: number): AttendancePdf
         if (day === 5) {
             // 早終（15:30 上がり = 早終 1:30）
             out.push(rec(userId, date, 'present', { earlyEndTime: '15:30', note: "現場 'A' 早上がり" }));
+            continue;
+        }
+        if (day === 6) {
+            out.push(rec(userId, date, 'holiday_work', { note: '8:00～14:30' }));
+            continue;
+        }
+        if (day === 12) {
+            // 記録なし
             continue;
         }
         if (dow === 0) {
@@ -227,6 +239,100 @@ function verifySheet(
     }
 }
 
+// ---------------------------------------------------------------- 行の塗りの検証
+
+const FILL_COLUMNS = ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'];
+const STYLE_REFERENCE_ROW = 6;
+
+function styleIdOf(sheetXml: string, ref: string): number {
+    const m = new RegExp(`<c r="${ref}"([^>]*?)(/>|>)`).exec(sheetXml);
+    assert(m, `${ref} のセルが無い`);
+    const s = /\ss="(\d+)"/.exec(m![1]);
+    return s ? Number(s[1]) : 0;
+}
+
+/** <fill> の中身 → 塗りの種類（塗りなしは null）。想定外の色は例外 */
+function classifyFill(fillXml: string, where: string): AttendanceRowFill | null {
+    if (/patternType="none"/.test(fillXml)) return null;
+    if (/<fgColor theme="5" tint="0\.5999/.test(fillXml)) return 'holiday';
+    if (/<fgColor rgb="FFFFFF00"\/>/.test(fillXml)) return 'holidayWork';
+    if (/<fgColor rgb="FF00B0F0"\/>/.test(fillXml)) return 'paidLeave';
+    throw new Error(`検証失敗: ${where}: 想定外の塗り ${fillXml}`);
+}
+
+/** 塗り（fillId / applyFill）だけ取り除いた <xf>。罫線・表示形式・フォント・配置の比較に使う */
+function xfWithoutFill(xf: string): string {
+    return xf.replace(/\sfillId="\d+"/, '').replace(/\sapplyFill="[^"]*"/, '');
+}
+
+/**
+ * 出力ブックの各シートについて、日別行の塗りが区分どおりかを確かめる。
+ * sheets[i].data.days の status から期待値を作る（未登録・当月に無い日は塗りなし）。
+ */
+async function verifyRowFills(
+    buffer: ArrayBuffer,
+    templateBytes: Uint8Array,
+    sheets: AttendanceExcelSheetInput[],
+    label: string
+): Promise<void> {
+    const zip = await JSZip.loadAsync(buffer);
+    const templateZip = await JSZip.loadAsync(templateBytes);
+    const templateSheet = await templateZip.file('xl/worksheets/sheet1.xml')!.async('string');
+    const templateStyles = await templateZip.file('xl/styles.xml')!.async('string');
+    const stylesXml = await zip.file('xl/styles.xml')!.async('string');
+    assertWellFormedXml(stylesXml, `${label}/xl/styles.xml`);
+
+    const parse = (xml: string, tag: 'fills' | 'cellXfs', itemRe: RegExp): string[] => {
+        const m = new RegExp(`<${tag} count="(\\d+)">([\\s\\S]*?)</${tag}>`).exec(xml);
+        assert(m, `${label}: <${tag}> が無い`);
+        const items = m![2].match(itemRe) ?? [];
+        assert(items.length === Number(m![1]), `${label}: <${tag}> の count(${m![1]}) と実数(${items.length}) が合わない`);
+        return items;
+    };
+    const fillRe = /<fill>[\s\S]*?<\/fill>/g;
+    const xfRe = /<xf\b[^>]*?(?:\/>|>[\s\S]*?<\/xf>)/g;
+    const fills = parse(stylesXml, 'fills', fillRe);
+    const xfs = parse(stylesXml, 'cellXfs', xfRe);
+    const templateXfs = parse(templateStyles, 'cellXfs', xfRe);
+    // 元からあるスタイルは1つも書き換えていない（末尾に足しただけ）
+    assert(
+        templateXfs.every((xf, i) => xfs[i] === xf),
+        `${label}: テンプレに元からあるスタイルが書き換わっている`
+    );
+
+    for (let i = 0; i < sheets.length; i++) {
+        const sheetXml = await zip.file(`xl/worksheets/sheet${i + 1}.xml`)!.async('string');
+        const { days } = sheets[i].data;
+        for (let row = 5; row <= 35; row++) {
+            const d = days[row - 5];
+            const expected = d ? attendanceRowFillOf(d.status) : null;
+            for (const col of FILL_COLUMNS) {
+                const where = `${label}/sheet${i + 1}/${col}${row}`;
+                const xf = xfs[styleIdOf(sheetXml, `${col}${row}`)];
+                assert(xf, `${where}: スタイル番号が範囲外`);
+                const fillId = Number(/\sfillId="(\d+)"/.exec(xf)?.[1] ?? 0);
+                const actual = classifyFill(fills[fillId], where);
+                assert(actual === expected, `${where}: 塗りが ${actual}（期待 ${expected}・区分 ${d?.status ?? '当月外'}）`);
+                // 塗るスタイルには applyFill="1" が立っている（無いと Excel が塗りを無視することがある）
+                assert(expected === null || /\sapplyFill="1"/.test(xf), `${where}: applyFill="1" が無い`);
+                // 塗り以外（罫線・表示形式・フォント・配置）は素の行と同じ
+                const baseXf = templateXfs[styleIdOf(templateSheet, `${col}${STYLE_REFERENCE_ROW}`)];
+                assert(
+                    xfWithoutFill(xf) === xfWithoutFill(baseXf),
+                    `${where}: 塗り以外の書式が素の行（${STYLE_REFERENCE_ROW}行目）と違う`
+                );
+            }
+            // 日付・曜日（A・B）のスタイルはテンプレのまま
+            for (const col of ['A', 'B']) {
+                assert(
+                    styleIdOf(sheetXml, `${col}${row}`) === styleIdOf(templateSheet, `${col}${row}`),
+                    `${label}/sheet${i + 1}/${col}${row}: スタイルがテンプレと違う`
+                );
+            }
+        }
+    }
+}
+
 async function verifyPackage(buffer: ArrayBuffer, expectedSheetNames: string[], label: string): Promise<XLSX.WorkBook> {
     const zip = await JSZip.loadAsync(buffer);
 
@@ -293,6 +399,31 @@ async function main(): Promise<void> {
         const buffer = await buildAttendanceWorkbook(template, year, month, sheets);
         const wb = await verifyPackage(buffer, ['田畑 太郎'], '個人/31日');
         verifySheet(wb.Sheets['田畑 太郎'], year, month, userName, userId, records, '個人/31日');
+        await verifyRowFills(buffer, template, sheets, '個人/31日');
+
+        // 塗りの3種類と「塗らない日」がこのデータに全部そろっていること（検証が空振りしていないか）
+        const fillOfDay = (day: number) => attendanceRowFillOf(data.days[day - 1].status);
+        assert(fillOfDay(3) === 'paidLeave', '合成データ: 3日が有給でない');
+        assert(fillOfDay(6) === 'holidayWork', '合成データ: 6日が休日出勤でない');
+        assert(fillOfDay(12) === 'holiday', '合成データ: 12日（未登録の日曜）が休日扱いでない');
+        assert(fillOfDay(19) === 'holiday', '合成データ: 19日（日曜）が休日でない');
+        assert(fillOfDay(4) === null && fillOfDay(7) === null, '合成データ: 欠勤・出勤の日が塗る対象になっている');
+
+        // 区分 → 塗り の対応（仕様の表）そのものを確かめる。
+        // verifyRowFills は期待値を同じ関数（attendanceRowFillOf）から作るので、対応表はここで固定する
+        const fillSpec: [string, AttendanceRowFill | null][] = [
+            ['holiday', 'holiday'],
+            ['holiday_work', 'holidayWork'],
+            ['paid_leave', 'paidLeave'],
+            ['present', null],
+            ['absent', null],
+            ['night_shift', null],
+            ['compensatory_holiday', null],
+            ['', null],
+        ];
+        for (const [status, fill] of fillSpec) {
+            assert(attendanceRowFillOf(status) === fill, `区分「${status || '未登録'}」の塗りが仕様と違う`);
+        }
 
         // 31日の月は 35 行目まで埋まる
         assert(wb.Sheets['田畑 太郎']['A35']?.v === excelSerialFromDate(year, month, 31), '31日目が35行目に無い');
@@ -308,6 +439,9 @@ async function main(): Promise<void> {
         const buffer = await buildAttendanceWorkbook(template, year, month, [{ userName, data }]);
         const wb = await verifyPackage(buffer, ['西﨑'], '個人/30日');
         verifySheet(wb.Sheets['西﨑'], year, month, userName, userId, records, '個人/30日');
+        // 30日の月の35行目・未登録の平日（6/12 金）は塗りなしになる
+        await verifyRowFills(buffer, template, [{ userName, data }], '個人/30日');
+        assert(data.days[11].status === '', '合成データ: 6/12（未登録の平日）の区分が空でない');
         for (const col of ['A', 'B', 'C', 'K', 'L', 'M']) {
             assertEmptyCell(wb.Sheets['西﨑'], `${col}35`, '個人/30日(35行目)');
         }
@@ -333,6 +467,7 @@ async function main(): Promise<void> {
         const buffer = await buildAttendanceWorkbook(template, year, month, sheets);
         const expected = ['山本', '山本 (2)', '玉ノ井太郎'];
         const wb = await verifyPackage(buffer, expected, 'まとめ/3名');
+        await verifyRowFills(buffer, template, sheets, 'まとめ/3名');
         people.forEach((p, i) => {
             verifySheet(wb.Sheets[expected[i]], year, month, p.userName, p.userId, records, `まとめ/${expected[i]}`);
         });

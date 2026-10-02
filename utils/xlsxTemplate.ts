@@ -3,8 +3,10 @@
  *
  * 出勤簿・受注明細書は「元の Excel から作った1シートのテンプレを ZIP のまま開き、
  * シートXMLのセルの中身だけを差し替える」方式で出力している。
- * s属性（スタイル）・結合セル・条件付き書式・列幅・行高・印刷設定を一切触らないので
- * 見た目が元ファイルと完全に一致する。ExcelJS 等でスタイルを往復させると劣化するので使わない。
+ * s属性（スタイル）・結合セル・条件付き書式・列幅・行高・印刷設定を触らないので
+ * 見た目が元ファイルと一致する。ExcelJS 等でスタイルを往復させると劣化するので使わない。
+ * 例外は出勤簿の日別行だけ: 区分に合わせて行を塗るため、C〜M 列の s属性を付け直す
+ * （下の「スタイル（塗り）の付け替え」の部品。utils/attendanceMonthlyExcelBuilder.ts が使う）。
  *
  * ブラウザ・Node の双方から使えるよう、DOM API と react-pdf に依存しない。
  * （テンプレのバイト列は呼び出し側が用意する）
@@ -158,6 +160,109 @@ export function setCells(xml: string, cells: Record<string, CellValue>): string 
         out = setCell(out, ref, value);
     }
     return out;
+}
+
+// ---------------------------------------------------------------- スタイル（塗り）の付け替え
+
+/** セルの s 属性（スタイル番号）を読む。セルが無ければ null、s 属性が無ければ 0（既定スタイル） */
+export function getCellStyleId(xml: string, ref: string): number | null {
+    const m = new RegExp(`<c r="${ref}"([^>]*?)(/>|>)`).exec(xml);
+    if (!m) return null;
+    const style = /\ss="(\d+)"/.exec(m[1]);
+    return style ? Number(style[1]) : 0;
+}
+
+/**
+ * セルの s 属性（スタイル番号）だけを付け替える。値・型（t 属性）・数式には触らない。
+ * テンプレに <c> が無い参照は何もしない（スタイルだけのセルを新しく作らない）。
+ */
+export function setCellStyle(xml: string, ref: string, styleId: number): string {
+    const m = new RegExp(`<c r="${ref}"([^>]*?)(/>|>)`).exec(xml);
+    if (!m) return xml;
+    const attrs = /\ss="\d+"/.test(m[1])
+        ? m[1].replace(/\ss="\d+"/, ` s="${styleId}"`)
+        : ` s="${styleId}"${m[1]}`;
+    return xml.slice(0, m.index) + `<c r="${ref}"${attrs}${m[2]}` + xml.slice(m.index + m[0].length);
+}
+
+/** <xf> の開始タグの fillId を差し替え、applyFill="1" を立てる（他の属性・子要素はそのまま） */
+function xfWithFill(xf: string, fillId: number): string {
+    const open = /^<xf\b[^>]*?>/.exec(xf);
+    if (!open) throw new Error('styles.xml: <xf> の形が想定と違います');
+    let tag = open[0];
+    tag = /\sfillId="\d+"/.test(tag)
+        ? tag.replace(/\sfillId="\d+"/, ` fillId="${fillId}"`)
+        : tag.replace(/^<xf/, `<xf fillId="${fillId}"`);
+    tag = /\sapplyFill="[^"]*"/.test(tag)
+        ? tag.replace(/\sapplyFill="[^"]*"/, ' applyFill="1"')
+        : tag.replace(/^<xf/, '<xf applyFill="1"');
+    return tag + xf.slice(open[0].length);
+}
+
+export interface FillVariants<K extends string> {
+    /** 塗りとスタイルを足した styles.xml */
+    stylesXml: string;
+    /** 元のスタイル番号 → 塗りのキーごとの新しいスタイル番号 */
+    variants: Map<number, Record<K, number>>;
+}
+
+/**
+ * styles.xml に単色の塗りを足し、指定した既存スタイル（cellXfs の番号）それぞれについて
+ * 「塗りだけを差し替えた複製」を cellXfs の末尾へ足す。
+ * 罫線・表示形式・フォント・配置は元のスタイルのまま引き継ぐので、塗り以外の見た目は変わらない。
+ *
+ * @param fillColors 塗りのキー → <fgColor .../> 要素（例 '<fgColor rgb="FFFFFF00"/>'）
+ */
+export function addFillVariants<K extends string>(
+    stylesXml: string,
+    baseStyleIds: number[],
+    fillColors: Record<K, string>
+): FillVariants<K> {
+    const keys = Object.keys(fillColors) as K[];
+
+    // --- 塗り（<fills>）
+    const fillsMatch = /<fills count="(\d+)">([\s\S]*?)<\/fills>/.exec(stylesXml);
+    if (!fillsMatch) throw new Error('styles.xml: <fills> が見つかりません');
+    let fillCount = Number(fillsMatch[1]);
+    const fillIdOf = {} as Record<K, number>;
+    let addedFills = '';
+    for (const key of keys) {
+        fillIdOf[key] = fillCount;
+        fillCount += 1;
+        addedFills += `<fill><patternFill patternType="solid">${fillColors[key]}<bgColor indexed="64"/></patternFill></fill>`;
+    }
+    let out =
+        stylesXml.slice(0, fillsMatch.index) +
+        `<fills count="${fillCount}">${fillsMatch[2]}${addedFills}</fills>` +
+        stylesXml.slice(fillsMatch.index + fillsMatch[0].length);
+
+    // --- セルのスタイル（<cellXfs>）
+    const xfsMatch = /<cellXfs count="(\d+)">([\s\S]*?)<\/cellXfs>/.exec(out);
+    if (!xfsMatch) throw new Error('styles.xml: <cellXfs> が見つかりません');
+    const xfs = xfsMatch[2].match(/<xf\b[^>]*?(?:\/>|>[\s\S]*?<\/xf>)/g) ?? [];
+    let xfCount = Number(xfsMatch[1]);
+    if (xfs.length !== xfCount) {
+        throw new Error(`styles.xml: cellXfs の count(${xfCount}) と実数(${xfs.length}) が合いません`);
+    }
+    const variants = new Map<number, Record<K, number>>();
+    let addedXfs = '';
+    for (const baseId of Array.from(new Set(baseStyleIds)).sort((a, b) => a - b)) {
+        const base = xfs[baseId];
+        if (!base) throw new Error(`styles.xml: スタイル番号 ${baseId} がありません`);
+        const ids = {} as Record<K, number>;
+        for (const key of keys) {
+            ids[key] = xfCount;
+            xfCount += 1;
+            addedXfs += xfWithFill(base, fillIdOf[key]);
+        }
+        variants.set(baseId, ids);
+    }
+    out =
+        out.slice(0, xfsMatch.index) +
+        `<cellXfs count="${xfCount}">${xfsMatch[2]}${addedXfs}</cellXfs>` +
+        out.slice(xfsMatch.index + xfsMatch[0].length);
+
+    return { stylesXml: out, variants };
 }
 
 // ---------------------------------------------------------------- ブック組み立て

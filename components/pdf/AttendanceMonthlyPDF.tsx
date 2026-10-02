@@ -18,6 +18,12 @@ export interface AttendanceMonthlyPdfDay {
     weekday: string;
     /** 区分ラベル（出勤/休日/有給 など。未登録の平日は空） */
     statusLabel: string;
+    /**
+     * 区分の元の値（present / holiday / paid_leave / holiday_work など）。
+     * 未登録の平日は空文字、未登録の日曜は 'holiday'。
+     * Excel 出力で行を塗り分けるのに使う（PDF の描画では使わない）。
+     */
+    status: string;
     /** 区分セルの塗り */
     kind: AttendanceCellKind;
     earlyStart: string;
