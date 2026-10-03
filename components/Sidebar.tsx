@@ -17,7 +17,7 @@ import { useOpenChat } from '@/hooks/useOpenChat';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'order-backlog' | 'materials' | 'inventory' | 'stocktake' | 'loading-list' | 'material-returns' | 'equipment' | 'kakoi-calc' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'own-crew-volume' | 'joyo-statements' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'evaluation-points' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'order-backlog' | 'materials' | 'inventory' | 'stocktake' | 'loading-list' | 'material-returns' | 'equipment' | 'kakoi-calc' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'own-crew-volume' | 'joyo-statements' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
     /** true なら User.canAccessCashbook を持つユーザーにのみ表示（ロールでは表現できない個別許可制） */
@@ -38,6 +38,7 @@ const navigationSections: NavSection[] = [
             { name: '案件一覧', page: 'project-masters' },
             { name: '報告一覧', page: 'reports' },
             { name: '出勤簿', page: 'attendance' },
+            { name: '評価ポイント', page: 'evaluation-points', requiredRoles: ['admin', 'manager'] },
             { name: 'チャット', page: 'chat' },
         ],
     },

@@ -24,6 +24,7 @@ export type PageType =
     | 'equipment'        // 機材台帳（車両・電動工具の車検/整備履歴/使用履歴）
     | 'kakoi-calc'       // 仮囲い計算（外部アプリ「カコイ拾い」を画面内に表示）
     | 'attendance'       // 出勤簿
+    | 'evaluation-points'  // 評価ポイント
     | 'chat'             // チャット
     | 'payment-schedules'// 支払予定
     | 'receipts'         // 領収書（AIで取り込み・費目仕分け・画像保管）
