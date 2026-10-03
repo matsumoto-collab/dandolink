@@ -32,6 +32,7 @@ export type PageType =
     | 'payees'           // 振込先マスター
     | 'partner-work-volume' // 協力業者出来高
     | 'own-crew-volume'  // 自社班の出来高（職長班 × 月の作業一覧）
+    | 'joyo-statements'  // 支払明細書（常用の一人親方向け）
     | 'settings';        // 設定
 
 interface NavigationContextType {
