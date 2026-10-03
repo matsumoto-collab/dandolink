@@ -9,6 +9,8 @@ import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
+import { useEvaluationPointDay } from '@/hooks/useEvaluationPointDay';
+import AttendancePointChips, { AttendancePointNotice } from './AttendancePointChips';
 
 // 早出/朝積/残業/夕積 のドロップダウン選択肢: 0〜3時間（15分刻み、計13選択肢）
 const MINUTE_OPTIONS: number[] = (() => {
@@ -110,6 +112,9 @@ export default function AttendanceModal({
     const [saving, setSaving] = useState(false);
 
     const dateKey = formatDateKey(selectedDate);
+
+    // 評価ポイント（読み込み・保存は全部このフックの中。出勤簿のデータ・「保存」には触らない）
+    const pointDay = useEvaluationPointDay({ enabled: isOpen && !!selectedForemanId, foremanId: selectedForemanId, dateKey });
 
     // 初期化（モーダルが開かれた時）
     useEffect(() => {
@@ -449,6 +454,7 @@ export default function AttendanceModal({
                                     全員定時
                                 </Button>
                             </div>
+                            {members.some((m) => pointDay.showsChips(m.id)) && <AttendancePointNotice items={pointDay.items} />}
 
                             <div className="space-y-2">
                                 {members.map((m, idx) => {
@@ -513,6 +519,7 @@ export default function AttendanceModal({
                                                     onChange={(v) => updateItem(m.id, { earlyEndTime: v })}
                                                 />
                                             </div>
+                                            <AttendancePointChips pointDay={pointDay} userId={m.id} currentUserId={userId} />
                                         </div>
                                     );
                                 })}
