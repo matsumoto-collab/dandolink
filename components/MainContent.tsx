@@ -449,8 +449,9 @@ export default function MainContent() {
                 return <AttendancePage />;
 
             case 'evaluation-points':
-                // 評価ポイント（全員の一覧・記録の追加/取り消し/確認）は admin / manager だけ（API も 403）
-                if (userRole !== 'admin' && userRole !== 'manager') {
+                // 評価ポイント: 入口は admin / manager / foreman1 / foreman2 / worker。
+                // 中の出し分け（全員の一覧・本人の画面・権限なし）は EvaluationPointsPage が見せ方（mode）で行う（API も同じ決まりで 403）
+                if (userRole !== 'admin' && userRole !== 'manager' && userRole !== 'foreman1' && userRole !== 'foreman2' && userRole !== 'worker') {
                     return <PlaceholderPage title="アクセス権限がありません" />;
                 }
                 return <EvaluationPointsPage />;

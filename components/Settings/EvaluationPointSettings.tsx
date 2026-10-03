@@ -4,7 +4,7 @@
  * 設定 ＞「評価ポイント」タブ（管理者だけ）。docs/指示書_評価ポイント.md の 7-1。
  *
  * 点数表（項目と点数）を作る・直す画面。決まりごとは lib/evaluationPoints.ts、保存は /api/evaluation-points/items 以下。
- * Phase 4 で、このタブの下に「本人への表示」の欄を足す（EvaluationPointSettings の中に section を1つ足すだけで済む形にしてある）。
+ * その下に「本人への表示」の欄（7-4。公開の設定。保存は /api/evaluation-points/settings）。
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Minus, Plus } from 'lucide-react';
@@ -17,6 +17,7 @@ import {
     EVALUATION_POINT_MAX,
     EVALUATION_POINT_MIN,
     EVALUATION_POINT_NAME_MAX,
+    EVALUATION_POINT_NOTE_MAX,
     isValidPoints,
     todayJstDateKey,
     type EvaluationPointInputBy,
@@ -46,6 +47,7 @@ interface RateHistoryRow {
 }
 
 const ITEMS_URL = '/api/evaluation-points/items';
+const SETTINGS_URL = '/api/evaluation-points/settings';
 
 const INPUT_BY_LABEL: Record<EvaluationPointInputBy, string> = {
     foreman: '職長も付けられる',
@@ -170,7 +172,7 @@ export default function EvaluationPointSettings() {
     return (
         <div className="min-w-0 space-y-10">
             <EvaluationPointItemsSection />
-            {/* Phase 4: ここに「本人への表示」の欄を足す */}
+            <EvaluationPointVisibilitySection />
         </div>
     );
 }
@@ -735,6 +737,152 @@ function EvaluationPointItemsSection() {
                 <div className="space-y-2">
                     {activeItems.map((item, index) => renderRow(item, index))}
                     {inactiveItems.map((item) => renderRow(item, null))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+/**
+ * 「本人への表示」の欄（公開の設定。docs/指示書_評価ポイント.md の 7-4）。
+ * オンにすると、職長・作業員のメニューに「評価ポイント」が出て、自分の点数と内訳だけが見える。
+ */
+function EvaluationPointVisibilitySection() {
+    const [showToMembers, setShowToMembers] = useState(false);
+    const [notice, setNotice] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadFailed, setLoadFailed] = useState(false);
+
+    // 送っているあいだは、ほかの操作を受け付けない（state だけだと、描き直される前の2回目の押下を止められない）
+    const busyRef = useRef(false);
+    const [busy, setBusy] = useState(false);
+
+    const fetchSetting = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const res = await fetch(SETTINGS_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const body = (await res.json()) as { showToMembers?: unknown; memberNotice?: unknown };
+            setShowToMembers(body.showToMembers === true);
+            setNotice(typeof body.memberNotice === 'string' ? body.memberNotice : '');
+            setLoadFailed(false);
+        } catch (error) {
+            logger.error('Failed to fetch evaluation point setting:', error);
+            setLoadFailed(true);
+            toast.error('本人への表示の設定の取得に失敗しました');
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchSetting();
+    }, [fetchSetting]);
+
+    const handleSave = async () => {
+        const trimmed = notice.trim();
+        if (trimmed.length > EVALUATION_POINT_NOTE_MAX) {
+            toast.error(`注意書きは${EVALUATION_POINT_NOTE_MAX}字までです`);
+            return;
+        }
+        if (busyRef.current) return;
+        busyRef.current = true;
+        setBusy(true);
+        try {
+            const res = await fetch(SETTINGS_URL, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ showToMembers, memberNotice: trimmed === '' ? null : trimmed }),
+            });
+            if (!res.ok) {
+                toast.error(await errorMessageOf(res, '本人への表示の保存に失敗しました'));
+                return;
+            }
+            const body = (await res.json()) as { showToMembers?: unknown; memberNotice?: unknown };
+            setShowToMembers(body.showToMembers === true);
+            setNotice(typeof body.memberNotice === 'string' ? body.memberNotice : '');
+            toast.success('本人への表示を保存しました');
+        } catch (error) {
+            logger.error('Failed to save evaluation point setting:', error);
+            toast.error('本人への表示の保存に失敗しました');
+        } finally {
+            busyRef.current = false;
+            setBusy(false);
+        }
+    };
+
+    return (
+        <section className="min-w-0">
+            <div className="mb-4">
+                <h3 className="text-lg font-semibold text-slate-900">本人への表示</h3>
+            </div>
+
+            {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-700"></div>
+                </div>
+            ) : loadFailed ? (
+                <div className="text-center py-8 text-slate-500">
+                    <p>設定を読めませんでした</p>
+                    <Button size="sm" variant="outline" className="mt-3" onClick={() => fetchSetting()}>
+                        読み直す
+                    </Button>
+                </div>
+            ) : (
+                <div className="p-3 md:p-4 rounded-xl border border-slate-200 bg-white space-y-4">
+                    {/* スイッチ */}
+                    <div className="flex items-start gap-3">
+                        <button
+                            type="button"
+                            role="switch"
+                            id="evaluation-point-show-to-members"
+                            aria-checked={showToMembers}
+                            aria-labelledby="evaluation-point-show-to-members-label"
+                            onClick={() => setShowToMembers((v) => !v)}
+                            disabled={busy}
+                            className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 ${
+                                showToMembers ? 'bg-teal-600' : 'bg-slate-300'
+                            }`}
+                        >
+                            <span
+                                className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                                    showToMembers ? 'translate-x-5' : 'translate-x-0.5'
+                                }`}
+                            />
+                        </button>
+                        <div className="min-w-0">
+                            <label
+                                id="evaluation-point-show-to-members-label"
+                                htmlFor="evaluation-point-show-to-members"
+                                className="block text-sm font-medium text-slate-900 cursor-pointer"
+                            >
+                                職長・作業員に、自分の点数と内訳を見せる
+                            </label>
+                            <p className="text-sm text-slate-500 mt-1">
+                                オンにすると、職長と作業員のメニューに『評価ポイント』が出ます。見えるのは自分の点数と内訳だけです。
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* 注意書き */}
+                    <label className="block text-sm">
+                        <span className="text-slate-700">本人の画面に出す注意書き（任意・{EVALUATION_POINT_NOTE_MAX}字まで）</span>
+                        <textarea
+                            value={notice}
+                            onChange={(e) => setNotice(e.target.value)}
+                            maxLength={EVALUATION_POINT_NOTE_MAX}
+                            rows={2}
+                            disabled={busy}
+                            placeholder="例: 今は試しの期間です"
+                            className={`${inputClass} mt-1`}
+                        />
+                    </label>
+
+                    <div>
+                        <Button variant="primary" onClick={handleSave} isLoading={busy}>
+                            保存
+                        </Button>
+                    </div>
                 </div>
             )}
         </section>

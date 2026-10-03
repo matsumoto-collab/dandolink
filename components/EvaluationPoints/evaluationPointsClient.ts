@@ -1,6 +1,6 @@
 /**
  * 「評価ポイント」の画面で使う、API の形と小さな関数（画面の部品どうしで共有する）。
- * API は app/api/evaluation-points/ 以下（docs/指示書_評価ポイント.md の 6-3）。
+ * API は app/api/evaluation-points/ 以下（docs/指示書_評価ポイント.md の 6-3・6-4）。
  */
 import type { EvaluationPointStatus } from '@/lib/evaluationPoints';
 
@@ -75,6 +75,20 @@ export interface ItemOption {
     name: string;
     isActive: boolean;
     inputBy: string;
+}
+
+/** GET /me（本人の点数と内訳。6-4）。付けた人の名前・メモは入っていない */
+export interface MyPointsData {
+    startDate: string;
+    endDate: string;
+    notice: string | null;
+    totalPoints: number;
+    totalCount: number;
+    pendingCount: number;
+    /** 回数のある項目だけ。点数の多い順。itemName は今の項目名 */
+    byItem: { itemId: string; itemName: string; count: number; points: number }[];
+    /** 日付の新しい順。itemName は記録に写してある名前 */
+    records: { id: string; date: string; itemName: string; points: number; status: EvaluationPointStatus }[];
 }
 
 export const STATUS_LABEL: Record<EvaluationPointStatus, string> = {

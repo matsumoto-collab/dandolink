@@ -4,11 +4,12 @@
  * 決まりごと（だれが何をできるか・どの点数を使うか）は lib/evaluationPoints.ts に書いてある。
  * ここには、Prisma で「決まりごとの関数に渡す材料」を読む小さな関数だけを置く。
  *
- * getEvaluationPointSetting・resolveAccessMode（docs/指示書_評価ポイント.md の 5-2 の 3・4）は Phase 4 で足す。
+ * getEvaluationPointSetting・resolveAccessMode（docs/指示書_評価ポイント.md の 5-2 の 3・4）は Phase 4 で、ファイルの末尾に足した。
  */
 import { prisma } from '@/lib/prisma';
 import { parseJsonField } from '@/lib/api/utils';
 import { dateKeyToDate, dateToDateKey, type PointRateLike } from '@/lib/evaluationPoints';
+import { isEvaluationPointManager, isEvaluationPointMemberRole } from '@/lib/evaluationPoints';
 
 export interface AttendanceMember {
     id: string;
@@ -124,4 +125,48 @@ export function actorOf(session: SessionLike): PointActor {
         role: session.user.role ?? '',
         name: session.user.name ?? session.user.username ?? '',
     };
+}
+
+// ---------------------------------------------------------------- 公開の設定（Phase 4）
+
+/** 公開の設定の行の id（1行だけ。マイグレーションで初期行を入れてある） */
+export const EVALUATION_POINT_SETTING_ID = 'default';
+
+export interface EvaluationPointSettingValue {
+    /** true = 本人（職長・作業員）に自分の点数と内訳を見せる */
+    showToMembers: boolean;
+    /** 本人の画面の上に出す注意書き */
+    memberNotice: string | null;
+}
+
+/**
+ * 公開の設定を返す。行が無ければ「見せない・注意書きなし」
+ * （マイグレーションで初期行を入れてあるが、無くても本人に見えてしまう側には倒さない）。
+ */
+export async function getEvaluationPointSetting(): Promise<EvaluationPointSettingValue> {
+    const row = await prisma.evaluationPointSetting.findUnique({
+        where: { id: EVALUATION_POINT_SETTING_ID },
+        select: { showToMembers: true, memberNotice: true },
+    });
+    if (!row) return { showToMembers: false, memberNotice: null };
+    return { showToMembers: row.showToMembers === true, memberNotice: row.memberNotice ?? null };
+}
+
+/**
+ * 「評価ポイント」の画面をどう見せるか。
+ *   'manager' = 全員の一覧（admin・manager）
+ *   'member'  = 自分の点数と内訳だけ（worker・foreman1・foreman2 で、公開の設定がオンのとき）
+ *   'none'    = 見せない（それ以外）
+ */
+export type EvaluationPointAccessMode = 'manager' | 'member' | 'none';
+
+/**
+ * ロールから見せ方を決める。ロールの判定は lib/evaluationPoints.ts の関数で行う（小文字にそろえて比べる）。
+ * 公開の設定を読むのは、職長・作業員のときだけ。
+ */
+export async function resolveAccessMode(role: string | null | undefined): Promise<EvaluationPointAccessMode> {
+    if (isEvaluationPointManager(role)) return 'manager';
+    if (!isEvaluationPointMemberRole(role)) return 'none';
+    const setting = await getEvaluationPointSetting();
+    return setting.showToMembers ? 'member' : 'none';
 }
