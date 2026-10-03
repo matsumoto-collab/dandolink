@@ -360,6 +360,7 @@ function JoyoListRow({ row, onOpen }: { row: JoyoStatementRow; onOpen: () => voi
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="whitespace-nowrap"
                     onClick={(e) => {
                         e.stopPropagation();
                         onOpen();
