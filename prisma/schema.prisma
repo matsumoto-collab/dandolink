@@ -3266,3 +3266,120 @@ model JoyoStatementSettings {
 
   @@schema("public")
 }
+
+// ───────────────────────── 評価ポイント ─────────────────────────
+// 出勤簿（AttendanceRecord）とは別のテーブルで持つ。社労士へ出す出勤簿エクセル・PDF・CSV や
+// 人事システム向けの出勤簿 API には一切混ぜない（kei 決定 2026-10-03）。
+
+/// 評価ポイントの項目（点数表の1行）。点数そのものは EvaluationPointRate に適用開始日つきで持つ。
+model EvaluationPointItem {
+  id          String                  @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name        String
+  /// どんなときに付けるかの説明（職長どうしで基準をそろえるため）
+  description String?
+  /// 'foreman' = 職長が「出勤簿入力」で付けられる（管理者・マネージャーも可）
+  /// 'admin'   = 管理者・マネージャーだけが「評価ポイント」の画面から付ける
+  inputBy     String                  @default("foreman")
+  sortOrder   Int                     @default(0)
+  /// false = 使わない（入力の画面に出さない）。付いた記録は残る
+  isActive    Boolean                 @default(true)
+  createdBy   String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @default(now()) @updatedAt
+  rates       EvaluationPointRate[]
+  records     EvaluationPointRecord[]
+
+  @@index([sortOrder])
+  @@schema("public")
+}
+
+/// 項目の点数の履歴。追記のみ（更新しない。削除は「まだ始まっていない予約の取り消し」だけ）。
+/// ある日付の記録に使う点数 = effectiveFrom がその日付以前で一番新しい行（同じ日なら createdAt が新しい行）。
+/// その日付以前の行が無ければ、一番古い行を使う。
+model EvaluationPointRate {
+  id            String              @id @default(dbgenerated("(gen_random_uuid())::text"))
+  itemId        String
+  points        Int
+  /// 適用開始日（JST の日付）。UTC 0時の印で保存する（AttendanceRecord.date と同じ約束）
+  effectiveFrom DateTime            @db.Date
+  createdBy     String?
+  createdByName String              @default("")
+  createdAt     DateTime            @default(now())
+  item          EvaluationPointItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, effectiveFrom])
+  @@schema("public")
+}
+
+/// ポイントの記録。1行 = 1人・1日・1項目。
+/// points と itemName は「付けた時点の写し」。あとから点数表や項目名を変えても、この行は変わらない。
+model EvaluationPointRecord {
+  id              String              @id @default(dbgenerated("(gen_random_uuid())::text"))
+  /// ポイントをもらう人（User.id）。AttendanceRecord と同じく外部キーは張らない
+  userId          String
+  /// 対象の日（JST の日付）。UTC 0時の印で保存する（AttendanceRecord.date と同じ約束）
+  date            DateTime            @db.Date
+  itemId          String
+  itemName        String
+  points          Int
+  /// どの点数の行（EvaluationPointRate.id）から写したか。調べるとき用（外部キーは張らない）
+  rateId          String?
+  /// 'confirmed' = 数える / 'pending' = 確認待ち（自分で自分に付けた分。管理者・マネージャーが認めるまで数えない）
+  status          String              @default("confirmed")
+  /// 'attendance' = 出勤簿入力から / 'manual' = 評価ポイントの画面から
+  source          String              @default("attendance")
+  /// 出勤簿入力から付けたときの、その班の職長（User.id）
+  foremanId       String?
+  note            String?
+  createdBy       String
+  createdByName   String              @default("")
+  confirmedBy     String?
+  confirmedByName String?
+  confirmedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @default(now()) @updatedAt
+  item            EvaluationPointItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  /// 同じ人・同じ日・同じ項目は1回だけ（連打や二重保存でも増えない）
+  @@unique([userId, date, itemId])
+  @@index([date])
+  @@index([userId, date])
+  @@index([itemId])
+  @@index([status])
+  @@schema("public")
+}
+
+/// 評価ポイントの操作の履歴（追記のみ）。記録を取り消した・点数を変えた、などを後から追えるようにする。
+model EvaluationPointLog {
+  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  /// 'item_created' | 'item_updated' | 'item_deleted' | 'items_reordered' | 'rate_added' | 'rate_cancelled'
+  /// | 'record_added' | 'record_removed' | 'record_confirmed' | 'setting_updated'
+  action       String
+  actorId      String
+  actorName    String    @default("")
+  targetUserId String?
+  itemId       String?
+  recordId     String?
+  recordDate   DateTime? @db.Date
+  /// 変更前後の値・取り消した記録の写しなど
+  detail       Json?
+  createdAt    DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([targetUserId, recordDate])
+  @@schema("public")
+}
+
+/// 評価ポイントの公開の設定（1行だけ・id は 'default'）
+model EvaluationPointSetting {
+  id            String   @id @default("default")
+  /// true = 本人（職長・作業員）に自分の点数と内訳を見せる
+  showToMembers Boolean  @default(false)
+  /// 本人の画面の上に出す注意書き（例: 今は試しの期間です）
+  memberNotice  String?
+  updatedBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  @@schema("public")
+}
