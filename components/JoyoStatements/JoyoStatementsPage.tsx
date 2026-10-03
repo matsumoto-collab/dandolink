@@ -11,6 +11,7 @@ import { buildDefaultItems, computeJoyoTotals } from '@/lib/joyoStatement';
 import type { JoyoStatementRow, JoyoStatementsResponse } from '@/types/joyoStatement';
 import JoyoStatementEditor from './JoyoStatementEditor';
 import JoyoSettingsModal from './JoyoSettingsModal';
+import AddJoyoToScheduleModal from './AddJoyoToScheduleModal';
 import { JOYO_STATE_META, errorMessage, formatMd, formatMdWeek, previousMonthJst, yen } from './joyoUi';
 
 /** 単価の列: 明細に「常用（全日）」の行があればその単価、無ければ対象者の単価 */
@@ -42,6 +43,8 @@ export default function JoyoStatementsPage() {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [editingContractorId, setEditingContractorId] = useState<string | null>(null);
     const [settingsState, setSettingsState] = useState<SettingsState | null>(null);
+    // 「支払予定に追加」を開いている対象者（行は取り直した一覧から読む）
+    const [scheduleContractorId, setScheduleContractorId] = useState<string | null>(null);
     // 月を続けて送ったとき、古い月の応答で上書きしないための番号
     const requestSeqRef = useRef(0);
 
@@ -100,6 +103,23 @@ export default function JoyoStatementsPage() {
     const rows = dataMatches ? data.rows : [];
     // 編集画面は、取り直した一覧から同じ対象者の行を読み直す
     const editingRow = dataMatches && editingContractorId ? data.rows.find((r) => r.contractor.id === editingContractorId) ?? null : null;
+
+    // 支払予定に追加するのは、発行済みで未追加の明細だけ（取り直して追加済みになったら出さない）
+    const scheduleRow =
+        dataMatches && scheduleContractorId
+            ? data.rows.find(
+                  (r) =>
+                      r.contractor.id === scheduleContractorId &&
+                      r.statement?.status === 'issued' &&
+                      !r.paymentSchedule,
+              ) ?? null
+            : null;
+
+    // 取り直して追加済みになった・発行が取り消されたなどで対象外になったら、開く状態も消す
+    // （残しておくと、あとで支払予定の行が消されたときに勝手に開いてしまうため）
+    useEffect(() => {
+        if (scheduleContractorId && dataMatches && !loading && !scheduleRow) setScheduleContractorId(null);
+    }, [scheduleContractorId, dataMatches, loading, scheduleRow]);
 
     // 取り直した一覧にその対象者が居なくなったら（利用停止の人の下書きを消したなど）編集画面を閉じる
     useEffect(() => {
@@ -238,6 +258,15 @@ export default function JoyoStatementsPage() {
                     issuer={data.issuer}
                     onClose={() => setEditingContractorId(null)}
                     onReload={reload}
+                    onAddToSchedule={(row) => setScheduleContractorId(row.contractor.id)}
+                />
+            )}
+
+            {scheduleRow && (
+                <AddJoyoToScheduleModal
+                    row={scheduleRow}
+                    onClose={() => setScheduleContractorId(null)}
+                    onAdded={reload}
                 />
             )}
 
