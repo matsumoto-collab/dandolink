@@ -170,7 +170,8 @@ async function main() {
     const pages = await analyze(buf);
     const problems: string[] = [];
     if (pages.length !== 2) problems.push(`ページ数=${pages.length}（期待 2）`);
-    const first = pages[0]?.text ?? '';
+    // 見出しは字間を空けて描くので pdfjs は「支 払 明 細 書」と返す。空白を落としてから探す
+    const first = (pages[0]?.text ?? '').replace(/\s/g, '');
     for (const needed of ['支払明細書', '合計金額', '内消費税等', '支払日', '品名', '常用（全日）']) {
         if (!first.includes(needed)) problems.push(`1ページ目に「${needed}」が見つからない`);
     }
