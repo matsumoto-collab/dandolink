@@ -3165,3 +3165,104 @@ model OrderBacklogReportLine {
   @@index([projectMasterId])
   @@schema("public")
 }
+
+/// 常用で来ている一人親方（支払明細書の対象者）。出勤簿に出るユーザーと 1:1。
+/// 明細に使う単価はここだけに持つ。User.dailyRate は原価計算用なので、ここからは読まない・書かない。
+model JoyoContractor {
+  id String @id @default(uuid())
+
+  /// 出勤簿のユーザー（論理FK。ユーザーを消しても明細は残す）
+  userId String @unique
+  /// 書類番号に使う対象者の番号（1, 2, …）。登録時に「今の最大 + 1」を振り、以後変えない
+  code   Int    @unique
+
+  /// 宛名（屋号 または 氏名）
+  recipientName      String
+  /// 敬称（御中 / 様）
+  honorific          String  @default("御中")
+  postalCode         String?
+  address            String?
+  /// インボイスの登録番号（T＋数字13桁）。登録していない人は null
+  registrationNumber String?
+
+  /// 常用1日の単価（円・税込）
+  unitPrice Int     @default(0)
+  /// 振込先マスター（論理FK）。「支払予定に追加」で使う
+  payeeId   String?
+
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  statements JoyoStatement[]
+
+  @@index([isActive, sortOrder])
+  @@schema("public")
+}
+
+/// 支払明細書（対象者 × 対象月で1件）。status='issued' のあいだは中身を変えない。
+model JoyoStatement {
+  id           String @id @default(uuid())
+  contractorId String
+  /// 対象月（作業した月）
+  year         Int
+  month        Int
+
+  /// 'draft'=下書き | 'issued'=発行済み
+  status      String   @default("draft")
+  /// 書類番号（例 202608-01）。最初に発行したときに付け、以後変えない
+  statementNo String?
+  /// 発行日（既定＝対象月の末日）
+  issueDate   DateTime @db.Date
+  /// 支払日（既定＝翌月10日）
+  paymentDate DateTime @db.Date
+  /// 件名
+  subject     String   @default("")
+
+  /// 明細行 [{ kind, name, quantity, unit, unitPrice, amount, note }]
+  items Json
+  /// 合計（税込・円）。items から計算した値を保存時に入れる
+  total Int  @default(0)
+  /// 内消費税等（円）
+  tax   Int  @default(0)
+
+  /// 2ページ目に出勤簿を付けるか
+  includeAttendance Boolean @default(true)
+  /// 保存した時点の出勤簿の日数（区分ごと）。あとで出勤簿が変わったことに気づくために持つ
+  attendanceCounts  Json?
+  /// 発行した時点の 見出し・注意書き・宛名・自社情報・出勤簿（対象月ぶん）。下書きのあいだは null
+  issuedSnapshot    Json?
+  issuedAt          DateTime?
+  issuedBy          String?
+
+  /// 「支払予定に追加」で作った PaymentSchedule.id（論理FK）
+  paymentScheduleId String?
+
+  /// 社内メモ（書類には出さない）
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  contractor JoyoContractor @relation(fields: [contractorId], references: [id], onDelete: Restrict)
+
+  @@unique([contractorId, year, month])
+  @@index([year, month])
+  @@schema("public")
+}
+
+/// 支払明細書の共通設定（1行だけ。id='default'）。行が無いときは既定値で動く。
+model JoyoStatementSettings {
+  id         String   @id @default("default")
+  /// 書類の名前（PDF の見出し）
+  title      String   @default("支払明細書")
+  /// 表の下に出す注意書き。空文字なら出さない
+  footerNote String   @default("")
+  updatedAt  DateTime @updatedAt
+  updatedBy  String?
+
+  @@schema("public")
+}
