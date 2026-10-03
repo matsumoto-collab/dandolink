@@ -145,12 +145,16 @@ export async function POST(req: NextRequest) {
                 overtimeMinutes: clampMinutes(item.overtimeMinutes, 600),
                 eveningLoadingMinutes: clampMinutes(item.eveningLoadingMinutes, 600),
                 earlyEndTime: normalizeEarlyEnd(item.earlyEndTime),
-                note: item.note ?? null,
                 createdBy: currentUserId,
             };
+            // 備考は「送られてきたときだけ」書き換える。
+            // 出勤簿入力（AttendanceModal）は備考を送らない。ここで null を入れると、管理者が
+            // 月次（個人別）で書いた備考が、同じ日の出勤簿を保存し直しただけで消えてしまう。
+            const hasNote = Object.prototype.hasOwnProperty.call(item, 'note');
             // status は admin の場合のみ更新対象に含める
-            const updateData = adminStatus ? { ...baseData, status: adminStatus } : baseData;
-            const createData = adminStatus ? { ...baseData, status: adminStatus } : baseData;
+            const statusPart = adminStatus ? { status: adminStatus } : {};
+            const updateData = { ...baseData, ...(hasNote ? { note: item.note ?? null } : {}), ...statusPart };
+            const createData = { ...baseData, note: item.note ?? null, ...statusPart };
             return prisma.attendanceRecord.upsert({
                 where: { userId_date: { userId: item.userId, date: dateOnly } },
                 update: updateData,
