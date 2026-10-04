@@ -202,7 +202,7 @@ export async function PATCH(req: NextRequest) {
                 where: { id: { in: ids } },
                 select: { id: true, userId: true, date: true, itemId: true, itemName: true, points: true, status: true, createdBy: true },
             });
-        // 認めてよい記録だけ（自分の分・すでに確定している記録は除く。無い ID は rows に入らない）
+        // 認めてよい記録だけ（すでに確定している記録は除く。無い ID は rows に入らない。管理者・マネージャーは自分の分も認められる）
         const targets = rows.filter((r) => canConfirmRecord(actor, {
             id: r.id, userId: r.userId, itemId: r.itemId, status: toEvaluationPointStatus(r.status), createdBy: r.createdBy,
         }));

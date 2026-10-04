@@ -172,7 +172,10 @@ export function canInputForForeman(operator: PointOperator, foremanId: string): 
     return canInputEvaluationPoints(operator.role) && operator.id === foremanId;
 }
 
-/** 新しく付ける記録の状態。自分で自分に付けた分は「確認待ち」（だれも自分の点数を自分だけでは決められない） */
+/**
+ * 新しく付ける記録の状態。自分で自分に付けた分は「確認待ち」（付けただけでは合計に入らない）。
+ * 認めるのは管理者・マネージャー（canConfirmRecord。管理者・マネージャーは自分の分も認められる）。
+ */
 export function statusForNewRecord(operatorId: string, targetUserId: string): EvaluationPointStatus {
     return operatorId === targetUserId ? 'pending' : 'confirmed';
 }
@@ -191,11 +194,13 @@ export function canRemoveRecord(operator: PointOperator, record: PointRecordLike
     return false;
 }
 
-/** 確認待ちの記録を認めてよいか（管理者・マネージャーだけ。自分の分は認められない） */
+/**
+ * 確認待ちの記録を認めてよいか（管理者・マネージャーだけ）。
+ * 管理者・マネージャーは、自分の分の確認待ちも自分で認められる（kei 決定 2026-10-05。
+ * それまでは「自分の分は、ほかの管理者・マネージャーが認める」だった）。職長・作業員は、だれの分も認められない。
+ */
 export function canConfirmRecord(operator: PointOperator, record: PointRecordLike): boolean {
-    return isEvaluationPointManager(operator.role)
-        && record.status === 'pending'
-        && record.userId !== operator.id;
+    return isEvaluationPointManager(operator.role) && record.status === 'pending';
 }
 
 // ---------------------------------------------------------------- 出勤簿入力のボタン

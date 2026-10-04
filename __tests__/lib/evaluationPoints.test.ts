@@ -248,9 +248,22 @@ describe('canConfirmRecord（確認待ちを認めてよいか）', () => {
         expect(canConfirmRecord({ id: 'foremanB', role: 'foreman1' }, pending)).toBe(false);
     });
 
-    it('自分の分は認められない・すでに数えている記録は対象外', () => {
-        expect(canConfirmRecord({ id: 'admin1', role: 'admin' }, record({ userId: 'admin1', createdBy: 'admin1', status: 'pending' }))).toBe(false);
+    it('管理者・マネージャーは、自分の分の確認待ちも認められる（kei 決定 2026-10-05）', () => {
+        expect(canConfirmRecord({ id: 'admin1', role: 'admin' }, record({ userId: 'admin1', createdBy: 'admin1', status: 'pending' }))).toBe(true);
+        expect(canConfirmRecord({ id: 'manager1', role: 'MANAGER' }, record({ userId: 'manager1', createdBy: 'manager1', status: 'pending' }))).toBe(true);
+        // だれが付けた記録かでは変わらない（確認待ちなら認められる）
+        expect(canConfirmRecord({ id: 'manager1', role: 'manager' }, record({ userId: 'manager1', createdBy: 'foremanA', status: 'pending' }))).toBe(true);
+    });
+
+    it('職長・作業員は、自分の分も、ほかの人の分も認められない', () => {
+        expect(canConfirmRecord({ id: 'foremanA', role: 'foreman1' }, pending)).toBe(false);
+        expect(canConfirmRecord({ id: 'foremanA', role: 'FOREMAN2' }, pending)).toBe(false);
+        expect(canConfirmRecord({ id: 'worker1', role: 'worker' }, record({ userId: 'worker1', createdBy: 'worker1', status: 'pending' }))).toBe(false);
+    });
+
+    it('すでに数えている記録は対象外（自分の分でも）', () => {
         expect(canConfirmRecord({ id: 'admin1', role: 'admin' }, record({ status: 'confirmed' }))).toBe(false);
+        expect(canConfirmRecord({ id: 'admin1', role: 'admin' }, record({ userId: 'admin1', createdBy: 'manager1', status: 'confirmed' }))).toBe(false);
     });
 });
 

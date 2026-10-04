@@ -163,7 +163,7 @@ describe('GET /records', () => {
         expect(mock(prisma.user.findMany).mock.calls[0][0].where).toEqual({ id: { in: ['worker1'] } });
     });
 
-    it('canRemove・canConfirm は、操作している人から見た値（自分の確認待ちは認められない・取り下げはできる）', async () => {
+    it('canRemove・canConfirm は、操作している人から見た値（管理者・マネージャーは、自分の確認待ちも認められる・取り下げもできる。確定した自分の分は、認めるものが無く、自分では取り消せない）', async () => {
         mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([
             recordRow({ id: 'own', userId: 'admin1', status: 'pending', createdBy: 'admin1' }),
             recordRow({ id: 'other', userId: 'worker1', status: 'pending', createdBy: 'worker1' }),
@@ -172,7 +172,7 @@ describe('GET /records', () => {
         const r = await getRecords('status=pending');
         const byId = Object.fromEntries(r.body.records!.map((x) => [x.id, { canConfirm: x.canConfirm, canRemove: x.canRemove }]));
         expect(byId).toEqual({
-            own: { canConfirm: false, canRemove: true },
+            own: { canConfirm: true, canRemove: true },
             other: { canConfirm: true, canRemove: true },
             ownConfirmed: { canConfirm: false, canRemove: false },
         });
@@ -202,12 +202,12 @@ describe('POST /records', () => {
         });
     });
 
-    it('自分に付けると確認待ち（status: pending）', async () => {
+    it('自分に付けると確認待ち（status: pending）。付けただけでは確定にならない（管理者・マネージャーは、あとで自分で認められる＝canConfirm: true）', async () => {
         mock(prisma.user.findUnique).mockResolvedValue({ id: 'admin1', displayName: '管理者1', role: 'ADMIN', isActive: true });
         const r = await postRecord(body({ userId: 'admin1' }));
         expect(r.status).toBe(201);
         expect(mock(prisma.evaluationPointRecord.createManyAndReturn).mock.calls[0][0].data[0].status).toBe('pending');
-        expect(r.body.record).toMatchObject({ status: 'pending', canConfirm: false, canRemove: true });
+        expect(r.body.record).toMatchObject({ status: 'pending', canConfirm: true, canRemove: true });
     });
 
     it('先の日付は 400「先の日付には付けられません」。何も読まず書かない', async () => {
@@ -269,7 +269,7 @@ describe('POST /records', () => {
 // ================================================================ PATCH
 
 describe('PATCH /records（認める）', () => {
-    it('自分の分・すでに確定・無い ID は skipped。認めてよい記録だけ updateMany（status: pending を条件に）・ログは1件1行', async () => {
+    it('すでに確定・無い ID は skipped。認めてよい記録だけ updateMany（status: pending を条件に）・ログは1件1行。自分の分の確認待ちも認める', async () => {
         mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([
             recordRow({ id: 'own', userId: 'admin1', status: 'pending', createdBy: 'admin1' }),
             recordRow({ id: 'done', status: 'confirmed' }),
@@ -277,22 +277,49 @@ describe('PATCH /records（認める）', () => {
         ]);
         const r = await patchRecords({ action: 'confirm', ids: ['own', 'done', 'ok', 'missing', 'ok'] });
         expect(r.status).toBe(200);
-        expect(r.body).toEqual({ confirmed: 1, skipped: 3 });
-        expect(prisma.evaluationPointRecord.updateMany).toHaveBeenCalledTimes(1);
-        const args = mock(prisma.evaluationPointRecord.updateMany).mock.calls[0][0];
-        expect(args.where).toEqual({ id: 'ok', status: 'pending' });
-        expect(args.data).toMatchObject({ status: 'confirmed', confirmedBy: 'admin1', confirmedByName: '管理者1' });
-        expect(args.data.confirmedAt).toBeInstanceOf(Date);
+        // 重なりを除いた 4件（own・done・ok・missing）のうち、認めたのは own と ok。done（確定済み）と missing（無い ID）は skipped
+        expect(r.body).toEqual({ confirmed: 2, skipped: 2 });
+        expect(prisma.evaluationPointRecord.updateMany).toHaveBeenCalledTimes(2);
+        const calls = mock(prisma.evaluationPointRecord.updateMany).mock.calls.map((c) => c[0]);
+        expect(calls.map((c) => c.where)).toEqual([{ id: 'own', status: 'pending' }, { id: 'ok', status: 'pending' }]);
+        for (const args of calls) {
+            expect(args.data).toMatchObject({ status: 'confirmed', confirmedBy: 'admin1', confirmedByName: '管理者1' });
+            expect(args.data.confirmedAt).toBeInstanceOf(Date);
+        }
+        expect(prisma.evaluationPointLog.createMany).toHaveBeenCalledTimes(1);
         const logs = mock(prisma.evaluationPointLog.createMany).mock.calls[0][0].data;
-        expect(logs).toEqual([expect.objectContaining({
-            action: 'record_confirmed', actorId: 'admin1', targetUserId: 'worker1', itemId: 'wash', recordId: 'ok',
-            recordDate: utc0('2026-09-30'), detail: { itemName: '洗車', points: 2 },
-        })]);
+        expect(logs).toEqual([
+            expect.objectContaining({
+                action: 'record_confirmed', actorId: 'admin1', targetUserId: 'admin1', itemId: 'wash', recordId: 'own',
+                recordDate: utc0('2026-09-30'), detail: { itemName: '洗車', points: 2 },
+            }),
+            expect.objectContaining({
+                action: 'record_confirmed', actorId: 'admin1', targetUserId: 'worker1', itemId: 'wash', recordId: 'ok',
+                recordDate: utc0('2026-09-30'), detail: { itemName: '洗車', points: 2 },
+            }),
+        ]);
     });
 
-    it('自分の分だけを送ると、何も変えずに全部 skipped', async () => {
-        mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([recordRow({ id: 'own', userId: 'admin1', status: 'pending', createdBy: 'admin1' })]);
-        const r = await patchRecords({ action: 'confirm', ids: ['own'] });
+    it('自分の分だけを送っても認められる（管理者・マネージャー。kei 決定 2026-10-05）。だれが認めたかは、記録とログに残る', async () => {
+        for (const user of [ADMIN, MANAGER]) {
+            jest.clearAllMocks();
+            loginAs(user);
+            mock(prisma.evaluationPointRecord.updateMany).mockResolvedValue({ count: 1 });
+            mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([recordRow({ id: 'own', userId: user.id, status: 'pending', createdBy: user.id })]);
+            const r = await patchRecords({ action: 'confirm', ids: ['own'] });
+            expect([user.role, r.status, r.body]).toEqual([user.role, 200, { confirmed: 1, skipped: 0 }]);
+            const args = mock(prisma.evaluationPointRecord.updateMany).mock.calls[0][0];
+            expect(args.where).toEqual({ id: 'own', status: 'pending' });
+            expect(args.data).toMatchObject({ status: 'confirmed', confirmedBy: user.id, confirmedByName: user.name });
+            expect(mock(prisma.evaluationPointLog.createMany).mock.calls[0][0].data).toEqual([
+                expect.objectContaining({ action: 'record_confirmed', actorId: user.id, actorName: user.name, targetUserId: user.id, recordId: 'own' }),
+            ]);
+        }
+    });
+
+    it('自分の分でも、すでに確定していれば何も変えずに skipped', async () => {
+        mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([recordRow({ id: 'ownDone', userId: 'admin1', status: 'confirmed', createdBy: 'manager1' })]);
+        const r = await patchRecords({ action: 'confirm', ids: ['ownDone'] });
         expect(r.body).toEqual({ confirmed: 0, skipped: 1 });
         noWrites();
     });

@@ -227,7 +227,7 @@ export default function EvaluationPointsManagerView() {
             const confirmed = body?.confirmed ?? 0;
             const skipped = body?.skipped ?? 0;
             if (confirmed > 0) toast.success(`${confirmed}件を認めました`);
-            if (skipped > 0) toast(`${skipped}件は認められませんでした（すでに確定・取り消し済み・自分の分）`);
+            if (skipped > 0) toast(`${skipped}件は認められませんでした（すでに確定・取り消し済み）`);
         }
         return result.ok;
     };

@@ -5,8 +5,9 @@
  *
  *  - 日付／氏名／項目／点数／申請した日時／ボタン
  *  - 上に「まとめて認める」（canConfirm の記録だけを送る）
- *  - canConfirm の行 →「認める」「取り消す」
- *  - 自分の分の行（canConfirm が false）→「自分の分は、ほかの管理者・マネージャーが確認します」。canRemove なら「取り下げる」
+ *  - canConfirm の行 →「認める」／canRemove の行 →「取り消す」
+ *  - 管理者・マネージャーは、自分の分の確認待ちも自分で認められる（kei 決定 2026-10-05）。
+ *    だから、この一覧の行は、自分の分もふくめて「認める」が出る（出すかどうかは、サーバーが返す canConfirm で決める）
  */
 import React from 'react';
 import { Check } from 'lucide-react';
@@ -26,11 +27,8 @@ interface Props {
 export default function EvaluationPointPendingModal({ isOpen, records, busy, onClose, onConfirm, onRemove }: Props) {
     const confirmableIds = records.filter((r) => r.canConfirm).map((r) => r.id);
 
-    const handleRemove = async (r: PointRecord, own: boolean) => {
-        const message = own
-            ? `${formatShortDate(r.date)}の「${r.itemName}」の申請を取り下げますか？`
-            : `${r.userName}さんの ${formatShortDate(r.date)}の「${r.itemName}」を取り消しますか？`;
-        if (!window.confirm(message)) return;
+    const handleRemove = async (r: PointRecord) => {
+        if (!window.confirm(`${r.userName}さんの ${formatShortDate(r.date)}の「${r.itemName}」を取り消しますか？`)) return;
         await onRemove(r);
     };
 
@@ -74,26 +72,15 @@ export default function EvaluationPointPendingModal({ isOpen, records, busy, onC
                                         <td className="px-3 py-2 whitespace-nowrap tabular-nums">{formatJstDateTime(r.createdAt)}</td>
                                         <td className="px-3 py-2">
                                             <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                                {r.canConfirm ? (
-                                                    <>
-                                                        <Button size="sm" variant="primary" onClick={() => onConfirm([r.id])} disabled={busy}>
-                                                            認める
-                                                        </Button>
-                                                        {r.canRemove && (
-                                                            <Button size="sm" variant="dangerOutline" onClick={() => handleRemove(r, false)} disabled={busy}>
-                                                                取り消す
-                                                            </Button>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <span className="text-xs text-slate-500">自分の分は、ほかの管理者・マネージャーが確認します</span>
-                                                        {r.canRemove && (
-                                                            <Button size="sm" variant="outline" onClick={() => handleRemove(r, true)} disabled={busy}>
-                                                                取り下げる
-                                                            </Button>
-                                                        )}
-                                                    </>
+                                                {r.canConfirm && (
+                                                    <Button size="sm" variant="primary" onClick={() => onConfirm([r.id])} disabled={busy}>
+                                                        認める
+                                                    </Button>
+                                                )}
+                                                {r.canRemove && (
+                                                    <Button size="sm" variant="dangerOutline" onClick={() => handleRemove(r)} disabled={busy}>
+                                                        取り消す
+                                                    </Button>
                                                 )}
                                             </div>
                                         </td>
