@@ -3383,3 +3383,144 @@ model EvaluationPointSetting {
 
   @@schema("public")
 }
+
+// ───────────────────────── 手当（現場の手当） ─────────────────────────
+// 評価ポイント（EvaluationPoint*）とは別のテーブルで持つ（評価ポイントは試行の点数、手当は給与に付けるお金。混ぜない）。
+// 出勤簿（AttendanceRecord）にも混ぜない。出勤簿は「手配と見比べる一覧」で読むだけ（kei 決定 2026-10-04）。
+
+/// 手当の種類（今は「大規模手当」の1行だけ。行はマイグレーションで作り、画面からは増やさない）。
+/// 金額は AllowanceRate に適用開始日つきで持つ。
+model AllowanceItem {
+  id                  String            @id @default(dbgenerated("(gen_random_uuid())::text"))
+  /// 画面に出す名前（例: 大規模手当）
+  name                String
+  /// どんなときに付けるかの説明
+  description         String?
+  /// 対象の現場の「工事内容」。案件（ProjectMaster.constructionContent）を
+  /// lib/constructionContent.ts の normalizeConstructionContent() にかけた名前と比べる（例: 大規模）
+  constructionContent String
+  sortOrder           Int               @default(0)
+  /// false = 使わない（「出勤簿入力」に出さない・新しく付けられない）。付いた記録は残る
+  isActive            Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @default(now()) @updatedAt
+  rates               AllowanceRate[]
+  records             AllowanceRecord[]
+
+  @@index([sortOrder])
+  @@schema("public")
+}
+
+/// 手当の金額の履歴。追記のみ（更新しない。削除は「まだ始まっていない予約の取り消し」だけ）。
+/// ある日付の記録に使う金額 = effectiveFrom がその日付以前で一番新しい行（同じ日なら createdAt が新しい行）。
+/// その日付以前の行が無ければ、金額なし（一番古い effectiveFrom が、その手当の始まりの日。それより前の日付には付けられない）。
+model AllowanceRate {
+  id            String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  itemId        String
+  /// その日の班の職長の、1日の金額（円）
+  foremanAmount Int
+  /// 職長以外の、1日の金額（円）
+  memberAmount  Int
+  /// 適用開始日（JST の日付）。UTC 0時の印で保存する（AttendanceRecord.date と同じ約束）
+  effectiveFrom DateTime      @db.Date
+  createdBy     String?
+  createdByName String        @default("")
+  createdAt     DateTime      @default(now())
+  item          AllowanceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, effectiveFrom])
+  @@schema("public")
+}
+
+/// 手当の記録。1行 = 1人・1日・1つの手当。
+/// amount・payRole・itemName は「付けた時点の写し」。あとから名前を変えても、この行は変わらない。
+/// amount は、適用開始日が今日以前の金額の行を足したとき（さかのぼった変更・打ちまちがいの直し）だけ、
+/// その日からあとの行が新しい金額になる（締めた月は変わらない。履歴 record_repriced が残る）。
+model AllowanceRecord {
+  id              String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  /// 手当をもらう人（User.id）。AttendanceRecord と同じく外部キーは張らない
+  userId          String
+  /// 対象の日（JST の日付）。UTC 0時の印で保存する（AttendanceRecord.date と同じ約束）
+  date            DateTime      @db.Date
+  itemId          String
+  itemName        String
+  /// 'foreman' = その日の班の職長として / 'member' = 職長以外として
+  payRole         String
+  /// 1日の金額（円）。記録の日付に有効な金額の、職長／職長以外のほう
+  amount          Int
+  /// どの金額の行（AllowanceRate.id）から写したか。調べるとき用（外部キーは張らない）
+  rateId          String?
+  /// 'confirmed' = 数える / 'pending' = 確認待ち（自分で自分に付けた分。管理者・マネージャーが認めるまで数えない）
+  status          String        @default("confirmed")
+  /// 'attendance' = 出勤簿入力から / 'manual' = 「手当」の画面の「記録を足す」から / 'bulk' = 「手配と見比べる」からまとめて
+  source          String        @default("attendance")
+  /// 出勤簿入力から付けたときの、その画面で選んでいた職長（User.id）。「この人が職長だった班」ではない（区分は payRole）
+  foremanId       String?
+  note            String?
+  createdBy       String
+  createdByName   String        @default("")
+  confirmedBy     String?
+  confirmedByName String?
+  confirmedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+  item            AllowanceItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  /// 同じ人・同じ日・同じ手当は1回だけ（連打や二重保存でも増えない）。
+  /// 「人と日」で絞る検索も、この索引の頭の部分で足りる（別の索引は作らない）
+  @@unique([userId, date, itemId])
+  @@index([date])
+  @@index([itemId])
+  @@index([status])
+  @@schema("public")
+}
+
+/// 締めた月。行がある = その月は締めてある（その月の日付の記録は、足す・取り消す・認めるができない）。
+/// 締めを外すと行を消す（締めた・外したの履歴は AllowanceLog に残る）。
+model AllowanceMonthClose {
+  /// 'YYYY-MM'
+  month        String   @id
+  closedBy     String
+  closedByName String   @default("")
+  closedAt     DateTime @default(now())
+
+  @@schema("public")
+}
+
+/// 手当の操作の履歴（追記のみ）。記録を取り消した・金額を変えた・月を締めた、などを後から追えるようにする。
+model AllowanceLog {
+  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  /// 'item_updated' | 'rate_added' | 'rate_cancelled'
+  /// | 'record_added' | 'record_removed' | 'record_confirmed' | 'record_repriced'
+  /// | 'month_closed' | 'month_reopened' | 'setting_updated'
+  action       String
+  actorId      String
+  actorName    String    @default("")
+  targetUserId String?
+  itemId       String?
+  recordId     String?
+  recordDate   DateTime? @db.Date
+  /// 'YYYY-MM'（月を締めた・外したとき）
+  month        String?
+  /// 変更前後の値・取り消した記録の写しなど
+  detail       Json?
+  createdAt    DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([targetUserId, recordDate])
+  @@schema("public")
+}
+
+/// 手当の公開の設定（1行だけ・id は 'default'）
+model AllowanceSetting {
+  id            String   @id @default("default")
+  /// true = 本人（職長・作業員）に、自分の手当の日数と金額を見せる
+  showToMembers Boolean  @default(false)
+  /// 本人の画面の上に出す注意書き
+  memberNotice  String?
+  updatedBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  @@schema("public")
+}
