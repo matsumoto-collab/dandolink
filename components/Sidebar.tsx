@@ -15,6 +15,7 @@ import { APP_NAME, APP_LOGO } from '@/lib/branding';
 import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 import { useOpenChat } from '@/hooks/useOpenChat';
 import { useEvaluationPointAccess } from '@/hooks/useEvaluationPointAccess';
+import { useAllowanceAccess } from '@/hooks/useAllowanceAccess';
 
 interface NavItem {
     name: string;
@@ -25,6 +26,8 @@ interface NavItem {
     requiresCashbookAccess?: boolean;
     /** true なら「評価ポイント」の見せ方（hooks/useEvaluationPointAccess）が 'none' のときは出さない（公開の設定で出し分ける） */
     requiresEvaluationPointAccess?: boolean;
+    /** true なら「手当」の見せ方（hooks/useAllowanceAccess）が 'none' のときは出さない（公開の設定で出し分ける） */
+    requiresAllowanceAccess?: boolean;
 }
 
 interface NavSection {
@@ -42,7 +45,7 @@ const navigationSections: NavSection[] = [
             { name: '報告一覧', page: 'reports' },
             { name: '出勤簿', page: 'attendance' },
             { name: '評価ポイント', page: 'evaluation-points', requiredRoles: ['admin', 'manager', 'foreman1', 'foreman2', 'worker'], requiresEvaluationPointAccess: true },
-            { name: '手当', page: 'allowances', requiredRoles: ['admin', 'manager'] },
+            { name: '手当', page: 'allowances', requiredRoles: ['admin', 'manager', 'foreman1', 'foreman2', 'worker'], requiresAllowanceAccess: true },
             { name: 'チャット', page: 'chat' },
         ],
     },
@@ -95,6 +98,8 @@ export default function Sidebar() {
     const openChat = useOpenChat();
     // 「評価ポイント」: admin・manager は通信なしで出す／職長・作業員は公開の設定がオンのときだけ出す
     const { mode: evaluationPointMode } = useEvaluationPointAccess(session?.user?.role);
+    // 「手当」: admin・manager は通信なしで出す／職長・作業員は公開の設定がオンのときだけ出す
+    const { mode: allowanceMode } = useAllowanceAccess(session?.user?.role);
 
     // 全ページで未読バッジを即時更新するためグローバル購読
     useChatRoomsRealtime(!!session?.user?.id, session?.user?.id);
@@ -266,13 +271,14 @@ export default function Sidebar() {
                                 (!item.requiredRoles || (role !== undefined && item.requiredRoles.includes(role)))
                                 && (!item.requiresCashbookAccess || session?.user?.canAccessCashbook === true)
                                 && (!item.requiresEvaluationPointAccess || evaluationPointMode !== 'none')
+                                && (!item.requiresAllowanceAccess || allowanceMode !== 'none')
                             );
                             const filteredSection = { ...section, items: allowedItems };
 
-                            // workerロール: スケジュール + チャット + 評価ポイント(公開の設定がオンのとき) + 材料管理(在庫/返却)
+                            // workerロール: スケジュール + チャット + 評価ポイント・手当(公開の設定がオンのとき) + 材料管理(在庫/返却)
                             if (role === 'worker') {
                                 if (filteredSection.title === '業務管理') {
-                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'evaluation-points' || item.page === 'chat') };
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'evaluation-points' || item.page === 'allowances' || item.page === 'chat') };
                                 }
                                 if (filteredSection.title === '材料管理') {
                                     return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'inventory' || item.page === 'stocktake' || item.page === 'material-returns' || item.page === 'kakoi-calc') };
@@ -307,10 +313,10 @@ export default function Sidebar() {
                                 }
                                 return null;
                             }
-                            // 職長1/2: 業務管理 + 材料管理
+                            // 職長1/2: 業務管理（評価ポイント・手当は公開の設定がオンのとき） + 材料管理
                             if (role === 'foreman1' || role === 'foreman2') {
                                 if (filteredSection.title === '業務管理') {
-                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance' || item.page === 'evaluation-points' || item.page === 'chat') };
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance' || item.page === 'evaluation-points' || item.page === 'allowances' || item.page === 'chat') };
                                 }
                                 if (filteredSection.title === '材料管理') return filteredSection;
                                 return null;

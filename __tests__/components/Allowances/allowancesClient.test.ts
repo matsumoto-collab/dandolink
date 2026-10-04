@@ -10,6 +10,8 @@ import {
     formatMonthShort,
     kindLabelOf,
     monthEndDateKey,
+    myLineFormula,
+    myLineLabel,
     recordsQuery,
     shiftMonth,
     sourceLabelOf,
@@ -102,5 +104,18 @@ describe('chunkArray', () => {
     it('size 件ずつに分ける', () => {
         expect(chunkArray([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
         expect(chunkArray([], 2000)).toEqual([]);
+    });
+});
+
+describe('myLineLabel・myLineFormula（本人の画面の行）', () => {
+    it('「大規模手当（職長）」「3日 × 1,500円 ＝ 4,500円」', () => {
+        const line = { itemId: 'i1', itemName: '大規模手当', payRole: 'foreman' as const, amount: 1500, days: 3, total: 4500 };
+        expect(myLineLabel(line)).toBe('大規模手当（職長）');
+        expect(myLineFormula(line)).toBe('3日 × 1,500円 ＝ 4,500円');
+    });
+    it('職長以外・3けた区切り', () => {
+        const line = { itemId: 'i1', itemName: '大規模手当', payRole: 'member' as const, amount: 200, days: 12, total: 2400 };
+        expect(myLineLabel(line)).toBe('大規模手当（職長以外）');
+        expect(myLineFormula(line)).toBe('12日 × 200円 ＝ 2,400円');
     });
 });

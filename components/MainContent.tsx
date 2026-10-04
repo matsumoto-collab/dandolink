@@ -462,8 +462,9 @@ export default function MainContent() {
                 return <EvaluationPointsPage />;
 
             case 'allowances':
-                // 手当（大規模手当）: Phase 4 では admin / manager だけ（本人の画面は Phase 5 で足す）
-                if (userRole !== 'admin' && userRole !== 'manager') {
+                // 手当（大規模手当）: 入口は admin / manager / foreman1 / foreman2 / worker。
+                // 中の出し分け（全員の集計・本人の画面・権限なし）は AllowancesPage が見せ方（mode）で行う（API も同じ決まりで 403）
+                if (userRole !== 'admin' && userRole !== 'manager' && userRole !== 'foreman1' && userRole !== 'foreman2' && userRole !== 'worker') {
                     return <PlaceholderPage title="アクセス権限がありません" />;
                 }
                 return <AllowancesPage />;

@@ -138,6 +138,35 @@ export interface CrosscheckData {
     items: CrosscheckItem[];
 }
 
+/** 「◯日 × 単価 ＝ ◯円」の1行（GET /me の lines。確定の記録だけ） */
+export interface MyAllowanceLine {
+    itemId: string;
+    itemName: string;
+    payRole: AllowancePayRole;
+    /** 1日の金額 */
+    amount: number;
+    days: number;
+    total: number;
+}
+
+/** GET /me?month= （6-7。本人の記録だけ） */
+export interface MyAllowanceData {
+    month: string;
+    startDate: string;
+    endDate: string;
+    /** 公開の設定の注意書き */
+    notice: string | null;
+    /** その月が締めてあるか（true = 金額が決まった月。false = まだ変わることがある） */
+    closed: boolean;
+    lines: MyAllowanceLine[];
+    totalDays: number;
+    totalAmount: number;
+    pendingCount: number;
+    pendingAmount: number;
+    /** 日付の新しい順 */
+    records: { id: string; date: string; itemName: string; payRole: AllowancePayRole; amount: number; status: AllowanceStatus }[];
+}
+
 // ---------------------------------------------------------------- 言葉
 
 export const STATUS_LABEL: Record<AllowanceStatus, string> = {
@@ -195,6 +224,16 @@ export function kindLabelOf(isJoyo: boolean): string {
 /** 金額 → 「1,500円」 */
 export function yen(amount: number): string {
     return `${amount.toLocaleString('ja-JP')}円`;
+}
+
+/** 本人の画面の行の名前 → 「大規模手当（職長）」 */
+export function myLineLabel(line: Pick<MyAllowanceLine, 'itemName' | 'payRole'>): string {
+    return `${line.itemName}（${PAY_ROLE_LABEL[line.payRole]}）`;
+}
+
+/** 本人の画面の行の式 → 「3日 × 1,500円 ＝ 4,500円」 */
+export function myLineFormula(line: Pick<MyAllowanceLine, 'days' | 'amount' | 'total'>): string {
+    return `${line.days}日 × ${yen(line.amount)} ＝ ${yen(line.total)}`;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
