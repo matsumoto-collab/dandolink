@@ -22,6 +22,7 @@ import NotificationSettings from '@/components/Settings/NotificationSettings';
 import DispatchOrderSettings from '@/components/Settings/DispatchOrderSettings';
 import ToolMasterSettings from '@/components/Settings/ToolMasterSettings';
 import EvaluationPointSettings from '@/components/Settings/EvaluationPointSettings';
+import AllowanceSettings from '@/components/Settings/AllowanceSettings';
 import TentativeTriageView from '@/components/Schedule/TentativeTriageView';
 import toast from 'react-hot-toast';
 
@@ -38,7 +39,7 @@ export default function SettingsPage() {
         deleteMemberCountEntry,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded' | 'backfill' | 'evaluationPoints'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded' | 'backfill' | 'evaluationPoints' | 'allowances'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [editingRate, setEditingRate] = useState(''); // 車両の日額（編集中）
@@ -60,7 +61,7 @@ export default function SettingsPage() {
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded' | 'backfill' | 'evaluationPoints'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'tools' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder' | 'expenseCategories' | 'tentativeTriage' | 'valueAdded' | 'backfill' | 'evaluationPoints' | 'allowances'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: null },
             { id: 'tools' as const, label: '電動工具', count: null },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
@@ -88,6 +89,8 @@ export default function SettingsPage() {
         if (isUserAdmin) {
             // 評価ポイント（点数表）は管理者だけ
             baseTabs.push({ id: 'evaluationPoints' as const, label: '評価ポイント', count: null });
+            // 手当（大規模手当）の金額・使う／使わない・本人への表示は管理者だけ
+            baseTabs.push({ id: 'allowances' as const, label: '手当', count: null });
             baseTabs.push({ id: 'users' as const, label: 'ユーザー管理', count: null });
             baseTabs.push({ id: 'partners' as const, label: '協力会社', count: null });
             // 過去データ取込（DandoLink 導入前のデータを CSV から入れる）は管理者だけ
@@ -395,6 +398,9 @@ export default function SettingsPage() {
                         ) : activeTab === 'evaluationPoints' && isUserAdmin ? (
                             // 評価ポイントの点数表（管理者のみ）
                             <EvaluationPointSettings />
+                        ) : activeTab === 'allowances' && isUserAdmin ? (
+                            // 手当の金額・使う／使わない・本人への表示（管理者のみ）
+                            <AllowanceSettings />
                         ) : activeTab === 'notifications' ? (
                             // プッシュ通知設定
                             <NotificationSettings />
