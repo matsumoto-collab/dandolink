@@ -25,6 +25,7 @@ export type PageType =
     | 'kakoi-calc'       // 仮囲い計算（外部アプリ「カコイ拾い」を画面内に表示）
     | 'attendance'       // 出勤簿
     | 'evaluation-points'  // 評価ポイント
+    | 'allowances'  // 手当（大規模手当）
     | 'chat'             // チャット
     | 'payment-schedules'// 支払予定
     | 'receipts'         // 領収書（AIで取り込み・費目仕分け・画像保管）

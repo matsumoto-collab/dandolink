@@ -23,6 +23,7 @@ const VALID_PAGES: PageType[] = [
     'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'own-crew-volume',
     'joyo-statements',
     'evaluation-points',
+    'allowances',
 ];
 
 // 簡易ローディングコンポーネント
@@ -138,6 +139,9 @@ const JoyoStatementsPage = dynamic(() => import('./JoyoStatements/JoyoStatements
     loading: () => <LoadingSpinner />,
 });
 const EvaluationPointsPage = dynamic(() => import('./EvaluationPoints/EvaluationPointsPage'), {
+    loading: () => <LoadingSpinner />,
+});
+const AllowancesPage = dynamic(() => import('./Allowances/AllowancesPage'), {
     loading: () => <LoadingSpinner />,
 });
 const ScheduleHistoryPanel = dynamic(() => import('./Calendar/ScheduleHistoryPanel'), {
@@ -314,6 +318,7 @@ export default function MainContent() {
         'own-crew-volume': '自社班の出来高',
         'joyo-statements': '支払明細書',
         'evaluation-points': '評価ポイント',
+        'allowances': '手当',
     };
     const pageTitle = pageTitleMap[activePage] ?? 'DandoLink';
 
@@ -456,6 +461,13 @@ export default function MainContent() {
                 }
                 return <EvaluationPointsPage />;
 
+            case 'allowances':
+                // 手当（大規模手当）: Phase 4 では admin / manager だけ（本人の画面は Phase 5 で足す）
+                if (userRole !== 'admin' && userRole !== 'manager') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <AllowancesPage />;
+
             case 'chat':
                 return <ChatPage />;
 
@@ -578,7 +590,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             `}>
-                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'own-crew-volume', 'joyo-statements', 'evaluation-points', 'materials', 'kakoi-calc'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
+                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'own-crew-volume', 'joyo-statements', 'evaluation-points', 'allowances', 'materials', 'kakoi-calc'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}
