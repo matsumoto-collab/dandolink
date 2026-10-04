@@ -167,6 +167,8 @@ const dayResponse = (foremanId: string, date: string, items: DayItem[], members:
 const isAttendanceCall = (c: Call) => c.path.startsWith('/api/attendance');
 const isDayGet = (c: Call) => c.path === '/api/evaluation-points/day' && c.method === 'GET';
 const isDayPut = (c: Call) => c.path === '/api/evaluation-points/day' && c.method === 'PUT';
+/** 手当の読み込み（評価ポイントとは別の部品が、同じときに読む。このファイルのテストでは、答えを返さない＝手当の部品は出ない） */
+const isAllowanceDayGet = (c: Call) => c.path === '/api/allowances/day' && c.method === 'GET';
 const describeCall = (c: Call) => `${c.method} ${c.url}`;
 const dayQuery = (c: Call) => ({ foremanId: c.query.get('foremanId') ?? '', date: c.query.get('date') ?? '' });
 
@@ -277,8 +279,8 @@ describe('A. 項目が無い・読めない・対象外 のときは、ポイン
             'GET /api/attendance/members?foremanId=F1&date=2026-10-01',
             'GET /api/attendance?foremanId=F1&date=2026-10-01',
         ]);
-        // 増える通信は GET /api/evaluation-points/day だけ
-        expect(calls.filter((c) => !isAttendanceCall(c)).every(isDayGet)).toBe(true);
+        // 増える通信は GET /api/evaluation-points/day と、手当の GET /api/allowances/day だけ
+        expect(calls.filter((c) => !isAttendanceCall(c)).every((c) => isDayGet(c) || isAllowanceDayGet(c))).toBe(true);
     });
 
     it('読み込みに失敗したことは logger.error にだけ出す', async () => {

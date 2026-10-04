@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import { useEvaluationPointDay } from '@/hooks/useEvaluationPointDay';
 import AttendancePointChips, { AttendancePointNotice } from './AttendancePointChips';
+import { useAllowanceDay } from '@/hooks/useAllowanceDay';
+import AttendanceAllowanceChips, { AttendanceAllowanceNotice } from './AttendanceAllowanceChips';
 
 // 早出/朝積/残業/夕積 のドロップダウン選択肢: 0〜3時間（15分刻み、計13選択肢）
 const MINUTE_OPTIONS: number[] = (() => {
@@ -115,6 +117,7 @@ export default function AttendanceModal({
 
     // 評価ポイント（読み込み・保存は全部このフックの中。出勤簿のデータ・「保存」には触らない）
     const pointDay = useEvaluationPointDay({ enabled: isOpen && !!selectedForemanId, foremanId: selectedForemanId, dateKey });
+    const allowanceDay = useAllowanceDay({ enabled: isOpen && !!selectedForemanId, foremanId: selectedForemanId, dateKey });
 
     // 初期化（モーダルが開かれた時）
     useEffect(() => {
@@ -455,6 +458,7 @@ export default function AttendanceModal({
                                 </Button>
                             </div>
                             {members.some((m) => pointDay.showsChips(m.id)) && <AttendancePointNotice items={pointDay.items} />}
+                            {members.some((m) => allowanceDay.showsChips(m.id)) && <AttendanceAllowanceNotice items={allowanceDay.items} />}
 
                             <div className="space-y-2">
                                 {members.map((m, idx) => {
@@ -520,6 +524,7 @@ export default function AttendanceModal({
                                                 />
                                             </div>
                                             <AttendancePointChips pointDay={pointDay} userId={m.id} currentUserId={userId} />
+                                            <AttendanceAllowanceChips allowanceDay={allowanceDay} userId={m.id} currentUserId={userId} />
                                         </div>
                                     );
                                 })}
