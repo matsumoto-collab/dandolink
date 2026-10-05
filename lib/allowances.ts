@@ -12,12 +12,14 @@
  *  - 金額     … 手当ごとに「適用開始日つき」で持つ。職長の金額と、職長以外の金額の2つ。AllowanceRate（追記のみ）。
  *                いちばん古い適用開始日が、その手当の「始まりの日」（それより前の日付には付けられない）
  *  - 記録     … 1人・1日・1つの手当で1行。金額と「職長／職長以外」は、付けた時点の写し。AllowanceRecord
- *                （金額は、さかのぼって金額を変えたときだけ、締めていない月の記録が新しい金額になる）
+ *                （金額は、さかのぼって金額を変えたときだけ、締めていない月の記録が新しい金額になる。
+ *                 ただし、管理者が金額を手で直した記録は、金額を変えても、手で直した金額のまま）
+ *  - 手で直す … 管理者が、記録1件の金額を手で直すこと（amountEditedAt が入る）。「単価に戻す」で、その日付の金額に戻る
  *  - 職長     … その日、対象の現場の手配で職長になっている人。役職が職長でも、ほかの人の班に入っただけの日は「職長以外」。
  *                「出勤簿入力」と「手配と見比べる」では、どの画面で付けても同じ（手配で決まる。buildTargetRoles）。
  *                「手当」の画面の「記録を足す」（管理者・マネージャーが手で足す）だけは、選んだ区分で付く
  *  - 確認待ち … 自分で自分に付けた記録。管理者・マネージャーが認めるまで合計に入れない
- *  - 締め     … 月ごと。締めた月の日付の記録は、足す・取り消す・認めるができない
+ *  - 締め     … 月ごと。締めた月の日付の記録は、足す・取り消す・認める・金額を直す（単価に戻す）ができない
  */
 
 /** 手当をもらえる人（社員と、常用の一人親方）のロール。協力会社・協力会社のメンバー・応援・税理士は対象外 */
@@ -314,6 +316,8 @@ export interface AllowanceRecordLike {
     status: AllowanceStatus;
     /** 付けた人 */
     createdBy: string;
+    /** 管理者が金額を手で直した記録か（DB の amountEditedAt が null でない）。省いたら false の扱い */
+    amountEdited?: boolean;
 }
 
 /**
@@ -332,16 +336,28 @@ export function statusForNewRecord(operatorId: string, targetUserId: string): Al
 
 /**
  * その記録を取り消してよいか（月が締めてあるかどうかは、ここでは見ない。呼ぶ側が別に確かめる）。
+ *  - 管理者が金額を手で直した記録: 管理者・マネージャーでなければ取り消せない（職長は、自分が付けた記録でも取り消せない）
  *  - 自分の分: 確認待ち（申請中）のあいだだけ、自分で取り下げられる。認められた後は自分では消せない
  *  - 他の人の分: 管理者・マネージャーはどれでも。職長は自分が付けた記録だけ
  */
 export function canRemoveRecord(operator: AllowanceOperator, record: AllowanceRecordLike): boolean {
+    if (record.amountEdited === true && !isAllowanceManager(operator.role)) return false;
     if (record.userId === operator.id) {
         return record.status === 'pending' && record.createdBy === operator.id;
     }
     if (isAllowanceManager(operator.role)) return true;
     if (canInputAllowances(operator.role)) return record.createdBy === operator.id;
     return false;
+}
+
+/**
+ * その記録の金額を手で直してよいか・「単価に戻す」をしてよいか（月が締めてあるかどうかは、ここでは見ない。呼ぶ側が別に確かめる）。
+ *  - 管理者だけ（マネージャー・職長は直せない）
+ *  - 自分の分の金額は、自分では直せない（ほかの管理者が直す）
+ *  - 確定・確認待ちのどちらの記録も直せる（状態は変えない）
+ */
+export function canEditRecordAmount(operator: AllowanceOperator, record: AllowanceRecordLike): boolean {
+    return isAllowanceAdmin(operator.role) && record.userId !== operator.id;
 }
 
 /** 確認待ちの記録を認めてよいか（管理者・マネージャーだけ。自分の分は認められない）。締めは呼ぶ側が別に確かめる */
@@ -767,11 +783,14 @@ export interface RepriceRecordLike {
     amount: number;
     /** どの金額の行から写したか */
     rateId: string | null;
+    /** 管理者が金額を手で直した記録か。true の記録は、付け直さない。省いたら false の扱い */
+    amountEdited?: boolean;
 }
 
 /**
  * 記録のうち、金額の表（その日付に有効な金額の行）と合っていないものと、合わせたあとの値を返す。
  * 「金額」か「どの行から写したか（rateId）」のどちらかが違う記録が対象。その日付に有効な金額が無い記録は、対象にしない。
+ * **管理者が金額を手で直した記録（amountEdited）は、対象にしない**（手で直した金額は、金額の表を変えても変えない）。
  * 適用開始日が過去の金額の行を足したとき（さかのぼった変更・打ちまちがいの直し）に、すでに付いている記録を合わせるのに使う。
  */
 export function findRecordsToReprice<R extends RepriceRecordLike>(
@@ -780,6 +799,7 @@ export function findRecordsToReprice<R extends RepriceRecordLike>(
 ): { record: R; amount: number; rateId: string }[] {
     const result: { record: R; amount: number; rateId: string }[] = [];
     for (const record of records) {
+        if (record.amountEdited === true) continue;
         const rate = resolveAllowanceRateAt(rates, record.date);
         if (!rate) continue;
         const amount = amountOf(rate, record.payRole);

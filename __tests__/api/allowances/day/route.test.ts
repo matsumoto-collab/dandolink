@@ -151,13 +151,14 @@ const recordRow = (over: Record<string, unknown> = {}) => ({
     id: 'r1', userId: 'worker1', date: utc0(DAY), itemId: 'large', itemName: '大規模手当', payRole: 'member', amount: 200,
     rateId: 'rate1', status: 'confirmed', source: 'attendance', foremanId: 'foremanA', note: null,
     createdBy: 'foremanA', createdByName: '職長A', confirmedBy: null, confirmedByName: null, confirmedAt: null,
-    createdAt: new Date('2026-09-10T09:00:00.000Z'), updatedAt: new Date('2026-09-10T09:00:00.000Z'), ...over,
+    createdAt: new Date('2026-09-10T09:00:00.000Z'), updatedAt: new Date('2026-09-10T09:00:00.000Z'),
+    amountEditedAt: null, amountEditedBy: null, amountEditedByName: null, ...over,
 });
 
 /** その日の記録（応答を作るために findMany が返す行＝画面に出す列だけ）。何も指定しなければ recordRow() と同じ記録 */
 const dayRow = (over: Record<string, unknown> = {}) => ({
     id: 'r1', userId: 'worker1', itemId: 'large', itemName: '大規模手当', payRole: 'member', amount: 200,
-    status: 'confirmed', createdBy: 'foremanA', createdByName: '職長A', ...over,
+    status: 'confirmed', createdBy: 'foremanA', createdByName: '職長A', amountEditedAt: null, ...over,
 });
 
 // ---------------------------------------------------------------- 確かめるための部品
@@ -946,7 +947,7 @@ describe('PUT /api/allowances/day: 締めた月', () => {
                 userId: 'worker1',
                 records: [{
                     id: 'r1', itemId: 'large', itemName: '大規模手当', payRole: 'member', amount: 200, status: 'confirmed',
-                    createdBy: 'foremanA', createdByName: '職長A', canRemove: false,
+                    createdBy: 'foremanA', createdByName: '職長A', canRemove: false, amountEdited: false,
                 }],
             },
         });
@@ -1165,9 +1166,9 @@ describe('PUT /api/allowances/day: 鍵・応答', () => {
             member: {
                 userId: 'worker1',
                 records: [
-                    { id: 'new-1', itemId: 'large', itemName: '大規模手当', payRole: 'member', amount: 200, status: 'confirmed', createdBy: 'foremanA', createdByName: '職長A', canRemove: true },
+                    { id: 'new-1', itemId: 'large', itemName: '大規模手当', payRole: 'member', amount: 200, status: 'confirmed', createdBy: 'foremanA', createdByName: '職長A', canRemove: true, amountEdited: false },
                     // 使っていない手当の記録も返す。管理者が付けた記録は、職長には取り消せない
-                    { id: 'o1', itemId: 'old', itemName: '夜間手当（旧）', payRole: 'member', amount: 400, status: 'confirmed', createdBy: 'admin1', createdByName: '管理者', canRemove: false },
+                    { id: 'o1', itemId: 'old', itemName: '夜間手当（旧）', payRole: 'member', amount: 400, status: 'confirmed', createdBy: 'admin1', createdByName: '管理者', canRemove: false, amountEdited: false },
                 ],
             },
         });
@@ -1342,12 +1343,12 @@ describe('GET /api/allowances/day: だれに・どの区分で付けられるか
                 // その手配の職長本人は「職長」の金額
                 foremanA: {
                     userId: 'foremanA', eligible: true, offers: [{ itemId: 'large', payRole: 'foreman', amount: 1500 }],
-                    records: [{ id: 'r2', itemId: 'large', itemName: '大規模手当', payRole: 'foreman', amount: 1500, status: 'pending', createdBy: 'foremanA', createdByName: '職長A', canRemove: true }],
+                    records: [{ id: 'r2', itemId: 'large', itemName: '大規模手当', payRole: 'foreman', amount: 1500, status: 'pending', createdBy: 'foremanA', createdByName: '職長A', canRemove: true, amountEdited: false }],
                 },
                 // 手配確定のメンバーは「職長以外」の金額
                 worker1: {
                     userId: 'worker1', eligible: true, offers: [{ itemId: 'large', payRole: 'member', amount: 200 }],
-                    records: [{ id: 'r1', itemId: 'large', itemName: '大規模手当', payRole: 'member', amount: 200, status: 'confirmed', createdBy: 'foremanA', createdByName: '職長A', canRemove: true }],
+                    records: [{ id: 'r1', itemId: 'large', itemName: '大規模手当', payRole: 'member', amount: 200, status: 'confirmed', createdBy: 'foremanA', createdByName: '職長A', canRemove: true, amountEdited: false }],
                 },
                 // 役職が職長でも、この日は職長A の班のメンバーなので「職長以外」
                 foremanB: { userId: 'foremanB', eligible: true, offers: [{ itemId: 'large', payRole: 'member', amount: 200 }], records: [] },
@@ -1688,5 +1689,57 @@ describe('GET /api/allowances/day: 班の人と、その日の記録（members[]
         const r = await getDay(DAY, 'goneForeman');
         expect([r.status, r.body.members, r.body.items, r.body.monthClosed]).toEqual([200, [], [], false]);
         expect(prisma.allowanceRecord.findMany).not.toHaveBeenCalled();
+    });
+});
+
+// ================================================================ 金額を手で直した記録（kei 決定 2026-10-05）
+
+describe('金額を手で直した記録（amountEdited）: GET・PUT /api/allowances/day', () => {
+    /** 管理者2 が金額を 1,000円に直した印（DB の列） */
+    const EDITED = { amount: 1000, amountEditedAt: new Date('2026-10-04T01:00:00.000Z'), amountEditedBy: 'admin2', amountEditedByName: '管理者2' };
+    const recordsOf = (members: DayMemberBody[] | undefined, userId: string) =>
+        (byUser(members)[userId]?.records ?? []) as unknown as Record<string, unknown>[];
+
+    it('GET: 記録を読む列に amountEditedAt を入れ、records[] に amountEdited（boolean）を返す', async () => {
+        mock(prisma.allowanceRecord.findMany).mockResolvedValue([
+            dayRow({ id: 'ed', amount: 1000, amountEditedAt: EDITED.amountEditedAt }),
+            dayRow({ id: 'plain', userId: 'foremanB', createdBy: 'foremanA' }),
+        ]);
+        const r = await getDay();
+        expect(r.status).toBe(200);
+        expect(argOf<{ select: Record<string, boolean> }>(prisma.allowanceRecord.findMany).select.amountEditedAt).toBe(true);
+        expect(recordsOf(r.body.members, 'worker1').map((x) => [x.id, x.amount, x.amountEdited])).toEqual([['ed', 1000, true]]);
+        expect(recordsOf(r.body.members, 'foremanB').map((x) => [x.id, x.amountEdited])).toEqual([['plain', false]]);
+    });
+
+    it('GET: 職長は、自分が付けた記録でも、手で直してあれば canRemove: false（管理者・マネージャーは true）', async () => {
+        mock(prisma.allowanceRecord.findMany).mockResolvedValue([
+            dayRow({ id: 'ed', createdBy: 'foremanA', amount: 1000, amountEditedAt: EDITED.amountEditedAt }),
+            dayRow({ id: 'plain', userId: 'foremanB', createdBy: 'foremanA' }),
+        ]);
+        expect(canRemoveById((await getDay()).body.members)).toEqual({ ed: false, plain: true });
+        loginAs({ id: 'manager1', role: 'manager', name: 'マネージャー' });
+        expect(canRemoveById((await getDay()).body.members)).toEqual({ ed: true, plain: true });
+        loginAs({ id: 'admin1', role: 'ADMIN', name: '管理者' });
+        expect(canRemoveById((await getDay()).body.members)).toEqual({ ed: true, plain: true });
+    });
+
+    it("PUT: 職長が、手で直した記録を外そうとすると 'blocked'（何も消さない・履歴も書かない）。応答の records にも amountEdited: true", async () => {
+        mock(prisma.allowanceRecord.findFirst).mockResolvedValue(recordRow({ ...EDITED, createdBy: 'foremanA' }));
+        mock(prisma.allowanceRecord.findMany).mockResolvedValue([dayRow({ amount: 1000, amountEditedAt: EDITED.amountEditedAt })]);
+        const r = await put({ on: false });
+        expect([r.status, r.body.result]).toEqual([200, 'blocked']);
+        expect(prisma.allowanceRecord.deleteMany).not.toHaveBeenCalled();
+        expect(writtenLogs()).toEqual([]);
+        const records = (r.body.member?.records ?? []) as unknown as Record<string, unknown>[];
+        expect(records.map((x) => [x.id, x.amountEdited, x.canRemove])).toEqual([['r1', true, false]]);
+    });
+
+    it("PUT: マネージャーは、手で直した記録を外せる（'removed'）", async () => {
+        loginAs({ id: 'manager1', role: 'manager', name: 'マネージャー' });
+        mock(prisma.allowanceRecord.findFirst).mockResolvedValue(recordRow({ ...EDITED, createdBy: 'foremanA' }));
+        const r = await put({ on: false });
+        expect([r.status, r.body.result]).toEqual([200, 'removed']);
+        expect(prisma.allowanceRecord.deleteMany).toHaveBeenCalledTimes(1);
     });
 });

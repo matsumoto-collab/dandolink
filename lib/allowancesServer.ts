@@ -4,7 +4,7 @@
  * 決まりごと（だれが何をできるか・どの金額を使うか・締めた月に何ができるか）は lib/allowances.ts に書いてある。
  * ここには、Prisma で「決まりごとの関数に渡す材料」を読む関数と、記録を書く関数を置く。
  *
- * 書く関数（足す・取り消す・認める・締める・締めを外す・金額を変える・予約を取り消す）は、どれも同じ形にしてある:
+ * 書く関数（足す・取り消す・認める・記録の金額を手で直す・単価に戻す・締める・締めを外す・金額を変える・予約を取り消す）は、どれも同じ形にしてある:
  *   トランザクションを開く → 手当の書き込みの鍵を取る（lockAllowanceWrites）→ 締めてあるかを読む → 書く → 同じトランザクションで履歴を書く
  * 鍵を取ってから締めを読むので、「締めるのと同時に記録が入る」ことが無い（1つずつ順番に行われる）。
  * route からは、記録・締め・金額の表（allowanceRecord・allowanceMonthClose・allowanceRate）を直接書かず、必ずここの関数を通すこと。
@@ -21,6 +21,7 @@ import {
     amountOf,
     buildExpectedEntries,
     canConfirmRecord,
+    canEditRecordAmount,
     canRemoveRecord,
     checkCanAddRate,
     checkCanCloseMonth,
@@ -34,6 +35,7 @@ import {
     isAllowanceManager,
     isAllowanceMemberRole,
     isFutureDateKey,
+    isValidAmount,
     jstDateKeyOfInstant,
     monthKeyOf,
     monthRangeOf,
@@ -69,7 +71,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * 手当の書き込みを、1つずつ順番に行わせる鍵（トランザクションが終わると自動で外れる）。
  * 請求書の採番（lib/billing/createInvoiceWithRetry.ts）・過去データ取込（lib/backfill/engine.ts）と同じやり方。
  * 手当の表に書くトランザクションは、どれも、最初にこれを呼ぶ
- * （記録を足す・取り消す・認める・月を締める・締めを外す・金額を変える・予約を取り消す・手当や公開の設定を直す）。
+ * （記録を足す・取り消す・認める・記録の金額を手で直す・単価に戻す・月を締める・締めを外す・金額を変える・予約を取り消す・手当や公開の設定を直す）。
  */
 export async function lockAllowanceWrites(tx: Db): Promise<void> {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('dandolink-allowance'))`;
@@ -210,9 +212,19 @@ export async function resolveAllowanceAccessMode(role: string | null | undefined
 
 // ---------------------------------------------------------------- 記録を足す
 
-/** DB の行 → lib/allowances.ts の AllowanceRecordLike。status は必ず toAllowanceStatus() を通す */
-function toRecordLike(row: { id: string; userId: string; itemId: string; status: string; createdBy: string }): AllowanceRecordLike {
-    return { id: row.id, userId: row.userId, itemId: row.itemId, status: toAllowanceStatus(row.status), createdBy: row.createdBy };
+/**
+ * DB の行 → lib/allowances.ts の AllowanceRecordLike。status は必ず toAllowanceStatus() を通す。
+ * amountEdited は「amountEditedAt が入っているか」（null・undefined は、手で直していない）
+ */
+function toRecordLike(row: { id: string; userId: string; itemId: string; status: string; createdBy: string; amountEditedAt: Date | null }): AllowanceRecordLike {
+    return {
+        id: row.id,
+        userId: row.userId,
+        itemId: row.itemId,
+        status: toAllowanceStatus(row.status),
+        createdBy: row.createdBy,
+        amountEdited: row.amountEditedAt != null,
+    };
 }
 
 export interface AllowanceItemRef {
@@ -378,6 +390,7 @@ function removedDetail(record: AllowanceRecordRow): Prisma.InputJsonObject {
         createdAt: record.createdAt.toISOString(),
         updatedAt: record.updatedAt.toISOString(),
         confirmedAt: record.confirmedAt ? record.confirmedAt.toISOString() : null,
+        amountEditedAt: record.amountEditedAt ? record.amountEditedAt.toISOString() : null,
     };
 }
 
@@ -485,7 +498,7 @@ export async function confirmAllowanceRecords(actor: AllowanceActor, ids: readon
         await lockAllowanceWrites(tx);
         const rows = await tx.allowanceRecord.findMany({
             where: { id: { in: unique } },
-            select: { id: true, userId: true, date: true, itemId: true, itemName: true, payRole: true, amount: true, status: true, createdBy: true },
+            select: { id: true, userId: true, date: true, itemId: true, itemName: true, payRole: true, amount: true, status: true, createdBy: true, amountEditedAt: true },
         });
         const closed = await loadClosedMonths(tx, rows.map((r) => monthKeyOf(dateToDateKey(r.date))));
         const targets = rows.filter((r) => canConfirmRecord(actor, toRecordLike(r)) && !closed.has(monthKeyOf(dateToDateKey(r.date))));
@@ -514,6 +527,124 @@ export async function confirmAllowanceRecords(actor: AllowanceActor, ids: readon
             })),
         });
         return { confirmed: targets.length, skipped: unique.length - targets.length };
+    }, ALLOWANCE_TX_OPTIONS);
+}
+
+// ---------------------------------------------------------------- 記録の金額を手で直す・単価に戻す（「手当」の画面・管理者だけ）
+
+/**
+ *  - { ok: true } … 直した・戻した（record = 書いたあとの行。全部の列）
+ *  - not_found    … その記録は無い
+ *  - closed       … その月は締めてある
+ *  - forbidden    … 直す権限が無い（管理者でない・自分の分）
+ *  - no_rate      … （単価に戻すときだけ）その日付に有効な金額が無い
+ *  - not_edited   … （単価に戻すときだけ）その記録の金額は、手で直していない
+ */
+export type EditAllowanceRecordAmountResult = 'not_found' | 'closed' | 'forbidden' | { ok: true; record: AllowanceRecordRow };
+export type ResetAllowanceRecordAmountResult = 'not_found' | 'closed' | 'forbidden' | 'no_rate' | 'not_edited' | { ok: true; record: AllowanceRecordRow };
+
+export interface EditAllowanceRecordAmountInput {
+    /** 新しい金額（0〜100000 の整数。形は、呼ぶ側が先に確かめる） */
+    amount: number;
+    /** 新しいメモ（null = 消す）。undefined なら、今のメモのまま */
+    note?: string | null;
+}
+
+/**
+ * 記録1件の金額を、管理者が手で直す。直してよいかは canEditRecordAmount() で決める（締めは、鍵を取ったあとで読む）。
+ * 金額と、手で直した印（amountEditedAt・amountEditedBy・amountEditedByName）を入れる。今と同じ金額でも印を付ける
+ * （＝ この金額に固定する）。区分（payRole）・金額の行（rateId）・状態（status）は変えない。
+ * 手で直した記録は、あとで金額の表を変えても、金額を付け直さない（addAllowanceRate → findRecordsToReprice）。
+ */
+export async function editAllowanceRecordAmount(
+    actor: AllowanceActor,
+    recordId: string,
+    input: EditAllowanceRecordAmountInput,
+): Promise<EditAllowanceRecordAmountResult> {
+    const { amount, note } = input;
+    if (!isValidAmount(amount)) throw new Error(`editAllowanceRecordAmount: 金額が範囲の外です: ${String(amount)}`);
+
+    return prisma.$transaction(async (tx) => {
+        await lockAllowanceWrites(tx);
+        const existing = await tx.allowanceRecord.findUnique({ where: { id: recordId } });
+        if (!existing) return 'not_found' as const;
+        const closed = await loadClosedMonths(tx, [monthKeyOf(dateToDateKey(existing.date))]);
+        if (closed.size > 0) return 'closed' as const;
+        if (!canEditRecordAmount(actor, toRecordLike(existing))) return 'forbidden' as const;
+
+        const noteAfter = note === undefined ? existing.note : note;
+        const record = await tx.allowanceRecord.update({
+            where: { id: existing.id },
+            data: {
+                amount,
+                ...(note === undefined ? {} : { note }),
+                amountEditedAt: new Date(),
+                amountEditedBy: actor.id,
+                amountEditedByName: actor.name,
+            },
+        });
+        await tx.allowanceLog.create({
+            data: {
+                action: 'record_amount_edited',
+                actorId: actor.id,
+                actorName: actor.name,
+                targetUserId: existing.userId,
+                itemId: existing.itemId,
+                recordId: existing.id,
+                recordDate: existing.date,
+                detail: {
+                    itemName: existing.itemName,
+                    payRole: existing.payRole,
+                    before: existing.amount,
+                    after: amount,
+                    noteBefore: existing.note,
+                    noteAfter,
+                },
+            },
+        });
+        return { ok: true, record } as const;
+    }, ALLOWANCE_TX_OPTIONS);
+}
+
+/**
+ * 手で直した記録の金額を、その日付に有効な金額（単価）に戻す。戻してよいかは、直すときと同じ canEditRecordAmount()。
+ * 金額と金額の行（rateId）を「その日付に有効な金額の行」の値にし、手で直した印（3つの列）を null に戻す。
+ * 区分（payRole）・状態（status）・メモは変えない。手で直していない記録は、何もしない（not_edited）。
+ */
+export async function resetAllowanceRecordAmount(actor: AllowanceActor, recordId: string): Promise<ResetAllowanceRecordAmountResult> {
+    return prisma.$transaction(async (tx) => {
+        await lockAllowanceWrites(tx);
+        const existing = await tx.allowanceRecord.findUnique({ where: { id: recordId } });
+        if (!existing) return 'not_found' as const;
+        const dateKey = dateToDateKey(existing.date);
+        const closed = await loadClosedMonths(tx, [monthKeyOf(dateKey)]);
+        if (closed.size > 0) return 'closed' as const;
+        const like = toRecordLike(existing);
+        if (!canEditRecordAmount(actor, like)) return 'forbidden' as const;
+        if (!like.amountEdited) return 'not_edited' as const;
+
+        const rates = (await loadAllowanceRatesByItemId([existing.itemId], tx)).get(existing.itemId) ?? [];
+        const rate = resolveAllowanceRateAt(rates, dateKey);
+        if (!rate) return 'no_rate' as const;
+        const amount = amountOf(rate, toAllowancePayRole(existing.payRole));
+
+        const record = await tx.allowanceRecord.update({
+            where: { id: existing.id },
+            data: { amount, rateId: rate.id, amountEditedAt: null, amountEditedBy: null, amountEditedByName: null },
+        });
+        await tx.allowanceLog.create({
+            data: {
+                action: 'record_amount_reset',
+                actorId: actor.id,
+                actorName: actor.name,
+                targetUserId: existing.userId,
+                itemId: existing.itemId,
+                recordId: existing.id,
+                recordDate: existing.date,
+                detail: { itemName: existing.itemName, payRole: existing.payRole, before: existing.amount, after: amount, rateId: rate.id },
+            },
+        });
+        return { ok: true, record } as const;
     }, ALLOWANCE_TX_OPTIONS);
 }
 
@@ -685,6 +816,7 @@ export type AddAllowanceRateResult =
  *
  * **適用開始日が今日以前の行を足したとき（さかのぼった変更・打ちまちがいの直し）は、同じトランザクションの中で、
  * 適用開始日からあとの記録の金額を、新しい金額の表に合わせる**（1件ごとに履歴 record_repriced を残す）。
+ * ただし、管理者が金額を手で直した記録（amountEditedAt が入っている）は、合わせない（findRecordsToReprice が飛ばす）。
  * 適用開始日の月からあとに締めた月があれば足せないので、締めた月の記録の金額は変わらない。
  * 適用開始日が今日より後の行（予約）は、その日からあとの記録がまだ無いので、記録は変わらない。
  *
@@ -733,10 +865,21 @@ export async function addAllowanceRate(actor: AllowanceActor, itemId: string, in
         // すでに付いている記録（適用開始日からあと）を、新しい金額の表に合わせる
         const rows = await tx.allowanceRecord.findMany({
             where: { itemId: item.id, date: { gte: effectiveFrom } },
-            select: { id: true, userId: true, date: true, itemName: true, payRole: true, amount: true, rateId: true },
+            select: { id: true, userId: true, date: true, itemName: true, payRole: true, amount: true, rateId: true, amountEditedAt: true },
         });
         const changes = findRecordsToReprice(
-            rows.map((r) => ({ id: r.id, userId: r.userId, day: r.date, itemName: r.itemName, date: dateToDateKey(r.date), payRole: toAllowancePayRole(r.payRole), amount: r.amount, rateId: r.rateId })),
+            rows.map((r) => ({
+                id: r.id,
+                userId: r.userId,
+                day: r.date,
+                itemName: r.itemName,
+                date: dateToDateKey(r.date),
+                payRole: toAllowancePayRole(r.payRole),
+                amount: r.amount,
+                rateId: r.rateId,
+                // 手で直した記録は、付け直さない
+                amountEdited: r.amountEditedAt != null,
+            })),
             nextRates,
         );
         // 「合わせたあとの金額・金額の行」が同じ記録を、まとめて1回で直す

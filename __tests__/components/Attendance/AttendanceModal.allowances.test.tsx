@@ -230,7 +230,7 @@ const FAR: AllowanceDayItem = { id: 'far', name: '遠方手当', description: nu
 /** 記録の1件。何も指定しなければ「職長1 が、ほかの人に付けた大規模手当（職長以外・200円・確定・取り消せる）」 */
 const rec = (over: Partial<AllowanceDayRecord> = {}): AllowanceDayRecord => ({
     id: 'r1', itemId: 'large', itemName: '大規模手当', payRole: 'member', amount: 200,
-    status: 'confirmed', createdBy: 'F1', createdByName: '職長1', canRemove: true, ...over,
+    status: 'confirmed', createdBy: 'F1', createdByName: '職長1', canRemove: true, amountEdited: false, ...over,
 });
 /** その人に付けられる手当（offers）。本物の API と同じく、区分が職長なら職長の金額・職長以外なら職長以外の金額 */
 const offersOf = (payRole: 'foreman' | 'member', items: AllowanceDayItem[]): AllowanceDayOffer[] =>
@@ -2224,5 +2224,54 @@ describe('G. フックを直接確かめる（描画のたびの値）', () => {
         await flush();
         expect(calls.map(describeCall)).toEqual(['GET /api/allowances/day?foremanId=a%26b%3Dc%20d&date=2026-09-30']);
         expect(calls.map(dayQuery)).toEqual([{ foremanId: 'a&b=c d', date: '2026-09-30' }]);
+    });
+});
+
+// ================================================================ 金額を手で直した記録（kei 決定 2026-10-05）
+
+describe('H. 管理者が金額を直した記録（amountEdited）の鍵つきボタン', () => {
+    const AMOUNT_EDITED_REASON = '管理者が金額を直した記録です（取り消せるのは、管理者・マネージャーです）';
+
+    it('鍵つき（canRemove: false）で amountEdited の記録: title とトーストは「管理者が金額を直した記録です…」（付けた人の文言・自分の分の文言より先）。通信も confirm も出ない', async () => {
+        const route = allowanceGet({
+            F1: [rec({ id: 'own', payRole: 'foreman', amount: 1000, amountEdited: true, canRemove: false })],
+            w1: [rec({ id: 'mine', amount: 1000, createdBy: 'F1', createdByName: '職長1', amountEdited: true, canRemove: false })],
+            w2: [rec({ id: 'other', amount: 200, createdBy: 'admin1', createdByName: '管理者', canRemove: false })],
+        });
+        const { calls } = await open(route);
+        const before = calls.length;
+        expect(look(chip('F1', '大規模手当'))).toMatchObject({ text: '大規模手当1,000円', ariaDisabled: 'true', title: AMOUNT_EDITED_REASON, lock: true });
+        expect(look(chip('w1', '大規模手当'))).toMatchObject({ text: '大規模手当1,000円', ariaDisabled: 'true', title: AMOUNT_EDITED_REASON, lock: true });
+        // 直していない記録は、今までどおり
+        expect(look(chip('w2', '大規模手当'))).toMatchObject({ ariaDisabled: 'true', title: '管理者さんが付けました', lock: true });
+
+        fireEvent.click(chip('F1', '大規模手当'));
+        fireEvent.click(chip('w1', '大規模手当'));
+        fireEvent.click(chip('w2', '大規模手当'));
+        await flush();
+        expect(notices()).toEqual([
+            AMOUNT_EDITED_REASON,
+            AMOUNT_EDITED_REASON,
+            '管理者さんが付けた記録です（取り消せるのは、付けた人と管理者・マネージャーです）',
+        ]);
+        expect(calls.length).toBe(before);
+        expect(confirmMock).not.toHaveBeenCalled();
+    });
+
+    it('締めた月なら、締めた月の理由がいちばん先（amountEdited でも）', async () => {
+        await open(allowanceGet({ w1: [rec({ id: 'k', amount: 1000, amountEdited: true, canRemove: false })] }, [], true));
+        expect(look(chip('w1', '大規模手当'))).toMatchObject({ ariaDisabled: 'true', title: CLOSED_REASON, lock: true });
+        fireEvent.click(chip('w1', '大規模手当'));
+        await flush();
+        expect(notices()).toEqual([CLOSED_REASON]);
+    });
+
+    it('取り消せる（canRemove: true）なら、amountEdited でも鍵は付かず、今までどおり取り消せる（管理者・マネージャー）', async () => {
+        mockSessionUser = ADMIN;
+        const { calls } = await open(allowanceGet({ w1: [rec({ id: 'ed', amount: 1000, createdBy: 'admin1', createdByName: '管理者', amountEdited: true, canRemove: true })] }));
+        expect(look(chip('w1', '大規模手当'))).toMatchObject({ ariaDisabled: null, title: '', lock: false });
+        fireEvent.click(chip('w1', '大規模手当'));
+        await flush();
+        expect(calls.filter(isAllowancePut).map((p) => p.body?.on)).toEqual([false]);
     });
 });

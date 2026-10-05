@@ -2,6 +2,7 @@
  * 「手当」の画面の小さな純粋関数（components/Allowances/allowancesClient.ts）。
  */
 import {
+    amountEditedTitle,
     attendanceStatusLabelOf,
     chunkArray,
     csvFilenameWithCloseState,
@@ -12,6 +13,7 @@ import {
     monthEndDateKey,
     myLineFormula,
     myLineLabel,
+    parseAmountInput,
     recordsQuery,
     shiftMonth,
     sourceLabelOf,
@@ -117,5 +119,19 @@ describe('myLineLabel・myLineFormula（本人の画面の行）', () => {
         const line = { itemId: 'i1', itemName: '大規模手当', payRole: 'member' as const, amount: 200, days: 12, total: 2400 };
         expect(myLineLabel(line)).toBe('大規模手当（職長以外）');
         expect(myLineFormula(line)).toBe('12日 × 200円 ＝ 2,400円');
+    });
+});
+
+describe('金額を直す（parseAmountInput・amountEditedTitle）', () => {
+    it('parseAmountInput: 0〜100000 の整数だけを受け付ける（空白・カンマ・全角の数字は受け付ける）', () => {
+        expect(['0', '1000', ' 1,000 ', '１，０００', '100000', '00500'].map(parseAmountInput)).toEqual([0, 1000, 1000, 1000, 100000, 500]);
+        expect(['', ' ', '-1', '100001', '1.5', '1e3', 'abc', '1000円', '+100'].map(parseAmountInput)).toEqual([null, null, null, null, null, null, null, null, null]);
+    });
+
+    it('amountEditedTitle: 「◯◯さんが YYYY-MM-DD HH:MM に直しました」（日本時間）', () => {
+        expect(amountEditedTitle({ amountEditedByName: '管理者1', amountEditedAt: '2026-10-05T03:34:00.000Z' })).toBe('管理者1さんが 2026-10-05 12:34 に直しました');
+        // 日本時間では翌日
+        expect(amountEditedTitle({ amountEditedByName: '管理者1', amountEditedAt: '2026-10-05T15:05:00.000Z' })).toBe('管理者1さんが 2026-10-06 00:05 に直しました');
+        expect(amountEditedTitle({ amountEditedByName: null, amountEditedAt: null })).toBe('管理者が直しました');
     });
 });

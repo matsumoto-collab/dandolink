@@ -6,7 +6,7 @@
  * 決まりごと（だれが取り消せる・認められる・締められるか、区分、金額）は、サーバーが返す値で出し分ける。
  * 評価ポイントの部品（components/EvaluationPoints/*）は使わない（片方を直しても、もう片方が変わらないように）。
  */
-import { ALLOWANCES_UPDATED_EVENT as EVENT_NAME, monthKeyOf, type AllowancePayRole, type AllowanceStatus } from '@/lib/allowances';
+import { ALLOWANCES_UPDATED_EVENT as EVENT_NAME, isValidAmount, monthKeyOf, type AllowancePayRole, type AllowanceStatus } from '@/lib/allowances';
 
 export const ALLOWANCES_API = '/api/allowances';
 
@@ -84,6 +84,14 @@ export interface AllowanceRecordRow {
     closed: boolean;
     canRemove: boolean;
     canConfirm: boolean;
+    /** 管理者が金額を手で直した記録か */
+    amountEdited: boolean;
+    /** 金額を手で直した人の名前（手で直していなければ null） */
+    amountEditedByName: string | null;
+    /** 金額を手で直した日時（ISO。手で直していなければ null） */
+    amountEditedAt: string | null;
+    /** 操作している人が、金額を直せるか・単価に戻せるか（管理者だけ・自分の分と締めた月は false） */
+    canEditAmount: boolean;
 }
 
 export type CrosscheckExtraReason = 'no_assignment' | 'not_worked' | 'not_eligible';
@@ -224,6 +232,27 @@ export function kindLabelOf(isJoyo: boolean): string {
 /** 金額 → 「1,500円」 */
 export function yen(amount: number): string {
     return `${amount.toLocaleString('ja-JP')}円`;
+}
+
+/**
+ * 「金額を直す」の入力 → 金額（0〜100000 の整数）。それ以外は null（送る前に画面で止める）。
+ * 前後の空白・桁区切りのカンマ・全角の数字は受け付ける（「１,０００」→ 1000）。
+ */
+export function parseAmountInput(text: string): number | null {
+    const normalized = text
+        .trim()
+        .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+        .replace(/[,，]/g, '');
+    if (!/^\d+$/.test(normalized)) return null;
+    const value = Number(normalized);
+    return isValidAmount(value) ? value : null;
+}
+
+/** 手で直した記録の、しるしの title → 「管理者1さんが 2026-10-05 12:34 に直しました」（日時は日本時間） */
+export function amountEditedTitle(record: Pick<AllowanceRecordRow, 'amountEditedByName' | 'amountEditedAt'>): string {
+    const who = record.amountEditedByName ? `${record.amountEditedByName}さんが` : '管理者が';
+    const when = formatJstDateTime(record.amountEditedAt);
+    return when ? `${who} ${when} に直しました` : `${who}直しました`;
 }
 
 /** 本人の画面の行の名前 → 「大規模手当（職長）」 */

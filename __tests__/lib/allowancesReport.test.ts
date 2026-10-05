@@ -97,7 +97,7 @@ const recordRow = (over: Partial<AllowanceRecordRowLike> = {}): AllowanceRecordR
     id: 'r1', userId: 'worker1', date: utc0('2026-09-30'), itemId: 'large', itemName: '大規模手当',
     payRole: 'member', amount: 200, status: 'confirmed', source: 'attendance', note: null,
     createdBy: 'foremanA', createdByName: '職長A', createdAt: new Date('2026-09-30T09:00:00.000Z'),
-    confirmedByName: null, confirmedAt: null, ...over,
+    confirmedByName: null, confirmedAt: null, amountEditedAt: null, amountEditedBy: null, amountEditedByName: null, ...over,
 });
 
 describe('toAllowanceRecordResponse（記録の一覧の1行の形）', () => {
@@ -114,6 +114,7 @@ describe('toAllowanceRecordResponse（記録の一覧の1行の形）', () => {
             createdBy: 'admin1', createdByName: '管理者1', createdAt: '2026-10-01T15:04:05.678Z',
             confirmedByName: 'マネージャー1', confirmedAt: '2026-10-02T00:30:00.000Z',
             closed: false, canRemove: true, canConfirm: false,
+            amountEdited: false, amountEditedByName: null, amountEditedAt: null, canEditAmount: false,
         });
     });
 
@@ -236,7 +237,8 @@ describe('toAllowanceRecordResponse（記録の一覧の1行の形）', () => {
         const fromFull = toAllowanceRecordResponse(full, '作業員1', ADMIN, NOT_CLOSED);
         expect(fromFull).toEqual(toAllowanceRecordResponse(recordRow(), '作業員1', ADMIN, NOT_CLOSED));
         expect(Object.keys(fromFull).sort()).toEqual([
-            'amount', 'canConfirm', 'canRemove', 'closed', 'confirmedAt', 'confirmedByName', 'createdAt', 'createdBy', 'createdByName',
+            'amount', 'amountEdited', 'amountEditedAt', 'amountEditedByName', 'canConfirm', 'canEditAmount', 'canRemove', 'closed',
+            'confirmedAt', 'confirmedByName', 'createdAt', 'createdBy', 'createdByName',
             'date', 'id', 'itemId', 'itemName', 'note', 'payRole', 'source', 'status', 'userId', 'userName',
         ]);
     });
@@ -985,5 +987,50 @@ describe('評価ポイントの一覧と同じ部品が、このファイルか�
     it('loadUserNames: ID を1つも渡さなければ、DB を読まずに空の Map を返す', async () => {
         expect((await loadUserNames([])).size).toBe(0);
         expect(prisma.user.findMany).not.toHaveBeenCalled();
+    });
+});
+
+// ================================================================ 記録の金額を手で直す（kei 決定 2026-10-05）
+
+describe('toAllowanceRecordResponse: 金額を手で直した記録（amountEdited・canEditAmount）', () => {
+    const EDITED: Partial<AllowanceRecordRowLike> = {
+        amount: 1000, amountEditedAt: new Date('2026-10-05T03:34:00.000Z'), amountEditedBy: 'admin2', amountEditedByName: '管理者2',
+    };
+
+    it('手で直した記録: amountEdited は true、直した人の名前と日時（ISO）を返す', () => {
+        const res = toAllowanceRecordResponse(recordRow(EDITED), '作業員1', ADMIN, NOT_CLOSED);
+        expect([res.amount, res.amountEdited, res.amountEditedByName, res.amountEditedAt]).toEqual([1000, true, '管理者2', '2026-10-05T03:34:00.000Z']);
+    });
+
+    it('手で直していない記録: amountEdited は false、名前と日時は null', () => {
+        const res = toAllowanceRecordResponse(recordRow(), '作業員1', ADMIN, NOT_CLOSED);
+        expect([res.amountEdited, res.amountEditedByName, res.amountEditedAt]).toEqual([false, null, null]);
+    });
+
+    it('canEditAmount: 管理者だけ true（ロールの大文字も同じ）。マネージャー・職長・作業員は false', () => {
+        const of = (operator: AllowanceOperator, over: Partial<AllowanceRecordRowLike> = {}) =>
+            toAllowanceRecordResponse(recordRow(over), 'だれか', operator, NOT_CLOSED).canEditAmount;
+        expect(of(ADMIN)).toBe(true);
+        expect(of({ id: 'admin2', role: 'ADMIN' })).toBe(true);
+        expect(of(ADMIN, EDITED)).toBe(true);
+        expect(of(ADMIN, { status: 'pending', userId: 'foremanA' })).toBe(true);
+        expect([MANAGER, FOREMAN_A, FOREMAN_B, WORKER].map((op) => of(op))).toEqual([false, false, false, false]);
+    });
+
+    it('canEditAmount: 自分の分は false（管理者でも）', () => {
+        expect(toAllowanceRecordResponse(recordRow({ userId: 'admin1' }), '管理者1', ADMIN, NOT_CLOSED).canEditAmount).toBe(false);
+        expect(toAllowanceRecordResponse(recordRow({ userId: 'admin1', status: 'pending', createdBy: 'admin1' }), '管理者1', ADMIN, NOT_CLOSED).canEditAmount).toBe(false);
+    });
+
+    it('canEditAmount: 締めた月の記録は false（管理者でも）', () => {
+        expect(toAllowanceRecordResponse(recordRow(), '作業員1', ADMIN, SEPTEMBER_CLOSED).canEditAmount).toBe(false);
+        expect(toAllowanceRecordResponse(recordRow(EDITED), '作業員1', ADMIN, SEPTEMBER_CLOSED).canEditAmount).toBe(false);
+    });
+
+    it('canRemove: 手で直した記録は、職長には false（自分が付けた記録でも）。管理者・マネージャーは true のまま', () => {
+        const of = (operator: AllowanceOperator) => toAllowanceRecordResponse(recordRow({ ...EDITED, createdBy: 'foremanA' }), '作業員1', operator, NOT_CLOSED).canRemove;
+        expect([of(FOREMAN_A), of(ADMIN), of(MANAGER)]).toEqual([false, true, true]);
+        // 直していなければ、職長は自分が付けた記録を取り消せる（今までどおり）
+        expect(toAllowanceRecordResponse(recordRow({ createdBy: 'foremanA' }), '作業員1', FOREMAN_A, NOT_CLOSED).canRemove).toBe(true);
     });
 });

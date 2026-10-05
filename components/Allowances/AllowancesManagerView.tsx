@@ -12,7 +12,7 @@
  *  7. 人の行を押すと、その人の明細
  *  8. 記録を足す
  *  9. 手配と見比べる
- * 10. 保存・取り消し・確認・まとめて付ける・締める・締めを外す のあとは読み直して allowances_updated を送る。受けたら読み直す
+ * 10. 保存・取り消し・確認・まとめて付ける・締める・締めを外す・金額を直す・単価に戻す のあとは読み直して allowances_updated を送る。受けたら読み直す
  *
  * 決まりごと（だれが取り消せる・認められる・締められるか、区分、金額）は、サーバーが返す値で出し分ける。
  * 「締める」を押せるかどうかの最後の判定もサーバー（断られたら、サーバーの文言を出す）。
@@ -209,6 +209,28 @@ export default function AllowancesManagerView() {
             { method: 'DELETE' },
             '記録を取り消しました',
             '記録の取り消しに失敗しました',
+        );
+        return result.ok;
+    };
+
+    // ---- 金額を手で直す（管理者だけ。直せるかはサーバーが返す canEditAmount で出し分ける）
+    const handleEditAmount = async (recordId: string, amount: number, note: string): Promise<boolean> => {
+        const result = await mutate(
+            `${ALLOWANCES_API}/records/${encodeURIComponent(recordId)}`,
+            { method: 'PATCH', body: JSON.stringify({ amount, note }) },
+            '金額を直しました',
+            '金額の保存に失敗しました',
+        );
+        return result.ok;
+    };
+
+    // ---- 手で直した金額を、その日の単価に戻す（確認は呼ぶ側で挟む）
+    const handleResetAmount = async (recordId: string): Promise<boolean> => {
+        const result = await mutate(
+            `${ALLOWANCES_API}/records/${encodeURIComponent(recordId)}`,
+            { method: 'PATCH', body: JSON.stringify({ resetAmount: true }) },
+            '単価に戻しました',
+            '単価に戻すのに失敗しました',
         );
         return result.ok;
     };
@@ -531,6 +553,8 @@ export default function AllowancesManagerView() {
                 busy={busy}
                 onClose={() => setSelectedPerson(null)}
                 onRemove={handleRemove}
+                onEditAmount={handleEditAmount}
+                onResetAmount={handleResetAmount}
             />
 
             {/* 4. 確認待ちの一覧 */}

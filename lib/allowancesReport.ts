@@ -1,7 +1,7 @@
 /**
  * 手当: 一覧・集計・本人の表示の API の共通部品（読むだけ）。
  *
- *  - 記録の一覧の1行の形（GET /records・POST /records が同じ形で返す）
+ *  - 記録の一覧の1行の形（GET /records・POST /records・PATCH /records/[id] が同じ形で返す）
  *  - 月の集計（GET /summary と GET /export?type=summary は、必ず loadAllowanceSummary() の答えを使う
  *    ＝同じ人・同じ並び・同じ数字になる）
  *  - 本人の手当（GET /me は loadMyAllowance() の答えを使う）
@@ -15,6 +15,7 @@ import { UNKNOWN_USER_NAME, compareUsers } from '@/lib/evaluationPointsReport';
 import {
     buildAllowanceLines,
     canConfirmRecord,
+    canEditRecordAmount,
     canRemoveRecord,
     dateToDateKey,
     isAllowanceEligibleRole,
@@ -64,6 +65,9 @@ export const ALLOWANCE_RECORD_SELECT = {
     createdAt: true,
     confirmedByName: true,
     confirmedAt: true,
+    amountEditedAt: true,
+    amountEditedBy: true,
+    amountEditedByName: true,
 } as const;
 
 export interface AllowanceRecordRowLike {
@@ -82,6 +86,10 @@ export interface AllowanceRecordRowLike {
     createdAt: Date;
     confirmedByName: string | null;
     confirmedAt: Date | null;
+    /** 管理者が金額を手で直した日時（null = 手で直していない） */
+    amountEditedAt: Date | null;
+    amountEditedBy: string | null;
+    amountEditedByName: string | null;
 }
 
 export interface AllowanceRecordResponse {
@@ -109,6 +117,14 @@ export interface AllowanceRecordResponse {
     canRemove: boolean;
     /** 操作している人が、この記録を認められるか（締めた月の記録は false） */
     canConfirm: boolean;
+    /** 管理者が金額を手で直した記録か（あとで金額の表を変えても、この金額のまま） */
+    amountEdited: boolean;
+    /** 金額を手で直した人の名前（手で直していなければ null） */
+    amountEditedByName: string | null;
+    /** 金額を手で直した日時（ISO 文字列。手で直していなければ null） */
+    amountEditedAt: string | null;
+    /** 操作している人が、この記録の金額を直せるか・単価に戻せるか（管理者だけ・自分の分は false・締めた月の記録は false） */
+    canEditAmount: boolean;
 }
 
 /** closedMonths は、締めてある月（'YYYY-MM'）の集まり。lib/allowancesServer.ts の loadClosedMonths() で読む */
@@ -121,7 +137,8 @@ export function toAllowanceRecordResponse(
     const status = toAllowanceStatus(row.status);
     const date = dateToDateKey(row.date);
     const closed = closedMonths.has(monthKeyOf(date));
-    const like = { id: row.id, userId: row.userId, itemId: row.itemId, status, createdBy: row.createdBy };
+    const amountEdited = row.amountEditedAt != null;
+    const like = { id: row.id, userId: row.userId, itemId: row.itemId, status, createdBy: row.createdBy, amountEdited };
     return {
         id: row.id,
         userId: row.userId,
@@ -142,6 +159,10 @@ export function toAllowanceRecordResponse(
         closed,
         canRemove: !closed && canRemoveRecord(operator, like),
         canConfirm: !closed && canConfirmRecord(operator, like),
+        amountEdited,
+        amountEditedByName: amountEdited ? row.amountEditedByName ?? null : null,
+        amountEditedAt: row.amountEditedAt ? row.amountEditedAt.toISOString() : null,
+        canEditAmount: !closed && canEditRecordAmount(operator, like),
     };
 }
 

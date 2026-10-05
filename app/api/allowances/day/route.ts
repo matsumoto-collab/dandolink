@@ -71,8 +71,10 @@ interface DayRecord {
     status: AllowanceStatus;
     createdBy: string;
     createdByName: string;
-    /** 操作している人が、この記録を取り消せるか（締めた月の記録は false） */
+    /** 操作している人が、この記録を取り消せるか（締めた月の記録は false。金額を手で直した記録は、管理者・マネージャーだけ） */
     canRemove: boolean;
+    /** 管理者が金額を手で直した記録か */
+    amountEdited: boolean;
 }
 
 /** その人に、この画面で付けられる手当（ボタン）の1つ */
@@ -107,12 +109,13 @@ async function loadDayRecords(
         ? []
         : await prisma.allowanceRecord.findMany({
             where: { userId: { in: [...userIds] }, date: day },
-            select: { id: true, userId: true, itemId: true, itemName: true, payRole: true, amount: true, status: true, createdBy: true, createdByName: true },
+            select: { id: true, userId: true, itemId: true, itemName: true, payRole: true, amount: true, status: true, createdBy: true, createdByName: true, amountEditedAt: true },
         });
 
     const recordsByUser = new Map<string, DayRecord[]>();
     for (const row of rows) {
         const status = toAllowanceStatus(row.status);
+        const amountEdited = row.amountEditedAt != null;
         const list = recordsByUser.get(row.userId) ?? [];
         list.push({
             id: row.id,
@@ -123,7 +126,8 @@ async function loadDayRecords(
             status,
             createdBy: row.createdBy,
             createdByName: row.createdByName,
-            canRemove: !monthClosed && canRemoveRecord(actor, { id: row.id, userId: row.userId, itemId: row.itemId, status, createdBy: row.createdBy }),
+            canRemove: !monthClosed && canRemoveRecord(actor, { id: row.id, userId: row.userId, itemId: row.itemId, status, createdBy: row.createdBy, amountEdited }),
+            amountEdited,
         });
         recordsByUser.set(row.userId, list);
     }

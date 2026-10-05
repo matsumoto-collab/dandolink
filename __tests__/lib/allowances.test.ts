@@ -31,6 +31,7 @@ import {
     buildExpectedEntries,
     buildTargetRoles,
     canConfirmRecord,
+    canEditRecordAmount,
     canInputAllowances,
     canInputForForeman,
     canRemoveRecord,
@@ -1254,5 +1255,99 @@ describe('diffExpectedAndRecords（付くはずの人と日 と、実際の記�
     it('記録の、ほかの列（金額・状態など）は、そのまま返る', () => {
         const records = [{ id: 'x', userId: 'w9', date: '2026-09-01', payRole: 'member' as const, amount: 200, status: 'pending' }];
         expect(diffExpectedAndRecords([], [], records).extra[0].record).toBe(records[0]);
+    });
+});
+
+// ================================================================ 記録の金額を手で直す（kei 決定 2026-10-05）
+
+describe('記録の金額を手で直す（canEditRecordAmount・canRemoveRecord・decideAllowanceToggle・findRecordsToReprice）', () => {
+    const ADMIN = { id: 'admin1', role: 'admin' };
+    const ADMIN_UPPER = { id: 'admin2', role: 'ADMIN' };
+    const MANAGER = { id: 'manager1', role: 'manager' };
+    const FOREMAN = { id: 'f1', role: 'foreman1' };
+    const WORKER = { id: 'w1', role: 'worker' };
+
+    describe('canEditRecordAmount', () => {
+        it('直せるのは管理者だけ（ロールの大文字も同じ）。マネージャー・職長・作業員・協力会社は直せない', () => {
+            const r = record({ userId: 'w9', createdBy: 'f1' });
+            expect(canEditRecordAmount(ADMIN, r)).toBe(true);
+            expect(canEditRecordAmount(ADMIN_UPPER, r)).toBe(true);
+            expect(canEditRecordAmount(MANAGER, r)).toBe(false);
+            expect(canEditRecordAmount(FOREMAN, r)).toBe(false);
+            expect(canEditRecordAmount({ id: 'f2', role: 'foreman2' }, r)).toBe(false);
+            expect(canEditRecordAmount(WORKER, r)).toBe(false);
+            expect(canEditRecordAmount({ id: 'p1', role: 'partner' }, r)).toBe(false);
+            expect(canEditRecordAmount({ id: 'x', role: '' }, r)).toBe(false);
+        });
+
+        it('自分の分の金額は、自分では直せない（管理者でも。だれが付けた記録でも・確認待ちでも）', () => {
+            expect(canEditRecordAmount(ADMIN, record({ userId: 'admin1', createdBy: 'f1' }))).toBe(false);
+            expect(canEditRecordAmount(ADMIN, record({ userId: 'admin1', createdBy: 'admin1', status: 'pending' }))).toBe(false);
+            // ほかの管理者なら直せる
+            expect(canEditRecordAmount(ADMIN_UPPER, record({ userId: 'admin1', createdBy: 'admin1', status: 'pending' }))).toBe(true);
+        });
+
+        it('確定・確認待ちのどちらも直せる。もう手で直した記録も、また直せる', () => {
+            expect(canEditRecordAmount(ADMIN, record({ status: 'confirmed' }))).toBe(true);
+            expect(canEditRecordAmount(ADMIN, record({ status: 'pending' }))).toBe(true);
+            expect(canEditRecordAmount(ADMIN, record({ amountEdited: true }))).toBe(true);
+        });
+    });
+
+    describe('canRemoveRecord: 金額を手で直した記録', () => {
+        it('職長は取り消せない（自分が付けた記録でも）。作業員も取り消せない', () => {
+            expect(canRemoveRecord(FOREMAN, record({ userId: 'w9', createdBy: 'f1' }))).toBe(true);
+            expect(canRemoveRecord(FOREMAN, record({ userId: 'w9', createdBy: 'f1', amountEdited: true }))).toBe(false);
+            expect(canRemoveRecord({ id: 'f2', role: 'FOREMAN2' }, record({ userId: 'w9', createdBy: 'f2', amountEdited: true }))).toBe(false);
+            // 自分で付けた自分の確認待ちでも、手で直してあれば職長は取り下げられない
+            expect(canRemoveRecord(FOREMAN, record({ userId: 'f1', createdBy: 'f1', status: 'pending', amountEdited: true }))).toBe(false);
+            expect(canRemoveRecord(WORKER, record({ userId: 'w1', createdBy: 'w1', status: 'pending', amountEdited: true }))).toBe(false);
+        });
+
+        it('管理者・マネージャーは、今までどおり取り消せる（自分の確定した分は、今までどおり取り消せない）', () => {
+            expect(canRemoveRecord(ADMIN, record({ userId: 'w9', createdBy: 'f1', amountEdited: true }))).toBe(true);
+            expect(canRemoveRecord(MANAGER, record({ userId: 'w9', createdBy: 'f1', amountEdited: true }))).toBe(true);
+            expect(canRemoveRecord(MANAGER, record({ userId: 'manager1', createdBy: 'f1', amountEdited: true }))).toBe(false);
+            expect(canRemoveRecord(MANAGER, record({ userId: 'manager1', createdBy: 'manager1', status: 'pending', amountEdited: true }))).toBe(true);
+        });
+
+        it('amountEdited を省いた・false の記録は、今までと同じ答え', () => {
+            const ops = [ADMIN, MANAGER, FOREMAN, WORKER, { id: 'f2', role: 'foreman2' }];
+            const ids = ['admin1', 'manager1', 'f1', 'f2', 'w1'];
+            for (const op of ops) {
+                for (const userId of ids) {
+                    for (const createdBy of ids) {
+                        for (const status of ['confirmed', 'pending'] as const) {
+                            const base = record({ userId, createdBy, status });
+                            expect(canRemoveRecord(op, { ...base, amountEdited: false })).toBe(canRemoveRecord(op, base));
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    it("decideAllowanceToggle: 職長が、手で直した記録を取り消そうとすると 'blocked'（締めた月なら、先に 'closed'）", () => {
+        const base: AllowanceToggleInput = {
+            operator: FOREMAN, on: false, item: { id: 'large', isActive: true }, targetPayRole: null, monthClosed: false,
+            existing: record({ userId: 'w9', createdBy: 'f1', amountEdited: true }),
+        };
+        expect(decideAllowanceToggle(base)).toEqual({ action: 'none', reason: 'blocked' });
+        expect(decideAllowanceToggle({ ...base, monthClosed: true })).toEqual({ action: 'none', reason: 'closed' });
+        expect(decideAllowanceToggle({ ...base, operator: MANAGER })).toEqual({ action: 'remove', record: base.existing });
+    });
+
+    it('findRecordsToReprice: 手で直した記録は、金額の表と違っていても対象にしない', () => {
+        const rates = [rate({ id: 'r1', foremanAmount: 1500, memberAmount: 200, effectiveFrom: '2026-09-01' })];
+        const records = [
+            { id: 'a', date: '2026-09-10', payRole: 'member' as const, amount: 1000, rateId: 'r1', amountEdited: true },
+            { id: 'b', date: '2026-09-10', payRole: 'member' as const, amount: 1000, rateId: 'r1', amountEdited: false },
+            { id: 'c', date: '2026-09-10', payRole: 'foreman' as const, amount: 900, rateId: 'r0' },
+            { id: 'd', date: '2026-09-11', payRole: 'foreman' as const, amount: 0, rateId: null, amountEdited: true },
+        ];
+        expect(findRecordsToReprice(records, rates).map((c) => [c.record.id, c.amount, c.rateId])).toEqual([
+            ['b', 200, 'r1'],
+            ['c', 1500, 'r1'],
+        ]);
     });
 });

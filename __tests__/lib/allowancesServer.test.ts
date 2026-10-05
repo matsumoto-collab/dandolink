@@ -41,6 +41,7 @@ import {
     cancelAllowanceRate,
     closeAllowanceMonth,
     confirmAllowanceRecords,
+    editAllowanceRecordAmount,
     getAllowanceSetting,
     getAttendanceMembers,
     isAllowanceMonthClosed,
@@ -52,6 +53,7 @@ import {
     lockAllowanceWrites,
     removeAllowanceRecord,
     reopenAllowanceMonth,
+    resetAllowanceRecordAmount,
     resolveAllowanceAccessMode,
     toAllowanceRateLike,
     toggleAllowanceForDay,
@@ -167,7 +169,8 @@ const recordRow = (over: Partial<AllowanceRecordRow> = {}): AllowanceRecordRow =
     id: 'r1', userId: 'worker1', date: utc0('2026-09-30'), itemId: 'large', itemName: '大規模手当', payRole: 'member', amount: 200,
     rateId: 'rate1', status: 'confirmed', source: 'attendance', foremanId: 'foremanA', note: null,
     createdBy: 'foremanA', createdByName: '職長A', confirmedBy: null, confirmedByName: null, confirmedAt: null,
-    createdAt: new Date('2026-09-30T09:00:00.000Z'), updatedAt: new Date('2026-09-30T09:00:00.000Z'), ...over,
+    createdAt: new Date('2026-09-30T09:00:00.000Z'), updatedAt: new Date('2026-09-30T09:00:00.000Z'),
+    amountEditedAt: null, amountEditedBy: null, amountEditedByName: null, ...over,
 });
 
 /** 入った行（createManyAndReturn が返す、全部の列）。渡した data に、DB が付ける列（id・日時など）を足したもの */
@@ -1069,6 +1072,7 @@ describe('toggleAllowanceForDay（「出勤簿入力」で、手当のボタン�
                         rateId: 'rate1', status: 'confirmed', source: 'attendance', foremanId: 'foremanA', note: null,
                         createdBy: 'foremanA', createdByName: '職長A', confirmedBy: null, confirmedByName: null, confirmedAt: null,
                         createdAt: '2026-09-30T09:00:00.000Z', updatedAt: '2026-09-30T09:00:00.000Z',
+                        amountEditedAt: null, amountEditedBy: null, amountEditedByName: null,
                     },
                 },
             });
@@ -1214,6 +1218,7 @@ describe('removeAllowanceRecord（「手当」の画面で、記録を1件取り
                     rateId: 'rate1', status: 'confirmed', source: 'attendance', foremanId: 'foremanA', note: '付けまちがい',
                     createdBy: 'foremanA', createdByName: '職長A', confirmedBy: null, confirmedByName: null, confirmedAt: null,
                     createdAt: '2026-09-30T09:00:00.000Z', updatedAt: '2026-09-30T09:00:00.000Z',
+                    amountEditedAt: null, amountEditedBy: null, amountEditedByName: null,
                 },
             },
         });
@@ -1263,7 +1268,7 @@ describe('confirmAllowanceRecords（確認待ちの記録を認める）', () =>
         expect(prisma.allowanceRecord.findMany).toHaveBeenCalledTimes(1);
         expect(prisma.allowanceRecord.findMany).toHaveBeenCalledWith({
             where: { id: { in: ['p1', 'p2'] } },
-            select: { id: true, userId: true, date: true, itemId: true, itemName: true, payRole: true, amount: true, status: true, createdBy: true },
+            select: { id: true, userId: true, date: true, itemId: true, itemName: true, payRole: true, amount: true, status: true, createdBy: true, amountEditedAt: true },
         });
         // 1件ずつではなく、1回の updateMany
         expect(prisma.allowanceRecord.updateMany).toHaveBeenCalledTimes(1);
@@ -1659,7 +1664,7 @@ describe('addAllowanceRate（金額を変える＝金額の行を足す）', () 
         expect(prisma.allowanceRecord.findMany).toHaveBeenCalledTimes(1);
         expect(prisma.allowanceRecord.findMany).toHaveBeenCalledWith({
             where: { itemId: 'large', date: { gte: utc0('2026-09-15') } },
-            select: { id: true, userId: true, date: true, itemName: true, payRole: true, amount: true, rateId: true },
+            select: { id: true, userId: true, date: true, itemName: true, payRole: true, amount: true, rateId: true, amountEditedAt: true },
         });
     });
 
@@ -2583,5 +2588,229 @@ describe('loadAllowanceCrosscheck（手配と出勤簿から「付くはずの�
         expect(entryNames(check.unworked)).toEqual([
             '2026-09-11/f1:foreman', '2026-09-12/f1:foreman', '2026-09-13/f1:foreman', '2026-09-14/f1:foreman', '2026-09-15/f1:foreman',
         ]);
+    });
+});
+
+// ================================================================ 記録の金額を手で直す・単価に戻す（kei 決定 2026-10-05）
+
+describe('editAllowanceRecordAmount・resetAllowanceRecordAmount（記録の金額を手で直す・単価に戻す）', () => {
+    const NOW = new Date('2026-10-05T03:34:00.000Z');
+    const ADMIN2: AllowanceActor = { id: 'admin2', role: 'ADMIN', name: '管理者2' };
+    /** 手で直した印の付いた記録（管理者2 が 10/4 に 1,000円に直した） */
+    const EDITED = {
+        amount: 1000, amountEditedAt: new Date('2026-10-04T01:00:00.000Z'), amountEditedBy: 'admin2', amountEditedByName: '管理者2',
+    };
+    /** findUnique が返す行（update も、この行に書いた列を重ねた行を返す） */
+    let current: AllowanceRecordRow | null = null;
+    const recordIs = (row: AllowanceRecordRow | null) => {
+        current = row;
+        mock(prisma.allowanceRecord.findUnique).mockResolvedValue(row);
+    };
+    const updateArgs = () => mock(prisma.allowanceRecord.update).mock.calls.map((c) => c[0] as unknown);
+    const logData = () => mock(prisma.allowanceLog.create).mock.calls.map((c) => (c[0] as { data: unknown }).data);
+
+    beforeEach(() => {
+        freezeNow(NOW.toISOString());
+        current = null;
+        mock(prisma.allowanceRecord.update).mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...(current ?? recordRow()), ...data }));
+    });
+
+    describe('editAllowanceRecordAmount（金額を手で直す）', () => {
+        it('金額が 0〜100000 の整数でなければ例外（トランザクションを開く前に断る）', async () => {
+            for (const bad of [-1, 100001, 1.5, Number.NaN]) {
+                await expect(editAllowanceRecordAmount(ADMIN, 'r1', { amount: bad })).rejects.toThrow('金額が範囲の外です');
+            }
+            expect(dbCalls()).toEqual([]);
+        });
+
+        it("記録が無い → 'not_found'（鍵を取って読むだけ）", async () => {
+            expect(await editAllowanceRecordAmount(ADMIN, 'ghost', { amount: 1000 })).toBe('not_found');
+            expect(prisma.allowanceRecord.findUnique).toHaveBeenCalledWith({ where: { id: 'ghost' } });
+            expect(dbCalls()).toEqual(['prisma.$transaction', 'tx.$executeRaw', 'tx.allowanceRecord.findUnique']);
+        });
+
+        it("締めた月の記録 → 'closed'（自分の分でも、権限より先に見る）。何も書かない", async () => {
+            closeMonths('2026-09');
+            recordIs(recordRow());
+            expect(await editAllowanceRecordAmount(ADMIN, 'r1', { amount: 1000 })).toBe('closed');
+            recordIs(recordRow({ userId: 'admin1' }));
+            expect(await editAllowanceRecordAmount(ADMIN, 'r1', { amount: 1000 })).toBe('closed');
+            expect(prisma.allowanceMonthClose.findMany).toHaveBeenCalledWith({ where: { month: { in: ['2026-09'] } }, select: { month: true } });
+            noWrites();
+        });
+
+        it("直す権限が無い → 'forbidden'（マネージャー・職長・作業員・自分の分の管理者）。何も書かない", async () => {
+            recordIs(recordRow());
+            for (const actor of [MANAGER, FOREMAN_A, WORKER]) {
+                expect(await editAllowanceRecordAmount(actor, 'r1', { amount: 1000 })).toBe('forbidden');
+            }
+            recordIs(recordRow({ userId: 'admin1', createdBy: 'foremanA' }));
+            expect(await editAllowanceRecordAmount(ADMIN, 'r1', { amount: 1000 })).toBe('forbidden');
+            noWrites();
+        });
+
+        it('直す: 金額・メモ・手で直した印（今・操作している人の id と名前）を入れる。区分・金額の行・状態は書かない', async () => {
+            recordIs(recordRow({ note: '前のメモ' }));
+            const result = await editAllowanceRecordAmount(ADMIN, 'r1', { amount: 1000, note: '応援の日なので' });
+            expect(updateArgs()).toEqual([{
+                where: { id: 'r1' },
+                data: { amount: 1000, note: '応援の日なので', amountEditedAt: NOW, amountEditedBy: 'admin1', amountEditedByName: '管理者1' },
+            }]);
+            expect(result).toEqual({
+                ok: true,
+                record: expect.objectContaining({ id: 'r1', amount: 1000, amountEditedBy: 'admin1', note: '応援の日なので', payRole: 'member', rateId: 'rate1', status: 'confirmed' }),
+            });
+            expect(logData()).toEqual([{
+                action: 'record_amount_edited', actorId: 'admin1', actorName: '管理者1',
+                targetUserId: 'worker1', itemId: 'large', recordId: 'r1', recordDate: utc0('2026-09-30'),
+                detail: { itemName: '大規模手当', payRole: 'member', before: 200, after: 1000, noteBefore: '前のメモ', noteAfter: '応援の日なので' },
+            }]);
+        });
+
+        it('メモを省いたら、メモは書かない（履歴の noteAfter は今のメモ）', async () => {
+            recordIs(recordRow({ note: '前のメモ' }));
+            await editAllowanceRecordAmount(ADMIN, 'r1', { amount: 0 });
+            expect(updateArgs()).toEqual([{
+                where: { id: 'r1' },
+                data: { amount: 0, amountEditedAt: NOW, amountEditedBy: 'admin1', amountEditedByName: '管理者1' },
+            }]);
+            expect((logData()[0] as { detail: unknown }).detail).toEqual({
+                itemName: '大規模手当', payRole: 'member', before: 200, after: 0, noteBefore: '前のメモ', noteAfter: '前のメモ',
+            });
+        });
+
+        it('メモに null を渡したら、メモを消す', async () => {
+            recordIs(recordRow({ note: '前のメモ' }));
+            await editAllowanceRecordAmount(ADMIN, 'r1', { amount: 300, note: null });
+            expect((updateArgs()[0] as { data: Record<string, unknown> }).data.note).toBeNull();
+            expect((logData()[0] as { detail: Record<string, unknown> }).detail.noteAfter).toBeNull();
+        });
+
+        it('今と同じ金額でも、印を付ける（＝この金額に固定する）。確認待ちの記録も直せる（状態は書かない）。手で直した記録も、また直せる', async () => {
+            recordIs(recordRow({ amount: 200, status: 'pending', userId: 'foremanA', createdBy: 'foremanA' }));
+            expect(await editAllowanceRecordAmount(ADMIN, 'r1', { amount: 200 })).toEqual({ ok: true, record: expect.objectContaining({ status: 'pending' }) });
+            expect((updateArgs()[0] as { data: Record<string, unknown> }).data).toEqual({ amount: 200, amountEditedAt: NOW, amountEditedBy: 'admin1', amountEditedByName: '管理者1' });
+
+            recordIs(recordRow({ ...EDITED }));
+            expect(await editAllowanceRecordAmount(ADMIN, 'r1', { amount: 1200 })).toEqual({ ok: true, record: expect.objectContaining({ amount: 1200 }) });
+        });
+
+        it('順番: トランザクションの中で、鍵 → 記録を読む → 締めを読む → 書く → 履歴（全部 tx で・決まった設定）', async () => {
+            recordIs(recordRow());
+            await editAllowanceRecordAmount(ADMIN, 'r1', { amount: 1000 });
+            expect(dbCalls()).toEqual([
+                'prisma.$transaction',
+                'tx.$executeRaw',
+                'tx.allowanceRecord.findUnique',
+                'tx.allowanceMonthClose.findMany',
+                'tx.allowanceRecord.update',
+                'tx.allowanceLog.create',
+            ]);
+            expect(transactionOptions()).toEqual([ALLOWANCE_TX_OPTIONS]);
+            expect(executedSqls()[0]).toContain('pg_advisory_xact_lock');
+        });
+    });
+
+    describe('resetAllowanceRecordAmount（単価に戻す）', () => {
+        it("記録が無い → 'not_found' ／ 締めた月 → 'closed' ／ 権限が無い → 'forbidden'。何も書かない", async () => {
+            expect(await resetAllowanceRecordAmount(ADMIN, 'ghost')).toBe('not_found');
+            closeMonths('2026-09');
+            recordIs(recordRow({ ...EDITED }));
+            expect(await resetAllowanceRecordAmount(ADMIN, 'r1')).toBe('closed');
+            closeMonths();
+            for (const actor of [MANAGER, FOREMAN_A, WORKER]) {
+                expect(await resetAllowanceRecordAmount(actor, 'r1')).toBe('forbidden');
+            }
+            recordIs(recordRow({ ...EDITED, userId: 'admin1' }));
+            expect(await resetAllowanceRecordAmount(ADMIN, 'r1')).toBe('forbidden');
+            noWrites();
+        });
+
+        it("手で直していない記録 → 'not_edited'（金額の表も読まない・何も書かない）", async () => {
+            recordIs(recordRow());
+            expect(await resetAllowanceRecordAmount(ADMIN, 'r1')).toBe('not_edited');
+            expect(prisma.allowanceRate.findMany).not.toHaveBeenCalled();
+            noWrites();
+        });
+
+        it("その日付に有効な金額が無い → 'no_rate'（何も書かない）", async () => {
+            recordIs(recordRow({ ...EDITED, date: utc0('2026-08-31') }));
+            expect(await resetAllowanceRecordAmount(ADMIN, 'r1')).toBe('no_rate');
+            noWrites();
+        });
+
+        it('戻す: その日付に有効な金額の行の、その区分の金額と行にし、印を null に戻す（メモ・状態は書かない）。履歴 record_amount_reset', async () => {
+            // 職長として付いた 10/2 の記録 → 10/1 からの金額（職長 2,000円・rate2）
+            recordIs(recordRow({ ...EDITED, date: utc0('2026-10-02'), payRole: 'foreman', rateId: 'rate1', note: 'メモは変えない' }));
+            const result = await resetAllowanceRecordAmount(ADMIN2, 'r1');
+            expect(result).toEqual({
+                ok: true,
+                record: expect.objectContaining({ amount: 2000, rateId: 'rate2', amountEditedAt: null, amountEditedBy: null, amountEditedByName: null, note: 'メモは変えない' }),
+            });
+            expect(updateArgs()).toEqual([{
+                where: { id: 'r1' },
+                data: { amount: 2000, rateId: 'rate2', amountEditedAt: null, amountEditedBy: null, amountEditedByName: null },
+            }]);
+            expect(prisma.allowanceRate.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { itemId: { in: ['large'] } } }));
+            expect(logData()).toEqual([{
+                action: 'record_amount_reset', actorId: 'admin2', actorName: '管理者2',
+                targetUserId: 'worker1', itemId: 'large', recordId: 'r1', recordDate: utc0('2026-10-02'),
+                detail: { itemName: '大規模手当', payRole: 'foreman', before: 1000, after: 2000, rateId: 'rate2' },
+            }]);
+        });
+
+        it('順番: トランザクションの中で、鍵 → 記録を読む → 締めを読む → 金額の表を読む → 書く → 履歴（全部 tx で・決まった設定）', async () => {
+            recordIs(recordRow({ ...EDITED }));
+            await resetAllowanceRecordAmount(ADMIN, 'r1');
+            expect(dbCalls()).toEqual([
+                'prisma.$transaction',
+                'tx.$executeRaw',
+                'tx.allowanceRecord.findUnique',
+                'tx.allowanceMonthClose.findMany',
+                'tx.allowanceRate.findMany',
+                'tx.allowanceRecord.update',
+                'tx.allowanceLog.create',
+            ]);
+            expect(transactionOptions()).toEqual([ALLOWANCE_TX_OPTIONS]);
+        });
+    });
+
+    describe('手で直した記録と、ほかの書く関数', () => {
+        it('addAllowanceRate: さかのぼって金額を変えても、手で直した記録は付け直さない（履歴 record_repriced も書かない）', async () => {
+            mock(prisma.allowanceRecord.findMany).mockResolvedValue([
+                { id: 'a', userId: 'foremanA', date: utc0('2026-09-20'), itemName: '大規模手当', payRole: 'foreman', amount: 1500, rateId: 'rate1', amountEditedAt: null },
+                { id: 'x', userId: 'worker1', date: utc0('2026-09-20'), itemName: '大規模手当', payRole: 'foreman', amount: 1000, rateId: 'rate1', amountEditedAt: new Date('2026-10-01T00:00:00.000Z') },
+            ]);
+            const result = await addAllowanceRate(ADMIN, 'large', { effectiveFromKey: '2026-09-15', foremanAmount: 1800, memberAmount: 200 });
+            expect(result).toEqual(expect.objectContaining({ ok: true, repriced: 1 }));
+            expect(mock(prisma.allowanceRecord.updateMany).mock.calls.map((c) => c[0])).toEqual([
+                { where: { id: { in: ['a'] } }, data: { amount: 1800, rateId: 'rate-new' } },
+            ]);
+            const repriced = (mock(prisma.allowanceLog.createMany).mock.calls[0][0] as { data: { recordId: string }[] }).data.map((d) => d.recordId);
+            expect(repriced).toEqual(['a']);
+        });
+
+        it("removeAllowanceRecord: 職長は、手で直した記録を取り消せない（'forbidden'）。マネージャーは取り消せる", async () => {
+            recordIs(recordRow({ ...EDITED, createdBy: 'foremanA' }));
+            expect(await removeAllowanceRecord(FOREMAN_A, 'r1')).toBe('forbidden');
+            noWrites();
+            expect(await removeAllowanceRecord(MANAGER, 'r1')).toBe('removed');
+        });
+
+        it("toggleAllowanceForDay: 職長が、手で直した記録を外そうとすると 'blocked'（何も書かない）", async () => {
+            mock(prisma.allowanceRecord.findFirst).mockResolvedValue(recordRow({ ...EDITED, createdBy: 'foremanA' }));
+            expect(await toggleAllowanceForDay({
+                actor: FOREMAN_A, foremanId: 'foremanA', dateKey: '2026-09-30', targetUserId: 'worker1', on: false,
+                item: { id: 'large', name: '大規模手当', isActive: true }, targetPayRole: null,
+            })).toBe('blocked');
+            noWrites();
+        });
+
+        it('取り消したときの履歴（record_removed）には、手で直した印も写す（日時は ISO の文字）', async () => {
+            recordIs(recordRow({ ...EDITED }));
+            expect(await removeAllowanceRecord(MANAGER, 'r1')).toBe('removed');
+            const detail = (logData()[0] as { detail: Record<string, unknown> }).detail;
+            expect([detail.amount, detail.amountEditedAt, detail.amountEditedBy, detail.amountEditedByName]).toEqual([1000, '2026-10-04T01:00:00.000Z', 'admin2', '管理者2']);
+        });
     });
 });

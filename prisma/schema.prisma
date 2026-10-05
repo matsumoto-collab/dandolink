@@ -3462,6 +3462,12 @@ model AllowanceRecord {
   confirmedBy     String?
   confirmedByName String?
   confirmedAt     DateTime?
+  /// 管理者が、この記録の金額を手で直した日時。null = 手で直していない（金額は、記録の日付に有効な金額の写し）。
+  /// 手で直した記録の金額は、あとで金額の表を変えても変えない（kei 決定 2026-10-05）
+  amountEditedAt     DateTime?
+  /// 金額を手で直した人（User.id と、その時点の名前の写し）
+  amountEditedBy     String?
+  amountEditedByName String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
   item            AllowanceItem @relation(fields: [itemId], references: [id], onDelete: Restrict)

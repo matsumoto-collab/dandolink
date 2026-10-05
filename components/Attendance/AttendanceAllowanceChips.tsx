@@ -37,6 +37,7 @@ interface Chip {
 const yen = (amount: number): string => `${amount.toLocaleString('ja-JP')}円`;
 
 const CLOSED_REASON = 'この月の手当は締めてあります';
+const AMOUNT_EDITED_REASON = '管理者が金額を直した記録です（取り消せるのは、管理者・マネージャーです）';
 
 /** 各メンバーのカードの、評価ポイントのボタンの下に置く */
 export default function AttendanceAllowanceChips({ allowanceDay, userId, currentUserId }: ChipsProps) {
@@ -67,10 +68,12 @@ export default function AttendanceAllowanceChips({ allowanceDay, userId, current
     /**
      * 取り消せない記録（鍵つき）の理由。
      * 締めた月の記録は、だれも変えられない。
+     * 管理者が金額を手で直した記録は、管理者・マネージャーしか取り消せない。
      * 自分のカードの記録は、だれが付けたものでも、自分では取り消せない（管理者・マネージャーでも同じ）。
      */
     const lockedReason = (rec: AllowanceDayRecord, where: 'toast' | 'title'): string => {
         if (allowanceDay.monthClosed) return CLOSED_REASON;
+        if (rec.amountEdited) return AMOUNT_EDITED_REASON;
         if (isOwnCard) return '自分の分の記録は、自分では取り消せません';
         return where === 'toast'
             ? `${rec.createdByName}さんが付けた記録です（取り消せるのは、付けた人と管理者・マネージャーです）`

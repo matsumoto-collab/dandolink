@@ -37,6 +37,8 @@ export interface AllowanceDayRecord {
     createdByName: string;
     /** 操作している人が取り消せるか（締めた月の記録は false） */
     canRemove: boolean;
+    /** 管理者が金額を手で直した記録か（取り消せるのは、管理者・マネージャーだけ） */
+    amountEdited: boolean;
 }
 
 /** その人に、この画面で付けられる手当（ボタン）の1つ */
