@@ -3524,3 +3524,43 @@ model AllowanceSetting {
 
   @@schema("public")
 }
+
+// ───────────────────────── 評価ポイント: ありがとう ─────────────────────────
+// 社員どうしが「相手を選んで」送る「ありがとう」。もらった数を、評価ポイントの集計に足す（kei 決定 2026-10-05）。
+// EvaluationPointRecord（1人・1日・1項目で1行）とは別のテーブルで持つ（1日に何人からでも、もらえるため）。
+
+/// 「ありがとう」の記録。1行 = だれが・だれに・いつ。同じ相手には1日1回まで。
+model EvaluationPointThanks {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  /// 送った人（User.id）。外部キーは張らない（EvaluationPointRecord と同じ）
+  fromUserId String
+  /// もらった人（User.id）
+  toUserId   String
+  /// 送った日（JST の日付）。UTC 0時の印で保存する（AttendanceRecord.date と同じ約束）
+  date       DateTime @db.Date
+  /// ひとこと（任意）
+  message    String?
+  /// 送った時点の「1回あたりの点数」の写し。あとから設定の点数を変えても、この行は変わらない
+  points     Int
+  createdAt  DateTime @default(now())
+
+  /// 同じ人から同じ人へは、1日1回だけ（連打や二重送信でも増えない）
+  @@unique([fromUserId, toUserId, date])
+  @@index([toUserId, date])
+  @@index([date])
+  @@schema("public")
+}
+
+/// 「ありがとう」の設定（1行だけ・id は 'default'）
+model EvaluationPointThanksSetting {
+  id              String   @id @default("default")
+  /// true = 使う（送れる）。false = 使わない（送れない。送ってある分は、集計に残る）
+  isActive        Boolean  @default(false)
+  /// 1回あたりの点数（送った時点の値を EvaluationPointThanks.points に写す）
+  pointsPerThanks Int      @default(1)
+  updatedBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  @@schema("public")
+}
