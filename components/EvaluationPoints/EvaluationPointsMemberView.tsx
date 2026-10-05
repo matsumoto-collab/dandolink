@@ -18,6 +18,7 @@ import { logger } from '@/lib/logger';
 import { todayJstDateKey } from '@/lib/evaluationPoints';
 import { Button } from '@/components/ui/Button';
 import Loading from '@/components/ui/Loading';
+import EvaluationThanksPanel from './EvaluationThanksPanel';
 import {
     EVALUATION_POINTS_API,
     STATUS_LABEL,
@@ -209,6 +210,9 @@ export default function EvaluationPointsMemberView() {
                         <p className="text-xs text-slate-400 pb-2">
                             合計に入るのは「確定」の記録だけです。「確認待ち」は、管理者・マネージャーが認めると合計に入ります。
                         </p>
+
+                        {/* 「ありがとう」の欄（「使わない」で1件も無いあいだは何も出ない） */}
+                        <EvaluationThanksPanel />
                     </>
                 )}
             </div>

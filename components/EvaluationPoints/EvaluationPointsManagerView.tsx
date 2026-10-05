@@ -16,7 +16,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { Download, Loader2, Plus } from 'lucide-react';
+import { Download, Heart, Loader2, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import { initBroadcastChannel, onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
@@ -27,6 +27,9 @@ import EvaluationPointsSummaryTable from './EvaluationPointsSummaryTable';
 import EvaluationPointPersonModal from './EvaluationPointPersonModal';
 import EvaluationPointPendingModal from './EvaluationPointPendingModal';
 import EvaluationPointAddModal, { type AddRecordInput } from './EvaluationPointAddModal';
+import EvaluationThanksPanel from './EvaluationThanksPanel';
+import EvaluationThanksListModal from './EvaluationThanksListModal';
+import { THANKS_API, THANKS_VIRTUAL_ITEM_ID, hasThanksItem, type ThanksListRow } from './evaluationThanksClient';
 import {
     EVALUATION_POINTS_API,
     EVALUATION_POINTS_UPDATED_EVENT,
@@ -65,6 +68,9 @@ export default function EvaluationPointsManagerView() {
     const [selectedPerson, setSelectedPerson] = useState<SummaryPerson | null>(null);
     const [pendingOpen, setPendingOpen] = useState(false);
     const [addOpen, setAddOpen] = useState(false);
+    const [thanksListOpen, setThanksListOpen] = useState(false);
+    /** 「ありがとう」の欄（自分の分）を読み直させる数（ここで「ありがとう」を取り消したときだけ変える） */
+    const [thanksPanelReloadKey, setThanksPanelReloadKey] = useState(0);
 
     // 送っているあいだは、ほかの操作を受け付けない（state だけだと、描き直される前の2回目の押下を止められない）
     const busyRef = useRef(false);
@@ -232,6 +238,18 @@ export default function EvaluationPointsManagerView() {
         return result.ok;
     };
 
+    // ---- 「ありがとう」を取り消す（確認は呼ぶ側で挟む）
+    const handleRemoveThanks = async (row: ThanksListRow): Promise<boolean> => {
+        const result = await mutate(
+            `${THANKS_API}/${encodeURIComponent(row.id)}`,
+            { method: 'DELETE' },
+            '「ありがとう」を取り消しました',
+            '「ありがとう」の取り消しに失敗しました',
+        );
+        if (result.ok) setThanksPanelReloadKey((k) => k + 1);
+        return result.ok;
+    };
+
     // ---- CSV
     const handleDownload = async (type: 'detail' | 'summary') => {
         if (!periodValid) {
@@ -281,6 +299,11 @@ export default function EvaluationPointsManagerView() {
         }`;
 
     const noRecords = summary !== null && summary.totals.totalCount + summary.totals.pendingCount === 0;
+    // 集計に「ありがとう」の仮の項目があるときだけ、一覧のボタン・人の明細の表を出す
+    const showThanks = hasThanksItem(summary?.items);
+    const selectedThanksCount = showThanks && selectedPerson
+        ? summary?.people.find((p) => p.userId === selectedPerson.userId)?.byItem[THANKS_VIRTUAL_ITEM_ID]?.count ?? 0
+        : 0;
 
     return (
         <div className="flex flex-col gap-3 max-w-[1800px] w-full mx-auto h-full min-h-0">
@@ -340,6 +363,11 @@ export default function EvaluationPointsManagerView() {
                 >
                     CSV（集計）
                 </Button>
+                {showThanks && (
+                    <Button variant="outline" size="sm" leftIcon={<Heart className="w-4 h-4" />} onClick={() => setThanksListOpen(true)}>
+                        ありがとうの一覧
+                    </Button>
+                )}
             </div>
 
             {/* 3. 確認待ちの帯（全期間） */}
@@ -385,6 +413,8 @@ export default function EvaluationPointsManagerView() {
                         <p className="text-xs text-slate-400">
                             合計に入るのは「確定」の記録だけです。セルにマウスを乗せると点数の合計が出ます。人の行を押すと明細が開きます。
                         </p>
+                        {/* 「ありがとう」の欄（自分の分。「使わない」で1件も無いあいだは何も出ない） */}
+                        <EvaluationThanksPanel reloadKey={thanksPanelReloadKey} onChanged={reloadLists} />
                     </div>
                 )}
             </div>
@@ -398,6 +428,19 @@ export default function EvaluationPointsManagerView() {
                 busy={busy}
                 onClose={() => setSelectedPerson(null)}
                 onRemove={handleRemove}
+                thanksCount={selectedThanksCount}
+                onRemoveThanks={handleRemoveThanks}
+            />
+
+            {/* 「ありがとう」の一覧 */}
+            <EvaluationThanksListModal
+                isOpen={thanksListOpen}
+                startDate={summary?.startDate ?? startDate}
+                endDate={summary?.endDate ?? endDate}
+                reloadKey={reloadKey}
+                busy={busy}
+                onClose={() => setThanksListOpen(false)}
+                onRemove={handleRemoveThanks}
             />
 
             {/* 3. 確認待ちの一覧 */}

@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { logger } from '@/lib/logger';
 import { initBroadcastChannel, sendBroadcast } from '@/lib/broadcastChannel';
+import EvaluationThanksSettings from './EvaluationThanksSettings';
 import {
     EVALUATION_POINT_DESCRIPTION_MAX,
     EVALUATION_POINT_MAX,
@@ -173,6 +174,8 @@ export default function EvaluationPointSettings() {
         <div className="min-w-0 space-y-10">
             <EvaluationPointItemsSection />
             <EvaluationPointVisibilitySection />
+            {/* 「ありがとう」（使う／使わない・1回あたりの点数） */}
+            <EvaluationThanksSettings />
         </div>
     );
 }

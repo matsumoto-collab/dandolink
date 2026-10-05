@@ -15,6 +15,7 @@ import { APP_NAME, APP_LOGO } from '@/lib/branding';
 import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 import { useOpenChat } from '@/hooks/useOpenChat';
 import { useEvaluationPointAccess } from '@/hooks/useEvaluationPointAccess';
+import { useEvaluationThanksAccess } from '@/hooks/useEvaluationThanksAccess';
 import { useAllowanceAccess } from '@/hooks/useAllowanceAccess';
 import { useJoyoStatementAccess } from '@/hooks/useJoyoStatementAccess';
 
@@ -101,6 +102,8 @@ export default function Sidebar() {
     const openChat = useOpenChat();
     // 「評価ポイント」: admin・manager は通信なしで出す／職長・作業員は公開の設定がオンのときだけ出す
     const { mode: evaluationPointMode } = useEvaluationPointAccess(session?.user?.role);
+    // 「ありがとう」を使う設定なら、職長・作業員にも「評価ポイント」を出す（点数の公開がオフでも、送る・もらった だけの画面になる）
+    const { enabled: evaluationThanksEnabled } = useEvaluationThanksAccess(session?.user?.role);
     // 「手当」: admin・manager は通信なしで出す／職長・作業員は公開の設定がオンのときだけ出す
     const { mode: allowanceMode } = useAllowanceAccess(session?.user?.role);
     // 「支払明細書」: admin は通信なしで出す／manager・職長・作業員は支払明細書の対象者のときだけ出す（自分の発行済みだけを見る画面）
@@ -275,7 +278,7 @@ export default function Sidebar() {
                             const allowedItems = section.items.filter(item =>
                                 (!item.requiredRoles || (role !== undefined && item.requiredRoles.includes(role)))
                                 && (!item.requiresCashbookAccess || session?.user?.canAccessCashbook === true)
-                                && (!item.requiresEvaluationPointAccess || evaluationPointMode !== 'none')
+                                && (!item.requiresEvaluationPointAccess || evaluationPointMode !== 'none' || evaluationThanksEnabled)
                                 && (!item.requiresAllowanceAccess || allowanceMode !== 'none')
                                 && (!item.requiresJoyoStatementAccess || joyoStatementMode !== 'none')
                             );
