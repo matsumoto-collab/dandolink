@@ -52,6 +52,9 @@ beforeEach(() => {
         { id: 'wash', name: '洗車', sortOrder: 0 },
         { id: 'help', name: 'ヘルプ', sortOrder: 1 },
     ]);
+    // 「ありがとう」: 1件も無い・設定の行が無い（＝使わない）
+    mock(prisma.evaluationPointThanks.findMany).mockResolvedValue([]);
+    mock(prisma.evaluationPointThanksSetting.findUnique).mockResolvedValue(null);
 });
 
 describe('GET /me', () => {
@@ -140,5 +143,76 @@ describe('GET /me', () => {
         expect([rev.status, rev.body.details]).toEqual([400, '日付が不正です']);
         expect(prisma.evaluationPointRecord.findMany).not.toHaveBeenCalled();
         expect((await getMe()).res.headers.get('Cache-Control')).toBe('no-store');
+    });
+});
+
+// ---------------------------------------------------------------- 「ありがとう」（Phase 2）
+
+/** 作業員1 が9月にもらった「ありがとう」（日付の新しい順で返ってくる想定）。送った人の1人は User が無い */
+const THANKS_ROWS = [
+    { id: 't2', fromUserId: 'foreman1', date: utc0('2026-09-15'), points: 1 },
+    { id: 't1', fromUserId: 'gone', date: utc0('2026-09-10'), points: 4 },
+];
+
+describe('GET /me の「ありがとう」', () => {
+    beforeEach(() => {
+        mock(prisma.evaluationPointThanks.findMany).mockResolvedValue(THANKS_ROWS);
+        mock(prisma.user.findMany).mockResolvedValue([{ id: 'foreman1', displayName: '職長1' }]);
+    });
+
+    it('自分の分だけを読む（where の toUserId がセッションの ID。クエリの userId は使わない）', async () => {
+        const r = await getMe('startDate=2026-09-01&endDate=2026-09-30&userId=someone-else');
+        expect(r.status).toBe(200);
+        const args = mock(prisma.evaluationPointThanks.findMany).mock.calls[0][0];
+        expect(args.where).toEqual({ toUserId: 'worker1', date: { gte: utc0('2026-09-01'), lt: utc0('2026-10-01') } });
+        expect(args.orderBy).toEqual([{ date: 'desc' }, { createdAt: 'desc' }]);
+        // ひとことは読まない
+        expect(args.select.message).toBeUndefined();
+    });
+
+    it('byItem・合計・明細に入る（点数は行の points。同じ点数なら点数表の項目のあと。同じ日は点数表の記録が先）', async () => {
+        const { body } = await getMe();
+        expect(body).toEqual({
+            startDate: '2026-09-01',
+            endDate: '2026-09-30',
+            notice: '今は試しの期間です',
+            totalPoints: 14,
+            totalCount: 5,
+            pendingCount: 1,
+            byItem: [
+                { itemId: 'wash', itemName: '洗車', count: 2, points: 5 },
+                { itemId: '__thanks__', itemName: 'ありがとう', count: 2, points: 5 },
+                { itemId: 'help', itemName: 'ヘルプ', count: 1, points: 4 },
+            ],
+            records: [
+                { id: 'r4', date: '2026-09-20', itemName: 'ヘルプ', points: 5, status: 'pending' },
+                { id: 'r3', date: '2026-09-15', itemName: 'ヘルプ（旧名）', points: 4, status: 'confirmed' },
+                { id: 'thanks:t2', date: '2026-09-15', itemName: 'ありがとう（職長1さんから）', points: 1, status: 'confirmed' },
+                { id: 'r2', date: '2026-09-10', itemName: '洗車', points: 2, status: 'confirmed' },
+                { id: 'thanks:t1', date: '2026-09-10', itemName: 'ありがとう（（不明）さんから）', points: 4, status: 'confirmed' },
+                { id: 'r1', date: '2026-09-01', itemName: '洗車', points: 3, status: 'confirmed' },
+            ],
+        });
+        expect(mock(prisma.user.findMany).mock.calls[0][0].where).toEqual({ id: { in: ['foreman1', 'gone'] } });
+    });
+
+    it('点数表の記録が無くても、「ありがとう」だけで出る', async () => {
+        mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([]);
+        const { body } = await getMe();
+        expect(body).toMatchObject({
+            totalPoints: 5, totalCount: 2, pendingCount: 0,
+            byItem: [{ itemId: '__thanks__', itemName: 'ありがとう', count: 2, points: 5 }],
+        });
+        expect(body.records!.map((r) => r.id)).toEqual(['thanks:t2', 'thanks:t1']);
+        expect(prisma.evaluationPointItem.findMany).not.toHaveBeenCalled();
+    });
+
+    it('0件なら、今までと同じ応答（名前も引かない）', async () => {
+        mock(prisma.evaluationPointThanks.findMany).mockResolvedValue([]);
+        const { body } = await getMe();
+        expect(body.totalPoints).toBe(9);
+        expect(body.byItem!.map((i) => i.itemId)).toEqual(['wash', 'help']);
+        expect(body.records!.map((r) => r.id)).toEqual(['r4', 'r3', 'r2', 'r1']);
+        expect(prisma.user.findMany).not.toHaveBeenCalled();
     });
 });

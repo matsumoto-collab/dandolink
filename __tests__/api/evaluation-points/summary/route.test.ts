@@ -75,6 +75,9 @@ beforeEach(() => {
     mock(prisma.evaluationPointRecord.findMany).mockResolvedValue(RECORDS);
     mock(prisma.evaluationPointItem.findMany).mockResolvedValue(ITEM_ROWS);
     mock(prisma.user.findMany).mockResolvedValue(USERS);
+    // 「ありがとう」: 1件も無い・設定の行が無い（＝使わない）
+    mock(prisma.evaluationPointThanks.findMany).mockResolvedValue([]);
+    mock(prisma.evaluationPointThanksSetting.findUnique).mockResolvedValue(null);
 });
 
 describe('GET /summary', () => {
@@ -210,5 +213,190 @@ describe('GET /export', () => {
         expect(mock(prisma.evaluationPointRecord.findMany).mock.calls[0][0].where).toEqual({
             date: { gte: utc0('2026-09-01'), lt: utc0('2026-10-01') },
         });
+    });
+});
+
+// ---------------------------------------------------------------- 「ありがとう」（Phase 2）
+
+const THANKS_ITEM = { id: '__thanks__', name: 'ありがとう', inputBy: 'thanks' };
+const thanksSetting = (isActive: boolean) =>
+    // pointsPerThanks（今の設定の点数）は、集計に使わないことを確かめるため、わざと大きい値にする
+    mock(prisma.evaluationPointThanksSetting.findUnique).mockResolvedValue({ isActive, pointsPerThanks: 100 });
+
+/** 9月の「ありがとう」: 作業員1 が2回（1点＋3点）、退職した「い作業員」が1回、管理者1 が1回 */
+const THANKS_ROWS = [
+    { id: 't1', fromUserId: 'foreman1', toUserId: 'worker1', date: utc0('2026-09-05'), message: null, points: 1, createdAt: new Date('2026-09-05T01:00:00.000Z') },
+    { id: 't2', fromUserId: 'worker3', toUserId: 'worker1', date: utc0('2026-09-06'), message: null, points: 3, createdAt: new Date('2026-09-06T01:00:00.000Z') },
+    { id: 't3', fromUserId: 'worker1', toUserId: 'thanksOnly', date: utc0('2026-09-07'), message: null, points: 2, createdAt: new Date('2026-09-07T01:00:00.000Z') },
+    { id: 't4', fromUserId: 'worker1', toUserId: 'admin1', date: utc0('2026-09-08'), message: null, points: 1, createdAt: new Date('2026-09-08T01:00:00.000Z') },
+];
+const THANKS_ONLY_USER = { id: 'thanksOnly', displayName: 'い作業員（退職）', role: 'WORKER', isActive: false, dispatchSortOrder: null };
+
+describe('GET /summary の「ありがとう」', () => {
+    it('「使う」で0件 → 仮の項目の列だけ、いちばん後ろに出る（回数 0）', async () => {
+        thanksSetting(true);
+        const { body } = await getSummary();
+        expect(body.items!.map((i) => i.id)).toEqual(['wash', 'help', 'old', '__thanks__']);
+        expect(body.items![3]).toEqual({ ...THANKS_ITEM, isActive: true });
+        expect(body.people!.some((p) => '__thanks__' in p.byItem)).toBe(false);
+        expect(body.totals!.byItem['__thanks__']).toBeUndefined();
+        expect(body.totals).toMatchObject({ totalCount: 3, totalPoints: 6, pendingCount: 1 });
+    });
+
+    it('「使わない」で0件 → 列が出ない（設定の行が無いときと、応答が1文字も変わらない）', async () => {
+        const withoutRow = await getSummary();
+        thanksSetting(false);
+        const inactive = await getSummary();
+        expect(inactive.body.items!.map((i) => i.id)).toEqual(['wash', 'help', 'old']);
+        expect(JSON.stringify(inactive.body)).toBe(JSON.stringify(withoutRow.body));
+    });
+
+    it('「使わない」でも、期間に1件あれば列が出る（isActive は false）', async () => {
+        thanksSetting(false);
+        mock(prisma.evaluationPointThanks.findMany).mockResolvedValue([THANKS_ROWS[0]]);
+        const { body } = await getSummary();
+        expect(body.items![body.items!.length - 1]).toEqual({ ...THANKS_ITEM, isActive: false });
+    });
+
+    it('もらった人の byItem・合計・合計の行に入る。点数は行の points の足し算（今の設定の点数は使わない）。確認待ちは変わらない', async () => {
+        thanksSetting(true);
+        mock(prisma.evaluationPointThanks.findMany).mockResolvedValue(THANKS_ROWS);
+        mock(prisma.user.findMany).mockResolvedValue([...USERS, THANKS_ONLY_USER]);
+        const { body } = await getSummary();
+        const w1 = body.people!.find((p) => p.userId === 'worker1')!;
+        expect(w1).toEqual({
+            userId: 'worker1', displayName: '作業員1', role: 'worker',
+            byItem: { wash: { count: 2, points: 5 }, __thanks__: { count: 2, points: 4 } },
+            totalCount: 4, totalPoints: 9, pendingCount: 1, pendingPoints: 5,
+        });
+        expect(body.totals).toEqual({
+            byItem: { wash: { count: 2, points: 5 }, old: { count: 1, points: 1 }, __thanks__: { count: 4, points: 7 } },
+            totalCount: 7, totalPoints: 13, pendingCount: 1,
+        });
+    });
+
+    it('「ありがとう」だけをもらった人（記録が無い・在籍していない・管理者）も行に出る。人を引く条件にも足す。eligiblePeople は変わらない', async () => {
+        const before = (await getSummary()).body.eligiblePeople;
+        mock(prisma.user.findMany).mockClear();
+        thanksSetting(true);
+        mock(prisma.evaluationPointThanks.findMany).mockResolvedValue(THANKS_ROWS);
+        mock(prisma.user.findMany).mockResolvedValue([...USERS, THANKS_ONLY_USER]);
+        const { body } = await getSummary();
+        expect(mock(prisma.user.findMany).mock.calls[0][0].where).toEqual({
+            OR: [{ isActive: true }, { id: { in: ['worker1', 'retired', 'thanksOnly', 'admin1'] } }],
+        });
+        expect(body.people!.map((p) => p.userId)).toEqual(['foreman1', 'worker1', 'retired', 'worker3', 'thanksOnly', 'admin1']);
+        expect(body.people!.find((p) => p.userId === 'thanksOnly')).toEqual({
+            userId: 'thanksOnly', displayName: 'い作業員（退職）', role: 'worker',
+            byItem: { __thanks__: { count: 1, points: 2 } },
+            totalCount: 1, totalPoints: 2, pendingCount: 0, pendingPoints: 0,
+        });
+        expect(body.people!.find((p) => p.userId === 'admin1')).toMatchObject({ role: 'admin', totalCount: 1, totalPoints: 1 });
+        expect(body.eligiblePeople).toEqual(before);
+    });
+
+    it('記録が1件も無くても、「ありがとう」をもらった人だけで人を引く条件に足す', async () => {
+        mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([]);
+        mock(prisma.evaluationPointThanks.findMany).mockResolvedValue([THANKS_ROWS[2]]);
+        await getSummary();
+        expect(mock(prisma.user.findMany).mock.calls[0][0].where).toEqual({
+            OR: [{ isActive: true }, { id: { in: ['thanksOnly'] } }],
+        });
+    });
+
+    it('「ありがとう」を読む where は期間だけ・設定は id "default" を読む', async () => {
+        await getSummary();
+        expect(mock(prisma.evaluationPointThanks.findMany).mock.calls[0][0]).toEqual({
+            where: { date: { gte: utc0('2026-09-01'), lt: utc0('2026-10-01') } },
+            select: { toUserId: true, points: true },
+        });
+        expect(mock(prisma.evaluationPointThanksSetting.findUnique).mock.calls[0][0].where).toEqual({ id: 'default' });
+    });
+});
+
+describe('GET /export の「ありがとう」', () => {
+    it('type=summary の見出しのいちばん後ろの項目に「ありがとう」の列（回数）', async () => {
+        thanksSetting(true);
+        mock(prisma.evaluationPointThanks.findMany).mockResolvedValue(THANKS_ROWS);
+        mock(prisma.user.findMany).mockResolvedValue([...USERS, THANKS_ONLY_USER]);
+        const lines = await csvLines(await getExport('type=summary&startDate=2026-09-01&endDate=2026-09-30'));
+        expect(lines[0]).toBe('氏名,洗車,ヘルプ,片付け（旧）,ありがとう,合計回数,合計点,確認待ち件数');
+        expect(lines).toContain('作業員1,2,0,0,2,4,9,1');
+        expect(lines).toContain('い作業員（退職）,0,0,0,1,1,2,0');
+    });
+
+    it('type=detail に「ありがとう」の行が足され、日付の古い順 → 入れた日時の古い順で、点数表の記録と混ざる', async () => {
+        mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([
+            {
+                id: 'r2', userId: 'gone', date: utc0('2026-09-01'), itemId: 'wash', itemName: '洗車', points: 3,
+                status: 'confirmed', source: 'manual', note: null, createdBy: 'admin1', createdByName: '管理者1',
+                createdAt: new Date('2026-09-01T00:00:00.000Z'), confirmedByName: null, confirmedAt: null,
+            },
+            {
+                id: 'r1', userId: 'worker1', date: utc0('2026-09-30'), itemId: 'wash', itemName: '洗車', points: 2,
+                status: 'pending', source: 'attendance', note: 'メモ, "引用"', createdBy: 'foremanA', createdByName: '職長A',
+                createdAt: new Date('2026-09-30T15:05:00.000Z'), confirmedByName: null, confirmedAt: null,
+            },
+        ]);
+        mock(prisma.evaluationPointThanks.findMany).mockResolvedValue([
+            // 点数表の記録と、日付も入れた日時も同じ → 点数表の記録が先
+            { id: 'ta', fromUserId: 'foreman1', toUserId: 'worker1', date: utc0('2026-09-01'), message: '助かりました, "本当に"', points: 1, createdAt: new Date('2026-09-01T00:00:00.000Z') },
+            { id: 'tb', fromUserId: 'ghost', toUserId: 'worker1', date: utc0('2026-09-15'), message: null, points: 3, createdAt: new Date('2026-09-15T03:00:00.000Z') },
+            // 同じ日で、点数表の記録より先に入れた → 先
+            { id: 'tc', fromUserId: 'foreman1', toUserId: 'nobody', date: utc0('2026-09-30'), message: null, points: 1, createdAt: new Date('2026-09-30T14:00:00.000Z') },
+        ]);
+        mock(prisma.user.findMany).mockResolvedValue([{ id: 'worker1', displayName: '作業員1' }, { id: 'foreman1', displayName: '職長1' }]);
+        const lines = await csvLines(await getExport('type=detail&startDate=2026-09-01&endDate=2026-09-30'));
+        expect(lines).toEqual([
+            '日付,氏名,項目,点数,状態,付けた人,入力元,メモ,入力日時',
+            '2026-09-01,（不明）,洗車,3,確定,管理者1,評価ポイントの画面,,2026-09-01 09:00',
+            '2026-09-01,作業員1,ありがとう,1,確定,職長1,ありがとう,"助かりました, ""本当に""",2026-09-01 09:00',
+            '2026-09-15,作業員1,ありがとう,3,確定,（不明）,ありがとう,,2026-09-15 12:00',
+            '2026-09-30,（不明）,ありがとう,1,確定,職長1,ありがとう,,2026-09-30 23:00',
+            '2026-09-30,作業員1,洗車,2,確認待ち,職長A,出勤簿入力,"メモ, ""引用""",2026-10-01 00:05',
+        ]);
+        expect(mock(prisma.evaluationPointThanks.findMany).mock.calls[0][0].where).toEqual({
+            date: { gte: utc0('2026-09-01'), lt: utc0('2026-10-01') },
+        });
+        // もらった人・送った人の名前も、同じ1回の読み込みで引く
+        expect(mock(prisma.user.findMany).mock.calls).toHaveLength(1);
+        expect([...mock(prisma.user.findMany).mock.calls[0][0].where.id.in].sort()).toEqual(['foreman1', 'ghost', 'gone', 'nobody', 'worker1']);
+    });
+
+    it('type=detail の「ありがとう」の行: = + - @ で始まるひとこと・氏名は、頭に \' を付けて出す（Excel が式として読まないように）', async () => {
+        mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([]);
+        mock(prisma.evaluationPointThanks.findMany).mockResolvedValue([
+            { id: 't1', fromUserId: 'foreman1', toUserId: 'worker1', date: utc0('2026-09-01'), message: '=HYPERLINK("http://example.com","押して")', points: 1, createdAt: new Date('2026-09-01T00:00:00.000Z') },
+            { id: 't2', fromUserId: 'foreman1', toUserId: 'worker1', date: utc0('2026-09-02'), message: '+1 助かった', points: 1, createdAt: new Date('2026-09-02T00:00:00.000Z') },
+            { id: 't3', fromUserId: 'atmark', toUserId: 'worker1', date: utc0('2026-09-03'), message: '-5分で片づけてくれた', points: 1, createdAt: new Date('2026-09-03T00:00:00.000Z') },
+            { id: 't4', fromUserId: 'foreman1', toUserId: 'worker1', date: utc0('2026-09-04'), message: 'ふつうのひとこと', points: 1, createdAt: new Date('2026-09-04T00:00:00.000Z') },
+        ]);
+        mock(prisma.user.findMany).mockResolvedValue([
+            { id: 'worker1', displayName: '作業員1' }, { id: 'foreman1', displayName: '職長1' }, { id: 'atmark', displayName: '@名前' },
+        ]);
+        const lines = await csvLines(await getExport('type=detail&startDate=2026-09-01&endDate=2026-09-30'));
+        expect(lines).toEqual([
+            '日付,氏名,項目,点数,状態,付けた人,入力元,メモ,入力日時',
+            '2026-09-01,作業員1,ありがとう,1,確定,職長1,ありがとう,"\'=HYPERLINK(""http://example.com"",""押して"")",2026-09-01 09:00',
+            '2026-09-02,作業員1,ありがとう,1,確定,職長1,ありがとう,\'+1 助かった,2026-09-02 09:00',
+            '2026-09-03,作業員1,ありがとう,1,確定,\'@名前,ありがとう,\'-5分で片づけてくれた,2026-09-03 09:00',
+            '2026-09-04,作業員1,ありがとう,1,確定,職長1,ありがとう,ふつうのひとこと,2026-09-04 09:00',
+        ]);
+    });
+
+    it('「ありがとう」が0件なら、type=detail に「ありがとう」の行は無い（設定が「使う」でも）', async () => {
+        thanksSetting(true);
+        mock(prisma.evaluationPointRecord.findMany).mockResolvedValue([{
+            id: 'r1', userId: 'worker1', date: utc0('2026-09-30'), itemId: 'wash', itemName: '洗車', points: 2,
+            status: 'confirmed', source: 'manual', note: null, createdBy: 'admin1', createdByName: '管理者1',
+            createdAt: new Date('2026-09-30T00:00:00.000Z'), confirmedByName: null, confirmedAt: null,
+        }]);
+        mock(prisma.user.findMany).mockResolvedValue([{ id: 'worker1', displayName: '作業員1' }]);
+        const lines = await csvLines(await getExport('type=detail&startDate=2026-09-01&endDate=2026-09-30'));
+        expect(lines).toEqual([
+            '日付,氏名,項目,点数,状態,付けた人,入力元,メモ,入力日時',
+            '2026-09-30,作業員1,洗車,2,確定,管理者1,評価ポイントの画面,,2026-09-30 09:00',
+        ]);
+        expect(mock(prisma.user.findMany).mock.calls[0][0].where).toEqual({ id: { in: ['worker1'] } });
     });
 });

@@ -23,6 +23,14 @@ import {
     type EvaluationPointStatus,
     type PointOperator,
 } from '@/lib/evaluationPoints';
+// 純粋な決まりのほうだけを読む（lib/evaluationThanksServer.ts はこのファイルを読み込んでいるので、ここからは読まない）
+import {
+    THANKS_INPUT_BY,
+    THANKS_ITEM_NAME,
+    THANKS_SETTING_ID,
+    THANKS_VIRTUAL_ITEM_ID,
+    summarizeThanks,
+} from '@/lib/evaluationThanks';
 
 export const NO_STORE = { headers: { 'Cache-Control': 'no-store' } };
 
@@ -133,9 +141,16 @@ export interface SummaryResponse {
  *  - people = 「isActive: true で worker・foreman1・foreman2 の人」＋「この期間に記録のある人（ロール・在籍を問わない）」
  *  - eligiblePeople = isActive: true で、ポイントをもらえるロールの全員（「記録を足す」で選べる人）
  *  - 数字は summarizeRecords()（確認待ちは合計に入れない）
+ *
+ * 「ありがとう」（lib/evaluationThanks.ts）:
+ *  - 設定が「使う」、または、この期間に1件以上あるときだけ、items のいちばん後ろに仮の項目
+ *    （id '__thanks__'・名前「ありがとう」・inputBy 'thanks'・isActive＝設定の「使う」）を足す。どちらでもなければ、今までと同じ応答
+ *  - もらった人の byItem['__thanks__'] に回数と点数（行に写してある points の足し算。今の設定の点数は見ない）を入れ、合計にも足す
+ *    （確認待ちは無い＝pendingCount・pendingPoints は変えない）
+ *  - people には、この期間に「ありがとう」をもらった人も入れる（記録のある人と同じ＝ロール・在籍を問わない）
  */
 export async function loadEvaluationPointSummary(period: Period): Promise<SummaryResponse> {
-    const [records, itemRows] = await Promise.all([
+    const [records, itemRows, thanksRows, thanksSetting] = await Promise.all([
         prisma.evaluationPointRecord.findMany({
             where: { date: period.range },
             select: { userId: true, itemId: true, points: true, status: true },
@@ -144,14 +159,33 @@ export async function loadEvaluationPointSummary(period: Period): Promise<Summar
             orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
             select: { id: true, name: true, inputBy: true, isActive: true },
         }),
+        // 「ありがとう」（もらった人・行に写してある点数）。lib/evaluationThanksServer.ts は読み込まない（循環になるため）
+        prisma.evaluationPointThanks.findMany({
+            where: { date: period.range },
+            select: { toUserId: true, points: true },
+        }),
+        prisma.evaluationPointThanksSetting.findUnique({
+            where: { id: THANKS_SETTING_ID },
+            select: { isActive: true },
+        }),
     ]);
+
+    // 「ありがとう」の設定の行が無ければ「使わない」
+    const thanksActive = thanksSetting?.isActive === true;
+    // 「使う」になっている、または、この期間に1件以上あるときだけ、仮の項目の列を足す
+    const showThanks = thanksActive || thanksRows.length > 0;
+    const thanksByUser = summarizeThanks(thanksRows);
 
     const recordUserIds = Array.from(new Set(records.map((r) => r.userId)));
     const recordItemIds = new Set(records.map((r) => r.itemId));
+    // 記録のある人 ＋「ありがとう」をもらった人（どちらも在籍・ロールを問わない）
+    const recordOrThanksUserIds = Array.from(new Set([...recordUserIds, ...thanksByUser.keys()]));
 
-    // 在籍している人の全員（ロールは読んだあとで判定関数で絞る）＋ 記録のある人（在籍を問わない）
+    // 在籍している人の全員（ロールは読んだあとで判定関数で絞る）＋ 記録のある人・「ありがとう」をもらった人（在籍を問わない）
     const users = await prisma.user.findMany({
-        where: recordUserIds.length > 0 ? { OR: [{ isActive: true }, { id: { in: recordUserIds } }] } : { isActive: true },
+        where: recordOrThanksUserIds.length > 0
+            ? { OR: [{ isActive: true }, { id: { in: recordOrThanksUserIds } }] }
+            : { isActive: true },
         select: { id: true, displayName: true, role: true, isActive: true, dispatchSortOrder: true },
     });
     const userById = new Map(users.map((u) => [u.id, u]));
@@ -168,7 +202,7 @@ export async function loadEvaluationPointSummary(period: Period): Promise<Summar
     for (const u of users) {
         if (u.isActive && isEvaluationPointMemberRole(u.role)) peopleIds.add(u.id);
     }
-    for (const id of recordUserIds) peopleIds.add(id);
+    for (const id of recordOrThanksUserIds) peopleIds.add(id);
 
     const peopleRows = Array.from(peopleIds).map((id) => {
         const u = userById.get(id);
@@ -182,13 +216,17 @@ export async function loadEvaluationPointSummary(period: Period): Promise<Summar
 
     const people: SummaryPerson[] = peopleRows.map((p) => {
         const s = summaries.get(p.userId);
+        // 「ありがとう」は確認待ちが無い＝全部が合計に入る（点数は行に写してある points の足し算）
+        const t = thanksByUser.get(p.userId);
         return {
             userId: p.userId,
             displayName: p.displayName,
             role: p.role,
-            byItem: s ? s.byItem : {},
-            totalCount: s?.totalCount ?? 0,
-            totalPoints: s?.totalPoints ?? 0,
+            byItem: t
+                ? { ...(s ? s.byItem : {}), [THANKS_VIRTUAL_ITEM_ID]: { count: t.count, points: t.points } }
+                : (s ? s.byItem : {}),
+            totalCount: (s?.totalCount ?? 0) + (t?.count ?? 0),
+            totalPoints: (s?.totalPoints ?? 0) + (t?.points ?? 0),
             pendingCount: s?.pendingCount ?? 0,
             pendingPoints: s?.pendingPoints ?? 0,
         };
@@ -214,12 +252,18 @@ export async function loadEvaluationPointSummary(period: Period): Promise<Summar
         .sort(compareUsers)
         .map((u) => ({ userId: u.id, displayName: u.displayName, role: u.role.toLowerCase() }));
 
+    const items: SummaryItem[] = itemRows
+        .filter((i) => i.isActive || recordItemIds.has(i.id))
+        .map((i) => ({ id: i.id, name: i.name, inputBy: i.inputBy, isActive: i.isActive }));
+    // 「ありがとう」は点数表の項目ではない。集計の列としてだけ、いちばん後ろに足す（付ける・直すの選択肢には出さない）
+    if (showThanks) {
+        items.push({ id: THANKS_VIRTUAL_ITEM_ID, name: THANKS_ITEM_NAME, inputBy: THANKS_INPUT_BY, isActive: thanksActive });
+    }
+
     return {
         startDate: period.startDate,
         endDate: period.endDate,
-        items: itemRows
-            .filter((i) => i.isActive || recordItemIds.has(i.id))
-            .map((i) => ({ id: i.id, name: i.name, inputBy: i.inputBy, isActive: i.isActive })),
+        items,
         people,
         totals,
         eligiblePeople,

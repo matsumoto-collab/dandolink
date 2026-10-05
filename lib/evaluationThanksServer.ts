@@ -15,6 +15,7 @@ import type { PointActor } from '@/lib/evaluationPointsServer';
 import { UNKNOWN_USER_NAME, compareUsers, loadUserNames, type Period } from '@/lib/evaluationPointsReport';
 import {
     THANKS_MESSAGES,
+    THANKS_SETTING_ID,
     canRemoveThanks,
     canUseThanks,
     decideSendThanks,
@@ -23,8 +24,8 @@ import {
 
 type Db = Prisma.TransactionClient;
 
-/** 設定の行の id（1行だけ。マイグレーションで初期行を入れてある） */
-export const THANKS_SETTING_ID = 'default';
+/** 設定の行の id（定義は lib/evaluationThanks.ts。ここから読んでいる所のために、同じ値を出しておく） */
+export { THANKS_SETTING_ID };
 
 /** 「ありがとう」の書き込みのトランザクションの設定（鍵が空くのを待つ時間も入るので、Prisma の既定より長く） */
 export const THANKS_TX_OPTIONS = { maxWait: 5_000, timeout: 10_000 } as const;

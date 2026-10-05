@@ -6,6 +6,8 @@
  * 作りは app/api/attendance/export/route.ts と同じ（BOM 付き UTF-8・改行 CRLF・Content-Disposition: attachment）。
  *  - type=detail  … 1行＝1記録（確認待ちも出す。状態の列で見分ける）
  *  - type=summary … 1行＝1人。GET /summary と同じ loadEvaluationPointSummary() を使う＝同じ人・同じ並び・同じ数字
+ *                   （「ありがとう」の列も、そこで足される）
+ *  - type=detail には「ありがとう」も1件＝1行で混ぜる（氏名＝もらった人・付けた人＝送った人・入力元「ありがとう」・メモ＝ひとこと）
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -19,6 +21,7 @@ import {
     loadUserNames,
     parsePeriodParams,
 } from '@/lib/evaluationPointsReport';
+import { THANKS_ITEM_NAME } from '@/lib/evaluationThanks';
 
 // 毎回サーバーで実行する（最近足した route＝own-crew-volume・joyo-statements と同じ書き方）
 export const dynamic = 'force-dynamic';
@@ -36,6 +39,15 @@ function escapeCsv(value: string): string {
 
 function toCsv(rows: string[][]): string {
     return '﻿' + rows.map((r) => r.map(escapeCsv).join(',')).join('\r\n');
+}
+
+/**
+ * 「ありがとう」の行で、人が入れた文字（氏名・ひとこと）を CSV に出す前に通す。
+ * = + - @（と、タブ・復帰）で始まる値は、Excel が式として読むことがあるので、頭に ' を付けて、ただの文字にする
+ * （手当の CSV と同じ決まり）。ひとことは、作業員・職長のだれでも入れられる文字なので、必ず通す。
+ */
+function safeText(value: string): string {
+    return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 }
 
 /** 日時 → 日本時間の「YYYY-MM-DD HH:mm」 */
@@ -85,24 +97,60 @@ export async function GET(req: NextRequest) {
         }
 
         // ---- 明細（日付の古い順 → 入れた日時の古い順）
-        const records = await prisma.evaluationPointRecord.findMany({
-            where: { date: period.range },
-            orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
-            select: RECORD_SELECT,
-        });
-        const names = await loadUserNames(records.map((r) => r.userId));
-        const header = ['日付', '氏名', '項目', '点数', '状態', '付けた人', '入力元', 'メモ', '入力日時'];
-        const rows = records.map((r) => [
-            dateToDateKey(r.date),
-            names.get(r.userId) ?? UNKNOWN_USER_NAME,
-            r.itemName, // 記録に写してある名前
-            String(r.points),
-            STATUS_LABEL[toEvaluationPointStatus(r.status)],
-            r.createdByName,
-            SOURCE_LABEL[r.source] ?? r.source,
-            r.note ?? '',
-            formatJstDateTime(r.createdAt),
+        const [records, thanksRows] = await Promise.all([
+            prisma.evaluationPointRecord.findMany({
+                where: { date: period.range },
+                orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+                select: RECORD_SELECT,
+            }),
+            // 「ありがとう」も明細の行として足す（確認待ちは無い＝全部「確定」）
+            prisma.evaluationPointThanks.findMany({
+                where: { date: period.range },
+                orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+                select: { id: true, fromUserId: true, toUserId: true, date: true, message: true, points: true, createdAt: true },
+            }),
         ]);
+        const names = await loadUserNames([
+            ...records.map((r) => r.userId),
+            ...thanksRows.flatMap((t) => [t.toUserId, t.fromUserId]),
+        ]);
+        const header = ['日付', '氏名', '項目', '点数', '状態', '付けた人', '入力元', 'メモ', '入力日時'];
+        const recordLines = records.map((r) => ({
+            dateKey: dateToDateKey(r.date),
+            createdAt: r.createdAt,
+            cells: [
+                dateToDateKey(r.date),
+                names.get(r.userId) ?? UNKNOWN_USER_NAME,
+                r.itemName, // 記録に写してある名前
+                String(r.points),
+                STATUS_LABEL[toEvaluationPointStatus(r.status)],
+                r.createdByName,
+                SOURCE_LABEL[r.source] ?? r.source,
+                r.note ?? '',
+                formatJstDateTime(r.createdAt),
+            ],
+        }));
+        const thanksLines = thanksRows.map((t) => ({
+            dateKey: dateToDateKey(t.date),
+            createdAt: t.createdAt,
+            cells: [
+                dateToDateKey(t.date),
+                safeText(names.get(t.toUserId) ?? UNKNOWN_USER_NAME), // もらった人
+                THANKS_ITEM_NAME,
+                String(t.points), // 行に写してある点数
+                STATUS_LABEL.confirmed,
+                safeText(names.get(t.fromUserId) ?? UNKNOWN_USER_NAME), // 送った人
+                THANKS_ITEM_NAME,
+                safeText(t.message ?? ''), // ひとこと（だれでも入れられる文字）
+                formatJstDateTime(t.createdAt),
+            ],
+        }));
+        // 点数表の記録と混ぜて、日付の古い順 → 入れた日時の古い順（同じなら、点数表の記録が先＝安定な並べ替え）
+        const lines = thanksLines.length === 0
+            ? recordLines
+            : [...recordLines, ...thanksLines].sort((a, b) =>
+                (a.dateKey < b.dateKey ? -1 : a.dateKey > b.dateKey ? 1 : 0) || a.createdAt.getTime() - b.createdAt.getTime());
+        const rows = lines.map((l) => l.cells);
         return csvResponse(toCsv([header, ...rows]), `evaluation_points_detail_${suffix}.csv`);
     } catch (err) {
         return serverErrorResponse('評価ポイントの CSV 出力', err);

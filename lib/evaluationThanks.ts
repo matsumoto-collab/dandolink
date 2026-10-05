@@ -22,9 +22,19 @@ export const THANKS_MESSAGE_MAX = 100;
 /** 1回あたりの点数の下限・上限 */
 export const THANKS_POINTS_MIN = 0;
 export const THANKS_POINTS_MAX = 9999;
-/** 評価ポイントの集計に足すときの、仮の項目の id と名前（あとの Phase で使う） */
+/**
+ * 評価ポイントの集計に足すときの、仮の項目の id・名前・inputBy。
+ * この仮の項目は点数表の項目（EvaluationPointItem）ではない＝付けることも直すこともできない。
+ */
 export const THANKS_VIRTUAL_ITEM_ID = '__thanks__';
 export const THANKS_ITEM_NAME = 'ありがとう';
+export const THANKS_INPUT_BY = 'thanks';
+/**
+ * 設定の行の id（1行だけ。マイグレーションで初期行を入れてある）。
+ * lib/evaluationThanksServer.ts と lib/evaluationPointsReport.ts の両方が読むので、純粋なこちらに置く
+ * （evaluationThanksServer は evaluationPointsReport を読み込んでいる＝逆向きに読むと循環になる）
+ */
+export const THANKS_SETTING_ID = 'default';
 
 // ---------------------------------------------------------------- だれが
 
