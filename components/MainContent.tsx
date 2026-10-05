@@ -138,6 +138,9 @@ const OwnCrewVolumePage = dynamic(() => import('./OwnCrewVolume/OwnCrewVolumePag
 const JoyoStatementsPage = dynamic(() => import('./JoyoStatements/JoyoStatementsPage'), {
     loading: () => <LoadingSpinner />,
 });
+const JoyoMyStatementsPage = dynamic(() => import('./JoyoStatements/JoyoMyStatementsPage'), {
+    loading: () => <LoadingSpinner />,
+});
 const EvaluationPointsPage = dynamic(() => import('./EvaluationPoints/EvaluationPointsPage'), {
     loading: () => <LoadingSpinner />,
 });
@@ -562,11 +565,14 @@ export default function MainContent() {
                 return <OwnCrewVolumePage />;
 
             case 'joyo-statements':
-                // 支払明細書（常用の一人親方向け）は個人への支払額を扱うので admin のみ（API も 403）
-                if (userRole !== 'admin') {
-                    return <PlaceholderPage title="アクセス権限がありません" />;
+                // 支払明細書（常用の一人親方向け）: admin は管理者の画面（全員の明細の作成・発行。API も admin 以外は 403）。
+                // manager / foreman1 / foreman2 / worker は本人の画面（自分の発行済みの明細だけ）。
+                // 中の出し分け（本人の画面・権限なし）は JoyoMyStatementsPage が見せ方（mode）で行う（API も対象者でなければ 403）
+                if (userRole === 'admin') return <JoyoStatementsPage />;
+                if (userRole === 'manager' || userRole === 'foreman1' || userRole === 'foreman2' || userRole === 'worker') {
+                    return <JoyoMyStatementsPage />;
                 }
-                return <JoyoStatementsPage />;
+                return <PlaceholderPage title="アクセス権限がありません" />;
 
             default:
                 return <PlaceholderPage title="ページが見つかりません" />;

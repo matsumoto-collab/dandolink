@@ -16,6 +16,7 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 import { useOpenChat } from '@/hooks/useOpenChat';
 import { useEvaluationPointAccess } from '@/hooks/useEvaluationPointAccess';
 import { useAllowanceAccess } from '@/hooks/useAllowanceAccess';
+import { useJoyoStatementAccess } from '@/hooks/useJoyoStatementAccess';
 
 interface NavItem {
     name: string;
@@ -28,6 +29,8 @@ interface NavItem {
     requiresEvaluationPointAccess?: boolean;
     /** true なら「手当」の見せ方（hooks/useAllowanceAccess）が 'none' のときは出さない（公開の設定で出し分ける） */
     requiresAllowanceAccess?: boolean;
+    /** true なら「支払明細書」の見せ方（hooks/useJoyoStatementAccess）が 'none' のときは出さない（支払明細書の対象者かどうかで出し分ける） */
+    requiresJoyoStatementAccess?: boolean;
 }
 
 interface NavSection {
@@ -61,7 +64,7 @@ const navigationSections: NavSection[] = [
             { name: '領収書', page: 'receipts', requiredRoles: ['admin', 'manager', 'accountant'] },
             { name: '現金出納帳', page: 'cashbook', requiresCashbookAccess: true },
             { name: 'クレジットカード', page: 'credit-card', requiresCashbookAccess: true },
-            { name: '支払明細書', page: 'joyo-statements', requiredRoles: ['admin'] },
+            { name: '支払明細書', page: 'joyo-statements', requiredRoles: ['admin', 'manager', 'foreman1', 'foreman2', 'worker'], requiresJoyoStatementAccess: true },
             { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin', 'accountant'] },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },
         ],
@@ -100,6 +103,8 @@ export default function Sidebar() {
     const { mode: evaluationPointMode } = useEvaluationPointAccess(session?.user?.role);
     // 「手当」: admin・manager は通信なしで出す／職長・作業員は公開の設定がオンのときだけ出す
     const { mode: allowanceMode } = useAllowanceAccess(session?.user?.role);
+    // 「支払明細書」: admin は通信なしで出す／manager・職長・作業員は支払明細書の対象者のときだけ出す（自分の発行済みだけを見る画面）
+    const { mode: joyoStatementMode } = useJoyoStatementAccess(session?.user?.role);
 
     // 全ページで未読バッジを即時更新するためグローバル購読
     useChatRoomsRealtime(!!session?.user?.id, session?.user?.id);
@@ -272,16 +277,21 @@ export default function Sidebar() {
                                 && (!item.requiresCashbookAccess || session?.user?.canAccessCashbook === true)
                                 && (!item.requiresEvaluationPointAccess || evaluationPointMode !== 'none')
                                 && (!item.requiresAllowanceAccess || allowanceMode !== 'none')
+                                && (!item.requiresJoyoStatementAccess || joyoStatementMode !== 'none')
                             );
                             const filteredSection = { ...section, items: allowedItems };
 
                             // workerロール: スケジュール + チャット + 評価ポイント・手当(公開の設定がオンのとき) + 材料管理(在庫/返却)
+                            //   + 書類・経理は支払明細書だけ(支払明細書の対象者のとき。対象者でなければ項目が0になり節ごと出ない)
                             if (role === 'worker') {
                                 if (filteredSection.title === '業務管理') {
                                     return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'evaluation-points' || item.page === 'allowances' || item.page === 'chat') };
                                 }
                                 if (filteredSection.title === '材料管理') {
                                     return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'inventory' || item.page === 'stocktake' || item.page === 'material-returns' || item.page === 'kakoi-calc') };
+                                }
+                                if (filteredSection.title === '書類・経理') {
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'joyo-statements') };
                                 }
                                 return null;
                             }
@@ -314,11 +324,15 @@ export default function Sidebar() {
                                 return null;
                             }
                             // 職長1/2: 業務管理（評価ポイント・手当は公開の設定がオンのとき） + 材料管理
+                            //   + 書類・経理は支払明細書だけ（支払明細書の対象者のとき。対象者でなければ項目が0になり節ごと出ない）
                             if (role === 'foreman1' || role === 'foreman2') {
                                 if (filteredSection.title === '業務管理') {
                                     return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance' || item.page === 'evaluation-points' || item.page === 'allowances' || item.page === 'chat') };
                                 }
                                 if (filteredSection.title === '材料管理') return filteredSection;
+                                if (filteredSection.title === '書類・経理') {
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'joyo-statements') };
+                                }
                                 return null;
                             }
                             return filteredSection;

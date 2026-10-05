@@ -24,6 +24,19 @@ export function yen(n: number): string {
     return `${v < 0 ? '-' : ''}¥${Math.abs(v).toLocaleString('ja-JP')}`;
 }
 
+/** 金額の表示（1,500円）。本人の画面用。マイナスは -1,000円 */
+export function yenJa(n: number): string {
+    const v = Math.round(n);
+    return `${v < 0 ? '-' : ''}${Math.abs(v).toLocaleString('ja-JP')}円`;
+}
+
+/** 'YYYY-MM-DD' → '2026年9月30日'（形が違えばそのまま） */
+export function formatYmdJa(ymd: string): string {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd);
+    if (!m) return ymd;
+    return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
+}
+
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 
 /** 'YYYY-MM-DD' → '9/14' */

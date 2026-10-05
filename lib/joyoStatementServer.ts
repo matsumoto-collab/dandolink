@@ -24,7 +24,9 @@ import type { JoyoStatementSavePayload } from '@/lib/validations/joyoStatement';
 import type {
     JoyoContractorDto,
     JoyoIssuedSnapshot,
+    JoyoMyStatementDto,
     JoyoPaidDayCounts,
+    JoyoStatementAccessMode,
     JoyoStatementDto,
     JoyoStatementRow,
     JoyoStatementStatus,
@@ -448,4 +450,85 @@ export class JoyoRejectError extends Error {
         super(message);
         this.name = 'JoyoRejectError';
     }
+}
+
+// ---------------------------------------------------------------------------
+// 本人の画面（GET /api/joyo-statements/access・GET /api/joyo-statements/me）
+// ---------------------------------------------------------------------------
+
+/**
+ * 支払明細書の画面の見せ方を決める。
+ *  - admin（大文字まじりも）→ 'admin'（管理者の画面）
+ *  - それ以外で、支払明細書の対象者（JoyoContractor.userId = userId）の行がある → 'member'（自分の発行済みだけ）
+ *  - 行が無い → 'none'
+ * 対象者の行は isActive（利用停止）で絞らない（辞めたあとも、自分の過去の書類は見られる）。
+ * userId は必ずセッションの id を渡す（画面から来た値を渡さない）。
+ */
+export async function resolveJoyoAccessMode(
+    role: string | null | undefined,
+    userId: string | null | undefined,
+    db: Db = prisma,
+): Promise<JoyoStatementAccessMode> {
+    if ((role ?? '').toString().toLowerCase() === 'admin') return 'admin';
+    if (!userId) return 'none';
+    const contractor = await db.joyoContractor.findUnique({ where: { userId }, select: { id: true } });
+    return contractor ? 'member' : 'none';
+}
+
+/** 本人に返す形へ。写し（issuedSnapshot）が無い・形が違う・発行済みでない行は null（返さない） */
+export function toMyStatementDto(s: JoyoStatement): JoyoMyStatementDto | null {
+    const dto = toStatementDto(s);
+    if (dto.status !== 'issued' || !isIssuedSnapshot(dto.issuedSnapshot)) return null;
+    // 要る項目だけを取り出す（notes・paymentScheduleId・attendanceCounts・contractorId・status・updatedAt は入れない）
+    return {
+        id: dto.id,
+        year: dto.year,
+        month: dto.month,
+        statementNo: dto.statementNo,
+        issueDate: dto.issueDate,
+        paymentDate: dto.paymentDate,
+        subject: dto.subject,
+        items: dto.items,
+        total: dto.total,
+        tax: dto.tax,
+        includeAttendance: dto.includeAttendance,
+        issuedSnapshot: dto.issuedSnapshot,
+        issuedAt: dto.issuedAt,
+    };
+}
+
+/** PDF を作るのに要る形がそろっている写しか（宛名・発行者・出勤簿の配列） */
+function isIssuedSnapshot(value: JoyoIssuedSnapshot | null): value is JoyoIssuedSnapshot {
+    if (!value) return false;
+    const isObj = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
+    return (
+        typeof value.title === 'string' &&
+        isObj(value.recipient) &&
+        typeof value.recipient.name === 'string' &&
+        isObj(value.issuer) &&
+        typeof value.issuer.name === 'string' &&
+        typeof value.attendanceUserName === 'string' &&
+        Array.isArray(value.attendanceRecords)
+    );
+}
+
+/**
+ * 本人の発行済みの明細（全部の月・対象月の新しい順）。
+ * だれの分かは userId（＝必ずセッションの id）だけで決める。対象者の行が無ければ null（呼び出し側で 403）。
+ */
+export async function loadMyJoyoStatements(
+    userId: string,
+    db: Db = prisma,
+): Promise<JoyoMyStatementDto[] | null> {
+    const contractor = await db.joyoContractor.findUnique({ where: { userId }, select: { id: true } });
+    if (!contractor) return null;
+    const rows = await db.joyoStatement.findMany({
+        where: { contractorId: contractor.id, status: 'issued' },
+        orderBy: [{ year: 'desc' }, { month: 'desc' }],
+    });
+    return rows
+        .map(toMyStatementDto)
+        .filter((v): v is JoyoMyStatementDto => v !== null)
+        // DB の並びに頼らず、ここでも対象月の新しい順にそろえる
+        .sort((a, b) => b.year - a.year || b.month - a.month);
 }

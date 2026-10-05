@@ -19,7 +19,7 @@ import {
 } from '@/components/pdf/JoyoStatementPDF';
 import { buildAttendanceMonthlyPdfData } from '@/utils/attendanceMonthlyData';
 import { computeJoyoTotals, recalcItems, type JoyoStatementItem } from '@/lib/joyoStatement';
-import type { JoyoStatementRow } from '@/types/joyoStatement';
+import type { JoyoIssuedSnapshot, JoyoStatementRow } from '@/types/joyoStatement';
 import { saveBlobWithShare, sanitizeFileName } from '@/utils/saveBlobWithShare';
 import { logger } from '@/lib/logger';
 
@@ -44,6 +44,59 @@ const toPdfItem = (it: JoyoStatementItem): JoyoStatementPdfItem => ({
     note: it.note,
 });
 
+/** 発行済みの明細のうち、PDF を作るのに使う項目（管理者の画面の明細・本人の画面の明細のどちらでも渡せる形） */
+export interface JoyoIssuedStatementForPdf {
+    year: number;
+    month: number;
+    statementNo: string | null;
+    issueDate: string;
+    paymentDate: string;
+    subject: string;
+    items: JoyoStatementItem[];
+    total: number;
+    tax: number;
+    includeAttendance: boolean;
+    issuedSnapshot: JoyoIssuedSnapshot;
+}
+
+/**
+ * 発行済みの明細の PDF の props を、発行した時点の写し（issuedSnapshot）から作る。
+ * あとで設定・対象者・自社情報・出勤簿を直しても変わらない。合計は保存してある値をそのまま使う（計算し直さない）。
+ * userId は出勤簿ページを作るときの本人の User.id（写しの出勤簿の記録を絞るのに使う）。
+ */
+export function buildIssuedJoyoStatementPdfProps(args: {
+    userId: string;
+    statement: JoyoIssuedStatementForPdf;
+}): JoyoStatementPDFProps {
+    const { userId, statement } = args;
+    const { year, month } = statement;
+    const snap = statement.issuedSnapshot;
+    const attendance = statement.includeAttendance
+        ? {
+              year,
+              month,
+              userName: snap.attendanceUserName,
+              ...buildAttendanceMonthlyPdfData(year, month, userId, snap.attendanceRecords),
+          }
+        : null;
+    return {
+        title: snap.title,
+        statementNo: statement.statementNo,
+        issueDate: statement.issueDate,
+        paymentDate: statement.paymentDate,
+        year,
+        month,
+        subject: statement.subject,
+        recipient: snap.recipient,
+        issuer: snap.issuer,
+        items: statement.items.map(toPdfItem),
+        total: statement.total,
+        tax: statement.tax,
+        footerNote: snap.footerNote || null,
+        attendance,
+    };
+}
+
 /**
  * 画面の状態から PDF の props を作る。
  * 発行済みは写し（issuedSnapshot）から、下書きは今の値から。
@@ -60,33 +113,12 @@ export function buildJoyoStatementPdfProps(args: {
     const { year, month, row, settings, issuer, draft } = args;
     const { contractor, statement } = row;
 
-    // 発行済み: 写しから作る（あとで設定・対象者・出勤簿を直しても変わらない）
+    // 発行済み: 写しから作る（あとで設定・対象者・出勤簿を直しても変わらない）。作り方は buildIssuedJoyoStatementPdfProps の1か所
     if (statement && statement.status === 'issued' && statement.issuedSnapshot) {
-        const snap = statement.issuedSnapshot;
-        const attendance = statement.includeAttendance
-            ? {
-                  year,
-                  month,
-                  userName: snap.attendanceUserName,
-                  ...buildAttendanceMonthlyPdfData(year, month, contractor.userId, snap.attendanceRecords),
-              }
-            : null;
-        return {
-            title: snap.title,
-            statementNo: statement.statementNo,
-            issueDate: statement.issueDate,
-            paymentDate: statement.paymentDate,
-            year,
-            month,
-            subject: statement.subject,
-            recipient: snap.recipient,
-            issuer: snap.issuer,
-            items: statement.items.map(toPdfItem),
-            total: statement.total,
-            tax: statement.tax,
-            footerNote: snap.footerNote || null,
-            attendance,
-        };
+        return buildIssuedJoyoStatementPdfProps({
+            userId: contractor.userId,
+            statement: { ...statement, year, month, issuedSnapshot: statement.issuedSnapshot },
+        });
     }
 
     // 未作成・下書き: 今の値でプレビュー（サーバーと同じ式で合計を出す）

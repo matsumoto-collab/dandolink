@@ -100,3 +100,33 @@ export interface JoyoContractorsResponse {
     /** 利用中の振込先。口座番号・名義は返さない */
     payeeOptions: { id: string; name: string; bankLabel: string; hasAccount: boolean }[];
 }
+
+/** 支払明細書の画面の見せ方（GET /api/joyo-statements/access） */
+export type JoyoStatementAccessMode = 'admin' | 'member' | 'none';
+
+/**
+ * 本人の画面の1件（GET /api/joyo-statements/me）。発行済みで写し（issuedSnapshot）があるものだけ。
+ * 社内メモ（notes）・支払予定（paymentScheduleId）・出勤簿の日数（attendanceCounts）・対象者の id・状態・更新日時は入れない。
+ */
+export interface JoyoMyStatementDto {
+    id: string;
+    year: number;
+    month: number;
+    statementNo: string | null;
+    issueDate: string; // YYYY-MM-DD
+    paymentDate: string; // YYYY-MM-DD
+    subject: string;
+    items: JoyoStatementItem[];
+    total: number;
+    tax: number;
+    includeAttendance: boolean;
+    issuedSnapshot: JoyoIssuedSnapshot;
+    issuedAt: string | null;
+}
+
+export interface JoyoMyStatementsResponse {
+    /** 本人の User.id（PDF の出勤簿ページを作るのに使う。session.user.id と同じ） */
+    userId: string;
+    /** 対象月の新しい順 */
+    statements: JoyoMyStatementDto[];
+}
