@@ -4,6 +4,7 @@ import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { notifyUsers } from '@/lib/notifications';
 import { formatJpShortDate } from '@/lib/scheduleChangeNotify';
 import { logger } from '@/lib/logger';
+import { buildWatchParam, MAX_WATCH_NAV_ITEMS } from '@/lib/scheduleWatchNav';
 
 /**
  * 「朝の見張りまとめ」（設計書 §7・Phase 2）。
@@ -31,6 +32,8 @@ const MAX_BODY_ITEMS = 6;
 interface WatchItem {
     /** 並び順・統合用 */
     assignmentId: string;
+    /** 配置日（JST）YYYY-MM-DD。通知を押したときに週間カレンダーの該当週へ飛ぶため */
+    date: string;
     kind: 'floating' | 'tentative-overdue';
     text: string;
     /** 宛先（案件担当者のID。floating はこれに管理者が加わる） */
@@ -41,6 +44,11 @@ type PmSelect = { name: string | null; title: string; createdBy: string | null }
 
 function siteOf(pm: PmSelect): string {
     return pm?.name || pm?.title || '案件';
+}
+
+/** 時刻つきの配置日 → JST の YYYY-MM-DD */
+function jstDateKey(date: Date): string {
+    return toJstDateOnly(date).toISOString().slice(0, 10);
 }
 
 function daysFromToday(date: Date, today: Date): number {
@@ -118,6 +126,7 @@ export async function runScheduleWatch(): Promise<{ detected: number; notifiedUs
         }
         items.push({
             assignmentId: f.id,
+            date: jstDateKey(f.date),
             kind: 'floating',
             text,
             assigneeIds: extractAssigneeIds(f.projectMaster?.createdBy ?? undefined),
@@ -129,6 +138,7 @@ export async function runScheduleWatch(): Promise<{ detected: number; notifiedUs
         const site = siteOf(t.projectMaster);
         items.push({
             assignmentId: t.id,
+            date: jstDateKey(t.date),
             kind: 'tentative-overdue',
             text: `「${site}」の仮予定(${formatJpShortDate(t.date)})、確認予定日(${t.confirmDueDate ? formatJpShortDate(t.confirmDueDate) : '-'})を過ぎています`,
             assigneeIds: extractAssigneeIds(t.projectMaster?.createdBy ?? undefined),
@@ -189,18 +199,31 @@ export async function runScheduleWatch(): Promise<{ detected: number; notifiedUs
             lines.push(`…ほか${userItems.length - shown.length}件`);
         }
 
+        // 見張りナビ（週間カレンダーで順にたどる）用の一覧。本文の行と同じ並び（浮き日付順→確認漏れ）。
+        // Web Push の payload（約4KB）に収めるため先頭 MAX_WATCH_NAV_ITEMS 件まで。
+        const navItems = userItems.slice(0, MAX_WATCH_NAV_ITEMS);
+        // date/assignmentId も入れておく＝画面側の見張りナビを戻しても、既存の単件ジャンプで先頭の配置へ飛べる
+        const params = new URLSearchParams({
+            page: 'schedule',
+            view: 'calendar',
+            date: navItems[0].date,
+            assignmentId: navItems[0].assignmentId,
+            watch: buildWatchParam(navItems),
+        });
+
         try {
             await notifyUsers({
                 userIds: [userId],
                 type: SCHEDULE_WATCH_TYPE,
                 title: `朝の見張りまとめ（${summaryParts.join('・')}）`,
                 body: lines.join('\n'),
-                url: '/?page=schedule&view=assignment',
+                url: `/?${params.toString()}`,
                 // 同日再実行しても端末上の push は1つに上書きされる
                 pushTag: 'schedule-watch',
+                // text は入れない（payload 節約）。ベル側は本文の行と items を添字で対応させる
                 data: {
                     kind: 'schedule-watch',
-                    assignmentIds: userItems.map((i) => i.assignmentId),
+                    items: navItems.map((i) => ({ assignmentId: i.assignmentId, date: i.date, kind: i.kind })),
                 },
             });
             notifiedUsers += 1;

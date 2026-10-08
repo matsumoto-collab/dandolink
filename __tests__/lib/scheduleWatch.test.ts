@@ -144,4 +144,67 @@ describe('runScheduleWatch', () => {
         const body = mockNotify.mock.calls[0][0].body as string;
         expect(body).toContain('2日超過');
     });
+
+    it('url は週間カレンダーの先頭の配置へ飛び、watch に一覧を持つ。data.items に日付と種類が入る', async () => {
+        mockQueries(
+            [
+                {
+                    id: 't1',
+                    date: inDays(10),
+                    confirmDueDate: inDays(-1),
+                    assignedEmployeeId: 'f1',
+                    projectMaster: pm('△△', ['u1']),
+                },
+            ],
+            [
+                {
+                    id: 'f1',
+                    date: inDays(3),
+                    memberCount: 3,
+                    dateStatus: 'confirmed',
+                    confirmDueDate: null,
+                    projectMaster: pm('◯◯', ['u1']),
+                },
+            ]
+        );
+
+        await runScheduleWatch();
+        const call = mockNotify.mock.calls.find((c) => c[0].userIds[0] === 'u1')![0];
+        const key = (d: Date) => toJstDateOnly(d).toISOString().slice(0, 10);
+        const url = new URL(call.url, 'https://example.com');
+        expect(url.searchParams.get('page')).toBe('schedule');
+        expect(url.searchParams.get('view')).toBe('calendar');
+        // 並びは 浮き → 確認漏れ（本文の行と同じ）
+        expect(url.searchParams.get('date')).toBe(key(inDays(3)));
+        expect(url.searchParams.get('assignmentId')).toBe('f1');
+        expect(url.searchParams.get('watch')).toBe(`${key(inDays(3))}_f1,${key(inDays(10))}_t1`);
+        expect(call.data).toEqual({
+            kind: 'schedule-watch',
+            items: [
+                { assignmentId: 'f1', date: key(inDays(3)), kind: 'floating' },
+                { assignmentId: 't1', date: key(inDays(10)), kind: 'tentative-overdue' },
+            ],
+        });
+    });
+
+    it('13件以上でも data.items と watch は12件に収める（本文は6行＋ほかN件）', async () => {
+        const floating = Array.from({ length: 15 }, (_, i) => ({
+            id: `f${i}`,
+            date: inDays(i % 7),
+            memberCount: 1,
+            dateStatus: 'confirmed',
+            confirmDueDate: null,
+            projectMaster: pm(`現場${i}`, ['u1']),
+        }));
+        mockQueries([], floating);
+
+        await runScheduleWatch();
+        const call = mockNotify.mock.calls.find((c) => c[0].userIds[0] === 'u1')![0];
+        expect(call.data.items).toHaveLength(12);
+        const url = new URL(call.url, 'https://example.com');
+        expect(url.searchParams.get('watch')!.split(',')).toHaveLength(12);
+        const lines = (call.body as string).split('\n');
+        expect(lines).toHaveLength(7);
+        expect(lines[6]).toBe('…ほか9件');
+    });
 });
