@@ -13,6 +13,8 @@ import { usePageVisible } from '@/hooks/useRealtimeSubscription';
 import { setAppBadge } from '@/lib/appBadge';
 import { useNavigation, PageType } from '@/contexts/NavigationContext';
 import { useOpenChat } from '@/hooks/useOpenChat';
+import { useScheduleJumpStore } from '@/stores/scheduleJumpStore';
+import type { ScheduleWatchNavItem } from '@/lib/scheduleWatchNav';
 
 const INITIAL_LIMIT = 5;
 const LOAD_MORE_STEP = 20;
@@ -39,6 +41,24 @@ interface NotificationItem {
     data: unknown;
     readAt: string | null;
     createdAt: string;
+}
+
+/**
+ * 「朝の見張りまとめ」の data.items（配置ID＋日付。本文の行と同じ並び）を取り出す。
+ * 古い通知（items が無い）や形の合わないものは null ＝従来どおり1件全体タップで url へ
+ */
+function readWatchItems(n: NotificationItem): ScheduleWatchNavItem[] | null {
+    if (n.type !== 'schedule-watch') return null;
+    const raw = (n.data as { items?: unknown } | null)?.items;
+    if (!Array.isArray(raw)) return null;
+    const items: ScheduleWatchNavItem[] = [];
+    for (const it of raw) {
+        const r = (it ?? {}) as { assignmentId?: unknown; date?: unknown };
+        if (typeof r.assignmentId === 'string' && r.assignmentId && typeof r.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
+            items.push({ assignmentId: r.assignmentId, date: r.date });
+        }
+    }
+    return items.length > 0 ? items : null;
 }
 
 interface Props {
@@ -257,14 +277,33 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         };
     }, [open]);
 
+    // optimistic 既読化（1件全体のタップと、見張り通知の行ごとのタップで共用）
+    const markAsRead = (n: NotificationItem) => {
+        if (n.readAt) return;
+        setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x)));
+        setUnreadCount((c) => Math.max(0, c - 1));
+        dispatchNotificationSync({ kind: 'read', id: n.id, source: instanceIdRef.current });
+        fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).catch(() => undefined);
+    };
+
+    // 見張り通知の本文の行をタップ → その配置から週間カレンダーの「見張りナビ」を開く。
+    // 画面内の操作なので URL は使わずストアで直接渡す（stores/scheduleJumpStore.ts の方針）
+    const handleClickWatchLine = (n: NotificationItem, items: ScheduleWatchNavItem[], index: number, itemLines: string[]) => {
+        const target = items[index];
+        if (!target) return;
+        markAsRead(n);
+        setOpen(false);
+        // 本文の行（先頭の「・」を除く）を帯の代わりの表示に使う。行が無い分（7件目以降）は label なし
+        const itemsWithLabel = items.map((it, i) => {
+            const line = itemLines[i];
+            return line ? { ...it, label: line.replace(/^・/, '') } : it;
+        });
+        useScheduleJumpStore.getState().requestJump(target.date, target.assignmentId, { items: itemsWithLabel, index });
+        setActivePage('schedule');
+    };
+
     const handleClickItem = async (n: NotificationItem) => {
-        // optimistic 既読化
-        if (!n.readAt) {
-            setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x)));
-            setUnreadCount((c) => Math.max(0, c - 1));
-            dispatchNotificationSync({ kind: 'read', id: n.id, source: instanceIdRef.current });
-            fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).catch(() => undefined);
-        }
+        markAsRead(n);
         setOpen(false);
         if (n.url) {
             // 「現在のページから他ページへの遷移」が router.push 単独だと一部画面で
@@ -407,6 +446,8 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                                     const unread = !n.readAt;
                                     // 「朝の見張りまとめ」は通常通知と見た目を区別（専用アイコン＋アクセント色・複数行表示）
                                     const isWatch = n.type === 'schedule-watch';
+                                    // 見張り通知で data.items があれば、本文の行ごとにタップできる
+                                    const watchItems = readWatchItems(n);
                                     const d = (n.data ?? {}) as { assigneeIds?: string[]; assignmentId?: string };
                                     const isAdminOrManager = role === 'admin' || role === 'manager';
                                     // 作業開始/完了通知に「顧客へ連絡」ボタン。admin/manager または案件担当者 のみ表示。
@@ -418,28 +459,72 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                                         (isAdminOrManager || (Array.isArray(d.assigneeIds) && !!userId && d.assigneeIds.includes(userId)));
                                     return (
                                         <li key={n.id}>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleClickItem(n)}
-                                                className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-slate-50 transition-colors ${
-                                                    isWatch
-                                                        ? `border-l-4 ${unread ? 'border-amber-400 bg-amber-50/70' : 'border-amber-200'}`
-                                                        : unread ? 'bg-sky-50/60' : ''
-                                                }`}
-                                            >
-                                                {isWatch ? (
+                                            {watchItems ? (
+                                                // 見張り通知（items 付き）: 行ごとにタップできるよう外側は div。
+                                                // タイトル行＝従来どおり url へ、本文の各行＝その配置から見張りナビを開く
+                                                <div
+                                                    className={`w-full px-4 py-3 flex gap-3 border-l-4 ${unread ? 'border-amber-400 bg-amber-50/70' : 'border-amber-200'}`}
+                                                >
                                                     <Sunrise className={`flex-shrink-0 mt-1 w-4 h-4 ${unread ? 'text-amber-500' : 'text-amber-300'}`} aria-hidden />
-                                                ) : (
-                                                    <span className={`flex-shrink-0 mt-1.5 w-2 h-2 rounded-full ${unread ? 'bg-sky-500' : 'bg-transparent'}`} aria-hidden />
-                                                )}
-                                                <span className="flex-1 min-w-0">
-                                                    <div className="flex items-start justify-between gap-2">
-                                                        <div className={`font-medium text-sm line-clamp-2 ${isWatch ? 'text-amber-900' : 'text-slate-800'}`}>{n.title}</div>
-                                                        <div className="flex-shrink-0 text-[11px] text-slate-400">{formatRelative(n.createdAt)}</div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleClickItem(n)}
+                                                            className="w-full text-left flex items-start justify-between gap-2 rounded -mx-1 px-1 hover:bg-amber-100 transition-colors"
+                                                        >
+                                                            <span className="font-medium text-sm line-clamp-2 text-amber-900">{n.title}</span>
+                                                            <span className="flex-shrink-0 text-[11px] text-slate-400">{formatRelative(n.createdAt)}</span>
+                                                        </button>
+                                                        <div className="mt-0.5 text-xs text-slate-600">
+                                                            {(() => {
+                                                                const lines = n.body.split('\n');
+                                                                const itemLines = lines.filter((l) => !l.startsWith('…ほか'));
+                                                                return lines.map((line, i) => {
+                                                                    const isMore = line.startsWith('…ほか');
+                                                                    // 項目の行 i は items[i]、「…ほかN件」は本文に出ていない最初の項目から
+                                                                    const navIndex = isMore ? itemLines.length : i;
+                                                                    const tappable = navIndex < watchItems.length;
+                                                                    return tappable ? (
+                                                                        <button
+                                                                            key={i}
+                                                                            type="button"
+                                                                            onClick={() => handleClickWatchLine(n, watchItems, navIndex, itemLines)}
+                                                                            className="block text-left w-full whitespace-pre-wrap rounded -mx-1 px-1 py-0.5 hover:bg-amber-100 transition-colors"
+                                                                        >
+                                                                            {line}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <div key={i} className="whitespace-pre-wrap py-0.5">{line}</div>
+                                                                    );
+                                                                });
+                                                            })()}
+                                                        </div>
                                                     </div>
-                                                    <div className={`mt-0.5 text-xs text-slate-600 ${isWatch ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>{n.body}</div>
-                                                </span>
-                                            </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleClickItem(n)}
+                                                    className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-slate-50 transition-colors ${
+                                                        isWatch
+                                                            ? `border-l-4 ${unread ? 'border-amber-400 bg-amber-50/70' : 'border-amber-200'}`
+                                                            : unread ? 'bg-sky-50/60' : ''
+                                                    }`}
+                                                >
+                                                    {isWatch ? (
+                                                        <Sunrise className={`flex-shrink-0 mt-1 w-4 h-4 ${unread ? 'text-amber-500' : 'text-amber-300'}`} aria-hidden />
+                                                    ) : (
+                                                        <span className={`flex-shrink-0 mt-1.5 w-2 h-2 rounded-full ${unread ? 'bg-sky-500' : 'bg-transparent'}`} aria-hidden />
+                                                    )}
+                                                    <span className="flex-1 min-w-0">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div className={`font-medium text-sm line-clamp-2 ${isWatch ? 'text-amber-900' : 'text-slate-800'}`}>{n.title}</div>
+                                                            <div className="flex-shrink-0 text-[11px] text-slate-400">{formatRelative(n.createdAt)}</div>
+                                                        </div>
+                                                        <div className={`mt-0.5 text-xs text-slate-600 ${isWatch ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>{n.body}</div>
+                                                    </span>
+                                                </button>
+                                            )}
                                             {canNotifyCustomer && notifyKind && (
                                                 <div className="px-4 pb-3 -mt-1">
                                                     <button

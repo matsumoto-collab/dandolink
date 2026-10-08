@@ -28,7 +28,8 @@ interface EmployeeRowComponentProps {
     onLongPressEvent?: (event: CalendarEvent) => void;
     onCommitMove?: (employeeId: string, date: Date) => void;
     onCancelMove?: () => void;
-    highlightedEventId?: string | null;
+    /** 光らせる配置の集合（検索ジャンプ1件・見張りナビ複数件） */
+    highlightedEventIds?: ReadonlySet<string> | null;
 }
 
 function EmployeeRowComponent({
@@ -52,7 +53,7 @@ function EmployeeRowComponent({
     onLongPressEvent,
     onCommitMove,
     onCancelMove,
-    highlightedEventId = null,
+    highlightedEventIds = null,
 }: EmployeeRowComponentProps) {
     const isMoving = movingEventId !== null;
 
@@ -191,7 +192,7 @@ function EmployeeRowComponent({
                                     editingUsers={getEditingUsers?.(projectId)}
                                     onLongPress={onLongPressEvent && !isMoving ? () => onLongPressEvent(event) : undefined}
                                     isMovingSource={isThisMoving}
-                                    isHighlighted={highlightedEventId !== null && (event.id === highlightedEventId || projectId === highlightedEventId)}
+                                    isHighlighted={highlightedEventIds != null && (highlightedEventIds.has(event.id) || highlightedEventIds.has(projectId))}
                                 />
                             );
                         })}

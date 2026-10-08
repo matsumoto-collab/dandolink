@@ -55,6 +55,8 @@ interface FloatingLaneProps {
     canMoveUp?: boolean;
     /** ▼を出すか（一番下なら false） */
     canMoveDown?: boolean;
+    /** 光らせる配置の集合（検索ジャンプ・見張りナビ）。職長行のカードと同じ見た目で光らせる */
+    highlightedEventIds?: ReadonlySet<string> | null;
 }
 
 interface FloatingDroppableCellProps {
@@ -169,11 +171,20 @@ function FloatingCardBody({ event, compact }: { event: CalendarEvent; compact: b
 
 const CARD_BASE_CLASS = 'w-full text-left mb-1 p-1 rounded-lg shadow-sm hover:brightness-95 relative overflow-hidden select-none';
 
+/** 移動元のリング → ハイライトのリング の順（職長行のカードと同じ class） */
+function cardRingClass(isMovingSource: boolean, isHighlighted: boolean): string {
+    if (isMovingSource) return 'ring-2 ring-slate-700 ring-offset-1';
+    if (isHighlighted) return 'ring-4 ring-amber-400 ring-offset-2 animate-pulse';
+    return '';
+}
+
 interface FloatingCardCommonProps {
     event: CalendarEvent;
     compact: boolean;
     /** 移動モード中の移動元カードならリング表示 */
     isMovingSource: boolean;
+    /** 検索ジャンプ・見張りナビで光らせるカード（移動元のリングがあればそちら優先） */
+    isHighlighted: boolean;
     /** クリック（タップ）。長押し成立直後は握り潰す */
     onClick: (e: React.MouseEvent) => void;
     /** 長押し（未指定なら長押し無効） */
@@ -184,7 +195,7 @@ interface FloatingCardCommonProps {
  * enableDrag=false 時（モバイル・閲覧専用）の浮きカード。button のまま長押し移動に対応する。
  * DndContext を持たないモバイルでも長押し→移動先タップの経路が使える。
  */
-function FloatingPlainCard({ event, compact, isMovingSource, onClick, onLongPress }: FloatingCardCommonProps) {
+function FloatingPlainCard({ event, compact, isMovingSource, isHighlighted, onClick, onLongPress }: FloatingCardCommonProps) {
     const lp = useLongPress(onLongPress);
     return (
         <button
@@ -202,7 +213,8 @@ function FloatingPlainCard({ event, compact, isMovingSource, onClick, onLongPres
                 }
                 onClick(e);
             }}
-            className={`${CARD_BASE_CLASS} ${isMovingSource ? 'ring-2 ring-slate-700 ring-offset-1' : ''}`}
+            data-project-id={event.id}
+            className={`${CARD_BASE_CLASS} ${cardRingClass(isMovingSource, isHighlighted)}`}
             style={{
                 backgroundColor: event.color,
                 ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
@@ -224,7 +236,7 @@ interface FloatingDraggableCardProps extends FloatingCardCommonProps {
  * id はイベントID。ドラッグ中は opacity を落とす（DragOverlay 側にプレビューが出る）。
  * PointerSensor の distance=8 制約により、クリック（昇格モーダル）とドラッグは両立する。
  */
-function FloatingDraggableCard({ event, compact, isMovingSource, draggableDisabled, onClick, onLongPress }: FloatingDraggableCardProps) {
+function FloatingDraggableCard({ event, compact, isMovingSource, isHighlighted, draggableDisabled, onClick, onLongPress }: FloatingDraggableCardProps) {
     const lp = useLongPress(onLongPress);
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: event.id,
@@ -249,7 +261,8 @@ function FloatingDraggableCard({ event, compact, isMovingSource, draggableDisabl
                 if (isDragging) return;
                 onClick(e);
             }}
-            className={`${CARD_BASE_CLASS} ${draggableDisabled ? '' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-40' : ''} ${isMovingSource ? 'ring-2 ring-slate-700 ring-offset-1' : ''}`}
+            data-project-id={event.id}
+            className={`${CARD_BASE_CLASS} ${draggableDisabled ? '' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-40' : ''} ${cardRingClass(isMovingSource, isHighlighted)}`}
             style={{
                 backgroundColor: event.color,
                 ...(event.dateStatus === 'tentative' ? { backgroundImage: TENTATIVE_STRIPE_BG } : {}),
@@ -305,6 +318,7 @@ export default function FloatingLane({
     onMoveLane,
     canMoveUp = true,
     canMoveDown = true,
+    highlightedEventIds = null,
 }: FloatingLaneProps) {
     const floating = events.filter((e) => e.assignedEmployeeId === 'unassigned');
 
@@ -372,6 +386,7 @@ export default function FloatingLane({
                     <>
                         {dayFloating.map((event) => {
                             const isMovingSource = movingEventId === event.id;
+                            const isHighlighted = highlightedEventIds != null && highlightedEventIds.has(event.id);
                             const handleCardClick = (e: React.MouseEvent) => {
                                 e.stopPropagation();
                                 if (isMoving && onCommitMove) {
@@ -391,6 +406,7 @@ export default function FloatingLane({
                                     event={event}
                                     compact={compact}
                                     isMovingSource={isMovingSource}
+                                    isHighlighted={isHighlighted}
                                     draggableDisabled={isMoving}
                                     onClick={handleCardClick}
                                     onLongPress={longPress}
@@ -401,6 +417,7 @@ export default function FloatingLane({
                                     event={event}
                                     compact={compact}
                                     isMovingSource={isMovingSource}
+                                    isHighlighted={isHighlighted}
                                     onClick={handleCardClick}
                                     onLongPress={longPress}
                                 />

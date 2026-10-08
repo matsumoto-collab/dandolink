@@ -28,6 +28,8 @@ import MobileCalendarView from './MobileCalendarView';
 import { logger } from '@/lib/logger';
 import toast from 'react-hot-toast';
 import { showUndoToast } from './undoToast';
+import ScheduleWatchNavBar from './ScheduleWatchNavBar';
+import type { ScheduleWatchNavItem } from '@/lib/scheduleWatchNav';
 
 // モーダルを遅延読み込み
 const ProjectModal = dynamic(() => import('../Projects/ProjectModal'), {
@@ -65,7 +67,12 @@ interface WeeklyCalendarProps {
      * 外部（チャットの「予定」など）からの特定日ジャンプ依頼。
      * nonce は使い捨て番号で、同じ日付を続けて要求されても再ジャンプできるようにするためのもの。
      */
-    jumpRequest?: { date: string; assignmentId: string | null; nonce: number } | null;
+    jumpRequest?: {
+        date: string;
+        assignmentId: string | null;
+        watch?: { items: ScheduleWatchNavItem[]; index: number } | null;
+        nonce: number;
+    } | null;
     onJumpConsumed?: () => void;
 }
 
@@ -327,7 +334,7 @@ useEffect(() => { setIsMounted(true); }, []);
     const handleOpenSearch = useCallback(() => setIsSearchOpen(true), []);
     const handleCloseSearch = useCallback(() => setIsSearchOpen(false), []);
 
-    // 検索結果クリック時のハイライト（3秒間）
+    // 検索結果クリック時のハイライト（4秒間）
     const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
     const highlightTimerRef = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
@@ -335,32 +342,89 @@ useEffect(() => { setIsMounted(true); }, []);
             if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
         };
     }, []);
+    // 「朝の見張りまとめ」通知から来たときの見張りナビ（閉じるまで一覧の配置を全部光らせ、◀ ▶ で順にたどる）
+    const [watchNav, setWatchNav] = useState<{ items: ScheduleWatchNavItem[]; index: number } | null>(null);
+    // 今の見張り項目がカレンダーに見つからなかった（解消済み・削除済み、または浮きの表示権限なし）
+    const [watchNotFound, setWatchNotFound] = useState(false);
+    // スクロール先（1件）。検索ジャンプでは highlightedEventId と同時に立て、見張りナビでは今の項目を指す
+    const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
     // 同じ配置へ続けてジャンプしたとき（ハイライト中に再度押された等）も必ずスクロールし直すための番号
     const [scrollRequest, setScrollRequest] = useState(0);
+
+    // 光らせる集合。職長行（React.memo）が毎回再描画しないよう、id の並びが同じなら同じ Set を返す
+    const highlightKey = watchNav
+        ? watchNav.items.map((i) => i.assignmentId).join('\n')
+        : (highlightedEventId ?? '');
+    const highlightedEventIds = useMemo<ReadonlySet<string> | null>(
+        () => (highlightKey ? new Set(highlightKey.split('\n')) : null),
+        [highlightKey]
+    );
+
     const handleSearchJump = useCallback((date: Date, assignmentId: string) => {
+        // 検索すると見張りナビは閉じる
+        setWatchNav(null);
+        setWatchNotFound(false);
         goToDate(date);
         setHighlightedEventId(assignmentId);
+        setScrollTargetId(assignmentId);
         setScrollRequest((n) => n + 1);
         if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-        highlightTimerRef.current = setTimeout(() => setHighlightedEventId(null), 4000);
+        highlightTimerRef.current = setTimeout(() => {
+            setHighlightedEventId(null);
+            setScrollTargetId(null);
+        }, 4000);
     }, [goToDate]);
 
-    // ハイライト対象が画面に入っていなければ自動スクロール
-    // - ジャンプ後にprojectsが揃うまで何回かリトライ（最大1.5秒）
+    // 見張りナビを開く／別の項目へ移る（どちらも同じ処理）
+    const openWatchNav = useCallback((items: ScheduleWatchNavItem[], index: number) => {
+        const item = items[index];
+        if (!item) return;
+        if (highlightTimerRef.current) {
+            clearTimeout(highlightTimerRef.current);
+            highlightTimerRef.current = null;
+        }
+        setHighlightedEventId(null);
+        setWatchNotFound(false);
+        setWatchNav({ items, index });
+        const [y, m, d] = item.date.split('-').map(Number);
+        if (y && m && d) goToDate(new Date(y, m - 1, d));
+        setScrollTargetId(item.assignmentId);
+        setScrollRequest((n) => n + 1);
+    }, [goToDate]);
+    const goToWatchIndex = useCallback((i: number) => {
+        if (!watchNav) return;
+        openWatchNav(watchNav.items, i);
+    }, [watchNav, openWatchNav]);
+    const closeWatchNav = useCallback(() => {
+        setWatchNav(null);
+        setWatchNotFound(false);
+        setScrollTargetId(null);
+    }, []);
+    // 見張りナビが開いているかをスクロール effect の中から読むための ref（watchNav を依存に入れて effect を張り直さないため）
+    const watchNavActiveRef = useRef(false);
+    watchNavActiveRef.current = watchNav !== null;
+
+    // スクロール先が画面に入っていなければ自動スクロール
+    // - ジャンプ後にprojectsが揃うまで何回かリトライ（最大約2.4秒）
+    // - 見張りナビ中に見つからないまま尽きたら「カレンダーに見つかりません」を出す
     useEffect(() => {
-        if (!highlightedEventId) return;
+        if (!scrollTargetId) return;
         let cancelled = false;
         let attempts = 0;
-        const maxAttempts = 8; // 200ms * 8 = 1.6秒
+        const maxAttempts = 12; // 200ms * 12 = 2.4秒
+        let retryTimer: NodeJS.Timeout | null = null;
         const tryScroll = () => {
             if (cancelled) return;
-            const el = document.querySelector<HTMLElement>(`[data-project-id="${highlightedEventId}"]`);
+            const el = document.querySelector<HTMLElement>(`[data-project-id="${scrollTargetId}"]`);
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                setWatchNotFound(false);
                 return;
             }
             if (++attempts < maxAttempts) {
-                setTimeout(tryScroll, 200);
+                retryTimer = setTimeout(tryScroll, 200);
+            } else if (watchNavActiveRef.current) {
+                setWatchNotFound(true);
             }
         };
         // 初回は次のpaintを待ってから
@@ -368,16 +432,22 @@ useEffect(() => { setIsMounted(true); }, []);
         return () => {
             cancelled = true;
             clearTimeout(t);
+            if (retryTimer) clearTimeout(retryTimer);
         };
-    }, [highlightedEventId, projects, scrollRequest]);
+    }, [scrollTargetId, projects, scrollRequest]);
 
     // 外部からのジャンプ依頼を消化（検索パネルからのジャンプと同じ handleSearchJump を再利用）。
-    // nonce を ref で覚えて同じ依頼を二重に消化しないようにする
+    // 見張り（watch）付きの依頼は見張りナビを開く。nonce を ref で覚えて同じ依頼を二重に消化しないようにする
     const consumedJumpNonceRef = useRef<number | null>(null);
     useEffect(() => {
         if (!jumpRequest || !isMounted) return;
         if (consumedJumpNonceRef.current === jumpRequest.nonce) return;
         consumedJumpNonceRef.current = jumpRequest.nonce;
+        if (jumpRequest.watch && jumpRequest.watch.items.length > 0) {
+            openWatchNav(jumpRequest.watch.items, jumpRequest.watch.index);
+            onJumpConsumed?.();
+            return;
+        }
         const [y, m, d] = jumpRequest.date.split('-').map(Number);
         if (!y || !m || !d) return;
         const target = new Date(y, m - 1, d);
@@ -387,7 +457,7 @@ useEffect(() => { setIsMounted(true); }, []);
             goToDate(target);
         }
         onJumpConsumed?.();
-    }, [jumpRequest, isMounted, handleSearchJump, goToDate, onJumpConsumed]);
+    }, [jumpRequest, isMounted, handleSearchJump, openWatchNav, goToDate, onJumpConsumed]);
 
     // ナビゲーション関数を親に公開
     useEffect(() => {
@@ -914,7 +984,7 @@ useEffect(() => { setIsMounted(true); }, []);
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
                     handleOpenSearch={partnerMode ? undefined : handleOpenSearch}
-                    highlightedEventId={highlightedEventId}
+                    highlightedEventIds={highlightedEventIds}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     hideRemarks={partnerMode}
@@ -947,7 +1017,7 @@ useEffect(() => { setIsMounted(true); }, []);
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
-                    highlightedEventId={highlightedEventId}
+                    highlightedEventIds={highlightedEventIds}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     hideRemarks={partnerMode}
@@ -965,6 +1035,18 @@ useEffect(() => { setIsMounted(true); }, []);
                     moveFloatingLane={isReadOnly ? undefined : moveFloatingLane}
                     canMoveFloatingLaneUp={canMoveFloatingLaneUp}
                     canMoveFloatingLaneDown={canMoveFloatingLaneDown}
+                />
+            )}
+
+            {/* 朝の見張りまとめ通知からの「見張りナビ」（閉じるまで出す・協力会社モードでは出さない） */}
+            {watchNav && !partnerMode && (
+                <ScheduleWatchNavBar
+                    items={watchNav.items}
+                    index={watchNav.index}
+                    events={events}
+                    notFound={watchNotFound}
+                    onGoTo={goToWatchIndex}
+                    onClose={closeWatchNav}
                 />
             )}
 

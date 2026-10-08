@@ -11,6 +11,7 @@ import ScheduleToolbar from './Schedule/ScheduleToolbar';
 import { isManagerOrAbove } from '@/utils/permissions';
 import { useChatStore } from '@/stores/chatStore';
 import { useScheduleJumpStore } from '@/stores/scheduleJumpStore';
+import { parseWatchParam } from '@/lib/scheduleWatchNav';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CHAT_WINDOW_MEDIA_QUERY, isChatWindowViewport } from '@/lib/chatWindow';
 import type { CalendarNavigation } from '@/types/calendar';
@@ -200,6 +201,8 @@ export default function MainContent() {
     //   ?page=project-masters&pmId=...    → 案件詳細モーダルを開く（page側で処理）
     //   ?page=schedule&view=calendar&date=YYYY-MM-DD&assignmentId=...&chatRoomId=...
     //                                     → その日のカレンダーへジャンプ＋チャットをドッキング
+    //   ?page=schedule&view=calendar&date=...&assignmentId=...&watch=YYYY-MM-DD_<id>,YYYY-MM-DD_<id>,...
+    //                                     → 朝の見張りまとめ: 一覧の配置を光らせ「見張りナビ」で順にたどる
     // page/view は処理後にURLから除去するが、pmId/scrollTo/pmEdit が含まれる場合は
     // 遷移先ページ側の URL 掃除に一任する（親子で同時に router.replace すると
     // 子→親の順で後勝ちになり、モバイルで pmId が URL に残って残像表示を引き起こすため）。
@@ -227,7 +230,14 @@ export default function MainContent() {
         }
         // 特定の予定（配置）へジャンプ。overview/assignment 表示中でもカレンダーに切り替える
         const dateParam = searchParams?.get('date');
-        if (pageParam === 'schedule' && dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+        // 朝の見張りまとめ（watch=）があればそちらを優先し、date/assignmentId による単件ジャンプは呼ばない（二重ジャンプ防止）
+        const watchItems = pageParam === 'schedule' ? parseWatchParam(searchParams?.get('watch')) : [];
+        if (watchItems.length > 0) {
+            useScheduleJumpStore
+                .getState()
+                .requestJump(watchItems[0].date, watchItems[0].assignmentId, { items: watchItems, index: 0 });
+            consumed = true;
+        } else if (pageParam === 'schedule' && dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
             // カレンダー表示への切替は下の「ジャンプ依頼を受けたとき」の効果が行う
             useScheduleJumpStore.getState().requestJump(dateParam, searchParams?.get('assignmentId') ?? null);
             consumed = true;
@@ -246,6 +256,7 @@ export default function MainContent() {
             next.delete('view');
             next.delete('date');
             next.delete('assignmentId');
+            next.delete('watch');
             next.delete('chatRoomId');
             if (isChatToWindow) next.delete('roomId');
             const qs = next.toString();

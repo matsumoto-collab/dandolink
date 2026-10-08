@@ -53,7 +53,8 @@ interface MobileCalendarViewProps {
     handleCopyEvent?: (eventId: string) => void;
     handleMoveToCell?: (event: CalendarEvent, employeeId: string, date: Date) => void;
     handleOpenSearch?: () => void;
-    highlightedEventId?: string | null;
+    /** 光らせる配置の集合（検索ジャンプ1件・見張りナビ複数件） */
+    highlightedEventIds?: ReadonlySet<string> | null;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
     hideRemarks?: boolean;
@@ -99,7 +100,7 @@ interface MobileForemanRowProps {
     projects: Project[];
     vehicleMaster: ReturnType<typeof selectVehicles>;
     toolMaster: ReturnType<typeof selectTools>;
-    highlightedEventId: string | null;
+    highlightedEventIds: ReadonlySet<string> | null;
     getEditingUsers: (assignmentId: string) => EditingUser[];
     handleCellClick?: (employeeId: string, date: Date) => void;
     commitMove: (employeeId: string, date: Date) => void;
@@ -126,7 +127,7 @@ const MobileForemanRow = React.memo(function MobileForemanRow({
     projects,
     vehicleMaster,
     toolMaster,
-    highlightedEventId,
+    highlightedEventIds,
     getEditingUsers,
     handleCellClick,
     commitMove,
@@ -248,7 +249,7 @@ const MobileForemanRow = React.memo(function MobileForemanRow({
                                                                 className={`w-full text-left rounded p-1 transition-all relative select-none ${
                                                                     isThisMoving
                                                                         ? 'ring-2 ring-white ring-offset-1 ring-offset-blue-400 opacity-70 scale-95'
-                                                                        : highlightedEventId !== null && (event.id === highlightedEventId || projectId === highlightedEventId)
+                                                                        : highlightedEventIds != null && (highlightedEventIds.has(event.id) || highlightedEventIds.has(projectId))
                                                                         ? 'ring-4 ring-amber-400 ring-offset-2 animate-pulse'
                                                                         : 'active:brightness-90'
                                                                 }`}
@@ -390,7 +391,7 @@ function MobileCalendarView({
     handleCopyEvent,
     handleMoveToCell,
     handleOpenSearch,
-    highlightedEventId = null,
+    highlightedEventIds = null,
     getMemberAdjustment,
     onMemberAdjustmentChange,
     hideRemarks = false,
@@ -564,6 +565,7 @@ function MobileCalendarView({
             movingEventId={movingEvent?.id ?? null}
             isMoving={movingEvent !== null}
             onCommitMove={(date) => commitMove('unassigned', date)}
+            highlightedEventIds={highlightedEventIds}
         />
     ) : null;
     // アンカーの職長が実在するときだけ行間に挟む（見つからなければ末尾）
@@ -882,7 +884,7 @@ function MobileCalendarView({
                                 projects={projects}
                                 vehicleMaster={vehicleMaster}
                                 toolMaster={toolMaster}
-                                highlightedEventId={highlightedEventId}
+                                highlightedEventIds={highlightedEventIds}
                                 getEditingUsers={getEditingUsers}
                                 handleCellClick={handleCellClick}
                                 commitMove={commitMove}

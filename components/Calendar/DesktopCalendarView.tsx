@@ -40,7 +40,8 @@ interface DesktopCalendarViewProps {
     handleCopyEvent?: (eventId: string) => void;
     handleMoveToCell?: (event: CalendarEvent, employeeId: string, date: Date) => void;
     handleOpenSearch?: () => void;
-    highlightedEventId?: string | null;
+    /** 光らせる配置の集合（検索ジャンプ1件・見張りナビ複数件） */
+    highlightedEventIds?: ReadonlySet<string> | null;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
     // 浮き（班未定）レーン
@@ -98,7 +99,7 @@ function DesktopCalendarView({
     handleCopyEvent,
     handleMoveToCell,
     handleOpenSearch,
-    highlightedEventId = null,
+    highlightedEventIds = null,
     getMemberAdjustment,
     onMemberAdjustmentChange,
     handleFloatingEventClick,
@@ -169,6 +170,7 @@ function DesktopCalendarView({
             onMoveLane={moveFloatingLane}
             canMoveUp={canMoveFloatingLaneUp}
             canMoveDown={canMoveFloatingLaneDown}
+            highlightedEventIds={highlightedEventIds}
         />
     );
     // アンカーの職長が実在するときだけ行間に挟む（見つからなければ末尾に置く）
@@ -387,7 +389,7 @@ function DesktopCalendarView({
                                     onLongPressEvent={handleMoveToCell ? startMoving : undefined}
                                     onCommitMove={movingEvent ? commitMove : undefined}
                                     onCancelMove={cancelMoving}
-                                    highlightedEventId={highlightedEventId}
+                                    highlightedEventIds={highlightedEventIds}
                                 />
                                 </React.Fragment>
                             ))}
