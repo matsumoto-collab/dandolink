@@ -404,11 +404,17 @@ useEffect(() => { setIsMounted(true); }, []);
     const watchNavActiveRef = useRef(false);
     watchNavActiveRef.current = watchNav !== null;
 
+    // 同じスクロール依頼（scrollRequest）で一度スクロールできたら、その後 projects が更新されても
+    // もう戻さない。見張りナビは閉じるまで出続けるので、これが無いと自動更新や自分の編集のたびに
+    // 同じカードへスクロールし直し、別の週を見ているときは「見つかりません」と誤表示してしまう
+    const scrolledRequestRef = useRef<number>(-1);
+
     // スクロール先が画面に入っていなければ自動スクロール
     // - ジャンプ後にprojectsが揃うまで何回かリトライ（最大約2.4秒）
     // - 見張りナビ中に見つからないまま尽きたら「カレンダーに見つかりません」を出す
     useEffect(() => {
         if (!scrollTargetId) return;
+        if (scrolledRequestRef.current === scrollRequest) return;
         let cancelled = false;
         let attempts = 0;
         const maxAttempts = 12; // 200ms * 12 = 2.4秒
@@ -418,6 +424,7 @@ useEffect(() => { setIsMounted(true); }, []);
             const el = document.querySelector<HTMLElement>(`[data-project-id="${scrollTargetId}"]`);
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                scrolledRequestRef.current = scrollRequest;
                 setWatchNotFound(false);
                 return;
             }
