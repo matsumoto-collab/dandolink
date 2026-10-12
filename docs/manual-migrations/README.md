@@ -14,3 +14,5 @@ prisma migrate dev / migrate deploy を経由せず、
 | 2026-06-11 | 2026-06-11_add_safety_documents.sql | 安全書類 Phase1: WorkerSafetyProfile（CHECK排他制約付き）/ WorkerQualification / SafetyDocument 新規作成 + INDEX + FK |
 | 2026-06-11 | 2026-06-11_add_qualification_number_image.sql | WorkerQualification に licenseNumber / imagePath / imageThumbPath を追加（資格証の番号・画像） |
 | 2026-06-11 | 2026-06-11_add_safety_phase2_vehicle_machine.sql | 安全書類 Phase2: VehicleSafetyProfile（Vehicle 1:1）/ Machine マスター 新規作成 + INDEX + FK |
+| 2026-10-03 | 2026-10-03_enable_rls_all_public.sql | public の全テーブルで RLS を有効にする（二重の鍵。ポリシーは作らない）。**未適用**（2026-10-12 に読み取り確認: RLS 無効 86 / 122 表） |
+| 2026-10-03 | 2026-10-03_notification_broadcast.sql | `Notification` の INSERT を公開トピック `notification-<userId>` にイベント `new`（中身は id だけ）で broadcast するトリガ `notification_broadcast_new` ＋ 同名の関数。通知ベルの即時更新用（ブラウザ側 components/Notifications/NotificationsInbox.tsx と対）。**未適用**（2026-10-12 に読み取り確認: pg_trigger / pg_proc に 0 件。適用は kei） |

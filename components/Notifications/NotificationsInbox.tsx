@@ -192,7 +192,8 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         setAppBadge(unreadCount);
     }, [unreadCount]);
 
-    // 初回 + 30秒ごとのフォールバックポーリング（Realtime不達時の即応性確保）
+    // 初回 + 30秒ごとのフォールバックポーリング（broadcast を取りこぼしたときの保険。
+    // タブ非表示中・再接続中・DB 側トリガ未適用のあいだはここで拾う）
     // + ブラウザタブにフォーカスが戻ったとき即時再取得
     useEffect(() => {
         if (!userId) return;
@@ -213,7 +214,12 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         };
     }, [userId, fetchUnreadCount]);
 
-    // Supabase Realtime: 自分宛ての新規通知を即時反映
+    // Supabase Realtime broadcast: 自分宛ての新規通知を即時反映
+    // DB 側のトリガ（docs/manual-migrations/2026-10-03_notification_broadcast.sql）が
+    // "Notification" に行が入るたびに公開トピック notification-<userId> へイベント new を送る。
+    // 届く中身は通知の id だけ（公開トピックなので本文は載せない）。本文と未読数は自分の API から取る。
+    // ※ 表の INSERT を直接購読する方式は使わない（anon に表の権限が無く購読が毎回失敗する。権限も与えない）
+    // ※ チャンネル名を変えるときは上記 SQL のトピック名も一緒に変える
     // タブ非表示時は接続を閉じる（復帰時にポーリング/focusでキャッチアップ）
     const isVisible = usePageVisible();
     useEffect(() => {
@@ -223,19 +229,10 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         try {
             channel = supabase
                 .channel(`notification-${userId}`)
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'INSERT',
-                        schema: 'public',
-                        table: 'Notification',
-                        filter: `userId=eq.${userId}`,
-                    },
-                    () => {
-                        setUnreadCount((c) => c + 1);
-                        if (open && view === 'list') fetchItems(limit);
-                    }
-                )
+                .on('broadcast', { event: 'new' }, () => {
+                    setUnreadCount((c) => c + 1);
+                    if (open && view === 'list') fetchItems(limit);
+                })
                 .subscribe();
         } catch {
             // realtime未設定でも polling があるので無視
