@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import {
     notFoundResponse,
@@ -10,6 +10,7 @@ import {
 import { validateRequest } from '@/lib/validations/common';
 import { roadPermitUpdateSchema } from '@/lib/validations/roadPermit';
 import { ROAD_PERMIT_ROW_INCLUDE, toRoadPermitDto } from '@/lib/roadPermitServer';
+import { normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         });
         if (!existing || existing.deletedAt !== null) return notFoundResponse('道路申請');
 
+        // 図面: 省略なら変えない・null なら消す・あれば正規化して書く（Phase 2）
+        const drawingData =
+            input.drawing === undefined
+                ? {}
+                : input.drawing === null
+                  ? { drawing: Prisma.DbNull }
+                  : { drawing: normalizeRoadPermitDrawing(input.drawing) as unknown as Prisma.InputJsonValue };
+
         const updated = await prisma.roadPermit.update({
             where: { id: existing.id },
             data: {
@@ -61,6 +70,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
                 status: input.status,
                 values: input.values as unknown as Prisma.InputJsonValue,
                 documents: input.documents as unknown as Prisma.InputJsonValue,
+                ...drawingData,
                 updatedBy: session!.user.id,
             },
             include: ROAD_PERMIT_ROW_INCLUDE,

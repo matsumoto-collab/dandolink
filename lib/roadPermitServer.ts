@@ -15,6 +15,7 @@ import {
     normalizeRoadPermitStatus,
     normalizeRoadPermitValues,
 } from '@/lib/roadPermit/defaults';
+import { normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
 import type {
     RoadPermitCompanyDefaults,
     RoadPermitDto,
@@ -136,6 +137,8 @@ export function toRoadPermitDto(row: RoadPermitRow): RoadPermitDto {
         status: normalizeRoadPermitStatus(row.status),
         values: normalizeRoadPermitValues(row.values),
         documents: normalizeRoadPermitDocuments(row.documents),
+        // 図面は描いていなければ null（JSON が入っていれば正規化して返す）
+        drawing: row.drawing == null ? null : normalizeRoadPermitDrawing(row.drawing),
         createdBy: row.createdBy ?? null,
         updatedBy: row.updatedBy ?? null,
         createdAt: row.createdAt.toISOString(),

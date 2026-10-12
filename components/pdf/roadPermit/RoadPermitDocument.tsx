@@ -10,6 +10,7 @@
 import React from 'react';
 import { Document } from '@react-pdf/renderer';
 import type { RoadPermitFormId, RoadPermitValues } from '@/types/roadPermit';
+import type { RoadPermitDrawing } from '@/types/roadPermitDrawing';
 import { PoliceRoadUsePage } from './PoliceRoadUsePage';
 import { MatsuyamaOccupancyApplyPage } from './MatsuyamaOccupancyApplyPage';
 import { MatsuyamaOccupancyReplyPage } from './MatsuyamaOccupancyReplyPage';
@@ -17,6 +18,9 @@ import { MatsuyamaOccupancyReplyPage } from './MatsuyamaOccupancyReplyPage';
 export interface RoadPermitDocumentProps {
     values: RoadPermitValues;
     formIds: RoadPermitFormId[];
+    /** 図面（Phase 2）。includeDrawing が true で図形が 1 つ以上あれば最後のページに入れる */
+    drawing?: RoadPermitDrawing | null;
+    includeDrawing?: boolean;
 }
 
 type PageComponent = (props: { values: RoadPermitValues }) => React.ReactElement;
@@ -28,7 +32,10 @@ const PAGE_BY_FORM: Record<RoadPermitFormId, PageComponent> = {
     'matsuyama-occupancy-reply': MatsuyamaOccupancyReplyPage,
 };
 
-export function RoadPermitDocument({ values, formIds }: RoadPermitDocumentProps) {
+export function RoadPermitDocument({ values, formIds, drawing = null, includeDrawing = false }: RoadPermitDocumentProps) {
+    // 図面のページは Phase 2a の PDF 担当が DrawingPage として足す（今はまだ入れない）
+    void drawing;
+    void includeDrawing;
     return (
         <Document title="道路申請">
             {formIds.map((id) => {

@@ -161,6 +161,100 @@ export const roadPermitCreateSchema = z.object({
     ),
 });
 
+// ---------------------------------------------------------------------------
+// 図面（Phase 2・RoadPermit.drawing）
+// 形の細かい正規化はサーバーの normalizeRoadPermitDrawing に任せ、ここでは
+// 「壊れていないか」と「大きすぎないか」だけを見る（図形は最大 5,000 個・点は 1 図形 2,000 個まで）
+// ---------------------------------------------------------------------------
+
+const MM = z.number().finite();
+const pointSchema = z.object({ x: MM, y: MM });
+const pointsSchema = z.array(pointSchema).max(2000, '1 つの図形の点が多すぎます');
+const styleSchema = z
+    .object({
+        lineType: z.enum(['solid', 'dashed', 'dashdot', 'dotted']).optional(),
+        width: z.enum(['thin', 'normal', 'thick']).optional(),
+        color: z.string().max(9).optional(),
+    })
+    .optional();
+const entityBase = { id: z.string().max(64).optional(), layer: z.number().int().min(0).max(6).optional(), style: styleSchema };
+const textHeight = z.number().finite().min(0.5).max(100).optional();
+
+export const roadPermitDrawingEntitySchema = z.discriminatedUnion('kind', [
+    z.object({ ...entityBase, kind: z.literal('line'), a: pointSchema, b: pointSchema }),
+    z.object({ ...entityBase, kind: z.literal('polyline'), points: pointsSchema, closed: z.boolean().optional() }),
+    z.object({ ...entityBase, kind: z.literal('circle'), center: pointSchema, r: MM }),
+    z.object({ ...entityBase, kind: z.literal('arc'), center: pointSchema, r: MM, startDeg: MM, endDeg: MM }),
+    z.object({
+        ...entityBase,
+        kind: z.literal('text'),
+        at: pointSchema,
+        text: z.string().max(500),
+        heightPaperMm: textHeight,
+        rotationDeg: MM.optional(),
+        align: z.enum(['left', 'center', 'right']).optional(),
+    }),
+    z.object({
+        ...entityBase,
+        kind: z.literal('dimension'),
+        a: pointSchema,
+        b: pointSchema,
+        offsetMm: MM.optional(),
+        mode: z.enum(['aligned', 'horizontal', 'vertical']).optional(),
+        textOverride: z.string().max(100).nullable().optional(),
+        heightPaperMm: textHeight,
+    }),
+    z.object({ ...entityBase, kind: z.literal('leader'), points: pointsSchema, text: z.string().max(500), heightPaperMm: textHeight }),
+    z.object({
+        ...entityBase,
+        kind: z.literal('hatch'),
+        points: pointsSchema,
+        pattern: z.enum(['diagonal', 'cross', 'solid']).optional(),
+        spacingPaperMm: z.number().finite().min(0.2).max(100).optional(),
+    }),
+    z.object({
+        ...entityBase,
+        kind: z.literal('symbol'),
+        symbolId: z.string().max(64),
+        at: pointSchema,
+        rotationDeg: MM.optional(),
+        mirrored: z.boolean().optional(),
+    }),
+]);
+
+export const roadPermitDrawingSchema = z.object({
+    version: z.literal(1),
+    paper: z.object({ size: z.enum(['A4', 'A3']), orientation: z.enum(['landscape', 'portrait']) }),
+    scale: z.number().int(),
+    origin: pointSchema,
+    layers: z
+        .array(
+            z.object({
+                id: z.number().int().min(0).max(6),
+                name: z.string().max(50).optional(),
+                visible: z.boolean().optional(),
+                locked: z.boolean().optional(),
+                printable: z.boolean().optional(),
+            }),
+        )
+        .max(7)
+        .optional(),
+    currentLayer: z.number().int().min(0).max(6).optional(),
+    entities: z.array(roadPermitDrawingEntitySchema).max(5000, '図形が多すぎます（5,000 個まで）'),
+    titleBlock: z
+        .object({
+            drawingName: z.string().max(100).optional(),
+            location: z.string().max(200).optional(),
+            routeName: z.string().max(200).optional(),
+            period: z.string().max(100).optional(),
+            author: z.string().max(100).optional(),
+        })
+        .optional(),
+    showTitleBlock: z.boolean().optional(),
+    showNorthArrow: z.boolean().optional(),
+    showScaleBar: z.boolean().optional(),
+});
+
 /** PUT /api/road-permits/[id] */
 export const roadPermitUpdateSchema = z.object({
     title: z.preprocess(
@@ -170,6 +264,8 @@ export const roadPermitUpdateSchema = z.object({
     status: z.enum(ROAD_PERMIT_STATUSES as unknown as [string, ...string[]], { message: '状態が正しくありません' }),
     values: roadPermitValuesSchema,
     documents: roadPermitDocumentsSchema,
+    /** 図面（Phase 2）。省略＝変えない／null＝消す */
+    drawing: roadPermitDrawingSchema.nullable().optional(),
 });
 
 /** GET /api/road-permits?status=&projectMasterId= */

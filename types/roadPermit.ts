@@ -10,6 +10,8 @@
  * - 様式（どの書類を出すか）は lib/roadPermit/forms/ のカタログ。ここでは id だけ持つ。
  */
 
+import type { RoadPermitDrawing } from './roadPermitDrawing';
+
 // ---------------------------------------------------------------------------
 // 状態・様式の id
 // ---------------------------------------------------------------------------
@@ -254,6 +256,8 @@ export interface RoadPermitDto {
     status: RoadPermitStatus;
     values: RoadPermitValues;
     documents: RoadPermitDocuments;
+    /** 図面（Phase 2）。まだ描いていなければ null */
+    drawing: RoadPermitDrawing | null;
     createdBy: string | null;
     updatedBy: string | null;
     createdAt: string;
@@ -298,14 +302,20 @@ export interface RoadPermitUpdatePayload {
     status: RoadPermitStatus;
     values: RoadPermitValues;
     documents: RoadPermitDocuments;
+    /** 図面。省略＝変えない／null＝消す */
+    drawing?: RoadPermitDrawing | null;
 }
 
 // ---------------------------------------------------------------------------
 // PDF
 // ---------------------------------------------------------------------------
 
-/** PDF を作るときの入力（utils/roadPermitPdf.tsx）。formIds の順に 1 つの PDF へ入れる */
+/** PDF を作るときの入力（utils/roadPermitPdf.tsx）。formIds の順に 1 つの PDF へ入れ、最後に図面（includeDrawing のとき） */
 export interface RoadPermitPdfInput {
     values: RoadPermitValues;
     formIds: RoadPermitFormId[];
+    /** 図面（Phase 2）。無ければ省略 */
+    drawing?: RoadPermitDrawing | null;
+    /** 図面のページを最後に入れるか（図形が 1 つも無ければ入れない） */
+    includeDrawing?: boolean;
 }
