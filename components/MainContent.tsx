@@ -23,6 +23,7 @@ const VALID_PAGES: PageType[] = [
     'materials', 'inventory', 'stocktake', 'loading-list', 'material-returns', 'equipment', 'kakoi-calc', 'settings', 'chat',
     'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'own-crew-volume',
     'joyo-statements',
+    'road-permits',
     'evaluation-points',
     'allowances',
 ];
@@ -134,6 +135,10 @@ const PartnerWorkVolumePage = dynamic(() => import('./PartnerWorkVolume/PartnerW
     loading: () => <LoadingSpinner />,
 });
 const OwnCrewVolumePage = dynamic(() => import('./OwnCrewVolume/OwnCrewVolumePage'), {
+    loading: () => <LoadingSpinner />,
+});
+// 道路申請（道路使用許可・道路占用許可の申請書）。PDF 部品は画面の中でさらに遅れて読み込む
+const RoadPermitsPage = dynamic(() => import('./RoadPermits/RoadPermitsPage'), {
     loading: () => <LoadingSpinner />,
 });
 const JoyoStatementsPage = dynamic(() => import('./JoyoStatements/JoyoStatementsPage'), {
@@ -331,6 +336,7 @@ export default function MainContent() {
         'partner-work-volume': '協力業者出来高表',
         'own-crew-volume': '自社班の出来高',
         'joyo-statements': '支払明細書',
+        'road-permits': '道路申請',
         'evaluation-points': '評価ポイント',
         'allowances': '手当',
     };
@@ -575,6 +581,13 @@ export default function MainContent() {
                 }
                 return <OwnCrewVolumePage />;
 
+            case 'road-permits':
+                // 道路申請は会社の申請書を作るので admin / manager だけ（API も 403）
+                if (userRole !== 'admin' && userRole !== 'manager') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <RoadPermitsPage />;
+
             case 'joyo-statements':
                 // 支払明細書（常用の一人親方向け）: admin は管理者の画面（全員の明細の作成・発行。API も admin 以外は 403）。
                 // manager / foreman1 / foreman2 / worker は本人の画面（自分の発行済みの明細だけ）。
@@ -608,7 +621,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             `}>
-                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'own-crew-volume', 'joyo-statements', 'evaluation-points', 'allowances', 'materials', 'kakoi-calc'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
+                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'order-backlog', 'customers', 'chat', 'payment-schedules', 'receipts', 'cashbook', 'credit-card', 'payees', 'partner-work-volume', 'own-crew-volume', 'joyo-statements', 'road-permits', 'evaluation-points', 'allowances', 'materials', 'kakoi-calc'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}

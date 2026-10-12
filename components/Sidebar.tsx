@@ -21,7 +21,7 @@ import { useJoyoStatementAccess } from '@/hooks/useJoyoStatementAccess';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'evaluation-points' | 'allowances' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'order-backlog' | 'materials' | 'inventory' | 'stocktake' | 'loading-list' | 'material-returns' | 'equipment' | 'kakoi-calc' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'own-crew-volume' | 'joyo-statements' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'evaluation-points' | 'allowances' | 'profit-dashboard' | 'estimates' | 'invoices' | 'billing-drafts' | 'billing-board' | 'order-backlog' | 'materials' | 'inventory' | 'stocktake' | 'loading-list' | 'material-returns' | 'equipment' | 'kakoi-calc' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'receipts' | 'cashbook' | 'credit-card' | 'payees' | 'partner-work-volume' | 'own-crew-volume' | 'joyo-statements' | 'road-permits' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
     /** true なら User.canAccessCashbook を持つユーザーにのみ表示（ロールでは表現できない個別許可制） */
@@ -66,6 +66,7 @@ const navigationSections: NavSection[] = [
             { name: '現金出納帳', page: 'cashbook', requiresCashbookAccess: true },
             { name: 'クレジットカード', page: 'credit-card', requiresCashbookAccess: true },
             { name: '支払明細書', page: 'joyo-statements', requiredRoles: ['admin', 'manager', 'foreman1', 'foreman2', 'worker'], requiresJoyoStatementAccess: true },
+            { name: '道路申請', page: 'road-permits', requiredRoles: ['admin', 'manager'] },
             { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin', 'accountant'] },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },
         ],
