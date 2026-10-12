@@ -10,8 +10,14 @@
  *   - 各ページに主要な文言（表題・宛先・目的・場所・路線名・数量・期間など）が入っていること
  *   - 文字が右端（595 − 余白）を越えないこと
  *
- * 実行: npx tsx scripts/verify-road-permit-pdf.tsx --values <json> [--out <pdf>]
+ *   - 図面（--drawing か --sample-drawing）があるとき: ページ数が 1 増えること・最後のページの大きさが用紙どおりなこと・
+ *     表題欄の文言（図面名・縮尺など）が入ること・文字が用紙の外に出ないこと（枠＝10mm 内側を越えたものは注意として出す）
+ *
+ * 実行: npx tsx scripts/verify-road-permit-pdf.tsx --values <json> [--out <pdf>] [--drawing <json> | --sample-drawing]
  *   例: npx tsx scripts/verify-road-permit-pdf.tsx --values docs/road-permit/forms/sample-values.json --out tmp/road.pdf
+ *   図面つき: ... --values docs/road-permit/forms/sample-values.json --sample-drawing --out tmp/road-drawing.pdf
+ *   --drawing の JSON は RoadPermitDrawing（normalizeRoadPermitDrawing を通す）。--sample-drawing は画面イメージの
+ *   西条市の例（道路 2線・官民境界・既存建物・足場の帯・寸法・文字・引出線）をこのスクリプトの中で組み立てる。
  * JSON は RoadPermitValues（＋ formIds。無ければ 3 様式すべて）。normalizeRoadPermitValues を通すので欠けた欄は空になる。
  */
 import React from 'react';
@@ -28,6 +34,10 @@ import {
 } from '../lib/roadPermit/format';
 import { ROAD_PERMIT_FORM_IDS, type RoadPermitFormId, type RoadPermitValues } from '../types/roadPermit';
 import { sanitizePdfText } from '../components/pdf/styles';
+import type { DrawingEntity, DrawingLayerId, DrawingStyle, RoadPermitDrawing } from '../types/roadPermitDrawing';
+import { emptyRoadPermitDrawing, isDrawingEmpty, normalizeRoadPermitDrawing } from '../lib/roadPermit/drawing/defaults';
+import { drawingPaperMm, PAPER_MARGIN_MM, PT_PER_MM, scaleLabel } from '../lib/roadPermit/drawing/paper';
+import { titleBlockRows } from '../components/pdf/roadPermit/DrawingPage';
 // styles.ts（CDNフォント）の後に評価させるため import は最後に置く
 import '../lib/pdf/registerServerFonts';
 
@@ -42,6 +52,11 @@ interface PageInfo {
     maxX: number;
     /** 右端を越えた文字（調べる用） */
     overflow: string[];
+    /** ページの大きさ（pt） */
+    width: number;
+    height: number;
+    /** 文字ごとの始点と終点（pt・PDF の座標＝左下原点）。回転した文字も向きに沿って終点を出す */
+    items: { str: string; x1: number; y1: number; x2: number; y2: number; size: number }[];
 }
 
 async function analyze(buf: Buffer): Promise<PageInfo[]> {
@@ -51,19 +66,30 @@ async function analyze(buf: Buffer): Promise<PageInfo[]> {
     for (let i = 1; i <= doc.numPages; i++) {
         const page = await doc.getPage(i);
         const content = await page.getTextContent();
+        const [, , width, height] = page.view;
         let text = '';
         let maxX = 0;
         const overflow: string[] = [];
+        const items: PageInfo['items'] = [];
         for (const it of content.items as { str?: string; transform: number[]; width?: number }[]) {
             if (!it.str) continue;
             text += it.str;
+            {
+                // 文字の始点（transform の e,f）と、文字の向き（a,b）に沿って幅だけ進んだ終点
+                const [a, b, , , e, f] = it.transform;
+                const size = Math.hypot(a, b);
+                const w = it.width ?? 0;
+                const ux = size > 0 ? a / size : 1;
+                const uy = size > 0 ? b / size : 0;
+                items.push({ str: it.str, x1: e, y1: f, x2: e + ux * w, y2: f + uy * w, size });
+            }
             if (it.str.trim()) {
                 const right = Math.round(it.transform[4] + (it.width ?? 0));
                 maxX = Math.max(maxX, right);
                 if (right > MAX_X) overflow.push(`${it.str}(右端 ${right})`);
             }
         }
-        pages.push({ text: text.replace(/\s/g, ''), maxX, overflow });
+        pages.push({ text: text.replace(/\s/g, ''), maxX, overflow, width, height, items });
     }
     return pages;
 }
@@ -124,8 +150,166 @@ function expectedTexts(id: RoadPermitFormId, v: RoadPermitValues): string[] {
     return ['許可', '道路占用', '回答書', ...common, '上記について次の条件により', '道路管理者', v.matsuyama.mayorName];
 }
 
+// ---------------------------------------------------------------------------
+// 図面のページ
+// ---------------------------------------------------------------------------
+
+/** 図面のページを確かめる: 用紙の大きさ・表題欄の文言・文字が用紙の外に出ないこと */
+function checkDrawingPage(pageNo: number, page: PageInfo, drawing: RoadPermitDrawing, values: RoadPermitValues, isSample: boolean): string[] {
+    const problems: string[] = [];
+    const paper = drawingPaperMm(drawing);
+    const W = paper.w * PT_PER_MM;
+    const H = paper.h * PT_PER_MM;
+    if (Math.abs(page.width - W) > 1 || Math.abs(page.height - H) > 1) {
+        problems.push(`図面のページの大きさ ${page.width.toFixed(1)}×${page.height.toFixed(1)}pt（期待 ${W.toFixed(1)}×${H.toFixed(1)}）`);
+    }
+    const expected: string[] = [];
+    if (drawing.showTitleBlock) {
+        for (const r of titleBlockRows(drawing, values)) expected.push(r.label, r.value);
+    }
+    if (drawing.showScaleBar || drawing.showTitleBlock) expected.push(scaleLabel(drawing.scale));
+    if (drawing.showNorthArrow) expected.push('N');
+    if (isSample) expected.push('市道　新屋敷線', 'くさび緊結式足場', '既存建物（改修）', '11,100', '810', '6,000');
+    for (const t of expected) {
+        const n = norm(t);
+        if (n !== '' && !page.text.includes(n)) problems.push(`${pageNo}ページ目（図面）に「${t}」が見つからない`);
+    }
+    // 印刷しないレイヤ（見本では 下敷き）の文字が出ていないこと
+    if (isSample && page.text.includes(norm('下敷き（印刷しない）'))) problems.push(`${pageNo}ページ目（図面）に印刷しないレイヤの文字が出ている`);
+
+    // 文字が用紙の外に出ないこと（書体の読み込み用に置いた 1pt の見えない文字は除く）
+    const m = PAPER_MARGIN_MM * PT_PER_MM;
+    const outside = (it: PageInfo['items'][number], inset: number) =>
+        [it.x1, it.x2].some((x) => x < inset || x > W - inset) || [it.y1, it.y2].some((y) => y < inset || y > H - inset);
+    const warnings: string[] = [];
+    for (const it of page.items) {
+        if (!it.str.trim() || it.size < 2) continue;
+        if (outside(it, 0)) {
+            problems.push(`${pageNo}ページ目（図面）の文字が用紙の外: 「${it.str}」 (${it.x1.toFixed(0)},${it.y1.toFixed(0)})〜(${it.x2.toFixed(0)},${it.y2.toFixed(0)})`);
+        } else if (outside(it, m - 1)) {
+            warnings.push(`「${it.str}」`);
+        }
+    }
+    if (warnings.length > 0) console.log(`注意: 用紙の枠（10mm 内側）を越えた文字 ${warnings.length} 個: ${warnings.slice(0, 10).join(' ')}`);
+    console.log(
+        `${pageNo}ページ目 図面: 文字数 ${page.text.length} / ${drawing.paper.size} ${drawing.paper.orientation === 'landscape' ? '横' : '縦'} ${scaleLabel(drawing.scale)} / 図形 ${drawing.entities.length} 個`,
+    );
+    return problems;
+}
+
+/**
+ * 見本の図面（画面イメージ docs/道路申請_作図画面イメージ.html の西条市の例）。A3 横・S=1/100。
+ * 座標は実寸 mm・Y 上向き。道路は x 方向に走り、上側（y=0）が官民境界。
+ *   y=0 官民境界（一点鎖線）／y=-300 側溝の内側／y=-3300 中心線（破線）／y=-6300 側溝の内側／y=-6600 官民境界
+ *   既存建物 x 6,000〜20,000・y 1,500〜12,000（ハッチ）／足場の帯 x 9,000〜20,100・y -810〜0（11,100×810）
+ * 寸法・占用面積などの値は西条市の過去の申請書の値（番地は省略）。
+ */
+function sampleDrawing(): RoadPermitDrawing {
+    const d = emptyRoadPermitDrawing();
+    let n = 0;
+    const id = () => `s${++n}`;
+    const st = (lineType: DrawingStyle['lineType'] = 'solid', width: DrawingStyle['width'] = 'normal'): DrawingStyle => ({
+        lineType,
+        width,
+        color: '#000000',
+    });
+    const L = (layer: DrawingLayerId, ax: number, ay: number, bx: number, by: number, style = st()): DrawingEntity => ({
+        id: id(),
+        layer,
+        style,
+        kind: 'line',
+        a: { x: ax, y: ay },
+        b: { x: bx, y: by },
+    });
+    const rect = (x1: number, y1: number, x2: number, y2: number) => [
+        { x: x1, y: y1 },
+        { x: x2, y: y1 },
+        { x: x2, y: y2 },
+        { x: x1, y: y2 },
+    ];
+    const text = (
+        layer: DrawingLayerId,
+        x: number,
+        y: number,
+        t: string,
+        h: number,
+        align: 'left' | 'center' | 'right' = 'left',
+        rot = 0,
+    ): DrawingEntity => ({
+        id: id(),
+        layer,
+        style: st(),
+        kind: 'text',
+        at: { x, y },
+        text: t,
+        heightPaperMm: h,
+        rotationDeg: rot,
+        align,
+    });
+    const dim = (ax: number, ay: number, bx: number, by: number, offsetMm: number, mode: 'horizontal' | 'vertical'): DrawingEntity => ({
+        id: id(),
+        layer: 5,
+        style: st('solid', 'thin'),
+        kind: 'dimension',
+        a: { x: ax, y: ay },
+        b: { x: bx, y: by },
+        offsetMm,
+        mode,
+        textOverride: null,
+        heightPaperMm: 2.5,
+    });
+    const X1 = -2000;
+    const X2 = 37000;
+    const building = rect(6000, 1500, 20000, 12000);
+    const scaffold = rect(9000, -810, 20100, 0);
+    d.entities = [
+        // 道路・境界（レイヤ 0）
+        L(0, X1, 0, X2, 0, st('dashdot', 'normal')),
+        L(0, X1, -300, X2, -300),
+        L(0, X1, -3300, X2, -3300, st('dashed', 'thin')),
+        L(0, X1, -6300, X2, -6300),
+        L(0, X1, -6600, X2, -6600, st('dashdot', 'normal')),
+        text(5, X1 + 200, 150, '官民境界', 2),
+        text(5, X1 + 200, -250, '側溝 W300', 2),
+        text(5, X1 + 200, -6550, '側溝 W300', 2),
+        // 既存建物（レイヤ 1）
+        { id: id(), layer: 1, style: st('solid', 'thick'), kind: 'polyline', points: building, closed: true },
+        { id: id(), layer: 1, style: st('solid', 'thin'), kind: 'hatch', points: building, pattern: 'diagonal', spacingPaperMm: 3 },
+        text(1, 13000, 6500, '既存建物（改修）', 4, 'center'),
+        // 足場の帯（レイヤ 2）
+        { id: id(), layer: 2, style: st('solid', 'thick'), kind: 'polyline', points: scaffold, closed: true },
+        { id: id(), layer: 2, style: st('solid', 'thin'), kind: 'hatch', points: scaffold, pattern: 'cross', spacingPaperMm: 1.5 },
+        // 寸法（レイヤ 5）: 足場の長さ・足場の幅・道路の幅
+        dim(9000, -810, 20100, -810, -1500, 'horizontal'),
+        dim(9000, 0, 9000, -810, -1000, 'vertical'),
+        dim(2500, -300, 2500, -6300, -500, 'vertical'),
+        // 文字・引出線（レイヤ 5）
+        text(5, 16000, -4600, '市道　新屋敷線', 5, 'center'),
+        text(5, 16000, -5400, '（幅員 6,600　車道 6,000）', 2.5, 'center'),
+        text(5, 14000, -8600, '（向かい側　民地）', 2.5, 'center'),
+        {
+            id: id(),
+            layer: 5,
+            style: st('solid', 'thin'),
+            kind: 'leader',
+            points: [
+                { x: 10500, y: -400 },
+                { x: 7500, y: 2600 },
+                { x: 3500, y: 2600 },
+            ],
+            text: 'くさび緊結式足場',
+            heightPaperMm: 3,
+        },
+        // 下敷き（レイヤ 6・印刷しない）: PDF に出ないことを確かめるための文字
+        text(6, 30000, 9000, '下敷き（印刷しない）', 3),
+    ];
+    // 用紙の左下隅に来る図面座標: x=-2,000 が枠の左（10mm）・道路が用紙の下 1/3 に来る位置
+    d.origin = { x: -3000, y: -15000 };
+    return d;
+}
+
 function usage(): never {
-    console.error('使い方: npx tsx scripts/verify-road-permit-pdf.tsx --values <json> [--out <pdf>]');
+    console.error('使い方: npx tsx scripts/verify-road-permit-pdf.tsx --values <json> [--out <pdf>] [--drawing <json> | --sample-drawing]');
     process.exit(1);
 }
 
@@ -148,7 +332,18 @@ async function main() {
         process.exit(1);
     }
 
-    const buf = await renderToBuffer(<RoadPermitDocument values={values} formIds={formIds} />);
+    // 図面（--drawing <json> か --sample-drawing）。DB から読むときと同じく normalizeRoadPermitDrawing を通す
+    const drawingPath = arg('--drawing');
+    const useSample = !drawingPath && args.includes('--sample-drawing');
+    let drawing: RoadPermitDrawing | null = null;
+    if (drawingPath) drawing = normalizeRoadPermitDrawing(JSON.parse(fs.readFileSync(drawingPath, 'utf8')));
+    else if (useSample) drawing = normalizeRoadPermitDrawing(JSON.parse(JSON.stringify(sampleDrawing())));
+    const hasDrawing = drawing != null && !isDrawingEmpty(drawing);
+    if (drawing && !hasDrawing) console.log('図面に図形が 1 つも無いので、図面のページは入りません');
+
+    const buf = await renderToBuffer(
+        <RoadPermitDocument values={values} formIds={formIds} drawing={drawing} includeDrawing={hasDrawing} />,
+    );
     if (outPath) {
         fs.writeFileSync(outPath, buf);
         console.log(`PDF を書き出しました: ${outPath}`);
@@ -156,7 +351,8 @@ async function main() {
 
     const pages = await analyze(buf);
     const problems: string[] = [];
-    if (pages.length !== formIds.length) problems.push(`ページ数=${pages.length}（期待 ${formIds.length}）`);
+    const expectedPages = formIds.length + (hasDrawing ? 1 : 0);
+    if (pages.length !== expectedPages) problems.push(`ページ数=${pages.length}（期待 ${expectedPages}）`);
     formIds.forEach((id, i) => {
         const page = pages[i];
         if (!page) return;
@@ -168,6 +364,11 @@ async function main() {
         if (page.maxX > MAX_X) problems.push(`${i + 1}ページ目 右端はみ出し maxX=${page.maxX}: ${page.overflow.join(' / ')}`);
         console.log(`${i + 1}ページ目 ${id}: 文字数 ${page.text.length} / 右端 maxX=${page.maxX}`);
     });
+
+    if (hasDrawing && drawing) {
+        const page = pages[formIds.length];
+        if (page) problems.push(...checkDrawingPage(formIds.length + 1, page, drawing, values, useSample));
+    }
 
     console.log(`期間（警察）: ${formatReiwaYmdOrBlank(values.period.useFrom)}${formatHourLabel(values.period.timeFrom)}から${formatReiwaYmdOrBlank(values.period.useTo)}${formatHourLabel(values.period.timeTo)}まで`);
     console.log(`工事の期間（松山市）: ${formatReiwaRange(values.period.workFrom, values.period.workTo)}`);
