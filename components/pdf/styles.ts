@@ -32,6 +32,23 @@ Font.register({
     ],
 });
 
+// 明朝体（Noto Serif JP・Regular のみ 8MB）。役所の様式（道路申請）は原本が ＭＳ 明朝 なので、見た目を合わせるために使う。
+// ＭＳ 明朝 は Microsoft の書体で同梱して配れないため、無料で同梱できる明朝体の Noto Serif JP を使う。
+// 他の帳票（見積書・請求書など）は従来どおり NotoSansJP のまま。登録しただけでは読み込まれず、使う PDF を描くときに初めて取りに行く。
+// 太字は登録しない（bold を指定しても Regular で描かれる）。サーバー側は lib/pdf/registerServerFonts.ts がローカルの TTF で上書きする。
+const CDN_SERIF_REGULAR =
+    'https://fonts.gstatic.com/s/notoserifjp/v34/xn71YHs72GKoTvER4Gn3b5eMRtWGkp6o7MjQ2bwxOubA.ttf';
+
+Font.register({
+    family: 'NotoSerifJP',
+    fonts: [
+        {
+            src: isBrowser ? '/fonts/NotoSerifJP-Regular.ttf' : CDN_SERIF_REGULAR,
+            fontWeight: 'normal',
+        },
+    ],
+});
+
 // Shared color palette for PDF documents
 export const PDF_COLORS = {
     navy: '#222222',

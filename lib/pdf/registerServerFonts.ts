@@ -64,5 +64,18 @@ Font.register({
     ],
 });
 
+// 明朝体（道路申請の PDF 用。styles.ts と同じ Noto Serif JP Regular）。同梱ファイルがあればそれ、無ければ Google Fonts の TTF
+const CDN_SERIF_400 =
+    'https://fonts.gstatic.com/s/notoserifjp/v34/xn71YHs72GKoTvER4Gn3b5eMRtWGkp6o7MjQ2bwxOubA.ttf';
+const serifRegularPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSerifJP-Regular.ttf');
+const hasLocalSerif = exists(serifRegularPath);
+if (registeredFamilies && registeredFamilies['NotoSerifJP']) {
+    delete registeredFamilies['NotoSerifJP'];
+}
+Font.register({
+    family: 'NotoSerifJP',
+    fonts: [{ src: hasLocalSerif ? serifRegularPath : CDN_SERIF_400, fontWeight: 'normal' }],
+});
+
 /** 同梱フォントが使われているか（ログ/検証用） */
 export const usingLocalFont = hasLocalFont;

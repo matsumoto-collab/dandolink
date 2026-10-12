@@ -27,14 +27,18 @@ const INK = '#000000';
 
 /**
  * ベースライン → 箱の上端 のずらし幅（fontSize に対する比）。
- * NotoSansJP の ascent（1.16em）。lineHeight: 1 でも react-pdf はベースラインを箱の上端から ascent の位置に置く
- * （実際に描いた PDF の文字の位置を pdfjs で測って合わせた）。
+ * NotoSerifJP の ascent（1.151em。hhea の ascender 1151/1000）。lineHeight: 1 でも react-pdf はベースラインを
+ * 箱の上端から ascent の位置に置く（NotoSansJP のときは 1.16 で、実際に描いた PDF の文字の位置を pdfjs で測って合わせた）。
  */
-export const BASELINE_RATIO = 1.16;
+export const BASELINE_RATIO = 1.151;
 
-/** ページ（A4 縦・NotoSansJP・余白なし。中身はすべて絶対配置） */
+/**
+ * ページ（A4 縦・余白なし。中身はすべて絶対配置）。
+ * 書体は明朝体（NotoSerifJP）。原本の Word が ＭＳ 明朝 なので見た目を合わせる（kei 要望 2026-10-12）。
+ * ＭＳ 明朝 は同梱して配れないため、無料で同梱できる Noto Serif JP（components/pdf/styles.ts で登録）
+ */
 export const pageStyle = {
-    fontFamily: 'NotoSansJP',
+    fontFamily: 'NotoSerifJP',
     fontSize: 10.5,
     color: INK,
     position: 'relative' as const,
