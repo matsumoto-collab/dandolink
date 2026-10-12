@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import dynamic from 'next/dynamic';
 import toast from 'react-hot-toast';
 import { Eye, FileDown, RefreshCw, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +13,8 @@ import { sendBroadcast } from '@/lib/broadcastChannel';
 import { ROAD_PERMIT_FORMS, getRoadPermitForm } from '@/lib/roadPermit/forms';
 import { enabledFormIdsOf, normalizeRoadPermitDocuments, normalizeRoadPermitValues } from '@/lib/roadPermit/defaults';
 import { approxAreaOf, countDaysInclusive } from '@/lib/roadPermit/format';
+import { isDrawingEmpty, normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
+import type { RoadPermitDrawing } from '@/types/roadPermitDrawing';
 import {
     ROAD_PERMIT_STATUSES,
     ROAD_PERMIT_STATUS_LABELS,
@@ -24,6 +27,12 @@ import {
     type RoadPermitValues,
 } from '@/types/roadPermit';
 import { ROAD_PERMIT_STATUS_BADGE, errorMessage, parseDayCountInput, statusLabel } from './roadPermitUi';
+
+// 図面タブ（作図画面）は konva を使うので、開いたときだけ読み込む（サーバーでは描かない）
+const DrawingEditor = dynamic(() => import('./Drawing'), {
+    ssr: false,
+    loading: () => <div className="flex h-full items-center justify-center text-sm text-slate-500">図面を読み込んでいます…</div>,
+});
 
 interface RoadPermitEditorProps {
     permit: RoadPermitDto;
@@ -40,13 +49,16 @@ interface EditorForm {
     status: RoadPermitStatus;
     values: RoadPermitValues;
     documents: RoadPermitDocuments;
+    /** 図面（まだ描いていなければ null） */
+    drawing: RoadPermitDrawing | null;
 }
 
-type TabKey = 'basic' | 'forms' | 'submit';
+type TabKey = 'basic' | 'forms' | 'drawing' | 'submit';
 
 const TABS: { key: TabKey; label: string }[] = [
     { key: 'basic', label: '基本' },
     { key: 'forms', label: '申請書' },
+    { key: 'drawing', label: '図面' },
     { key: 'submit', label: '添付・提出' },
 ];
 
@@ -57,6 +69,7 @@ function toForm(p: RoadPermitDto): EditorForm {
         status: p.status,
         values: normalizeRoadPermitValues(p.values),
         documents: normalizeRoadPermitDocuments(p.documents),
+        drawing: p.drawing ? normalizeRoadPermitDrawing(p.drawing) : null,
     };
 }
 
@@ -65,7 +78,7 @@ const inputBase =
 const sectionBox = 'bg-white rounded-lg border border-slate-200 p-4';
 
 /**
- * 道路申請の編集画面（指示書 §6.2）。タブは「基本」「申請書」「添付・提出」の 3 つ（「図面」は Phase 2）。
+ * 道路申請の編集画面（指示書 §6.2）。タブは「基本」「申請書」「図面」「添付・提出」の 4 つ（「図面」は Phase 2a の作図画面）。
  * - 保存は「保存」ボタンだけ（自動保存はしない）。保存していない変更があれば、閉じる前に確かめる
  * - 「申請書」タブだけ、右側（lg 以上）にその場の PDF プレビューを出す。lg 未満は「プレビュー」ボタンで全画面
  */
@@ -76,6 +89,8 @@ export default function RoadPermitEditor({ permit, company, onClose, onSaved }: 
     const [tab, setTab] = useState<TabKey>('basic');
     const [saving, setSaving] = useState(false);
     const [exporting, setExporting] = useState(false);
+    // PDF に図面のページも入れるか（図形があるときだけ選べる。既定はオン）
+    const [includeDrawing, setIncludeDrawing] = useState(true);
     const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
     // 二重押しを防ぐ同期ロック（state の反映を待たずに止める）
     const lockRef = useRef(false);
@@ -121,13 +136,15 @@ export default function RoadPermitEditor({ permit, company, onClose, onSaved }: 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== 'Escape') return;
+            // 図面タブの Esc は「描きかけの中止」に使うので、編集画面は閉じない
+            if (tab === 'drawing') return;
             e.stopPropagation();
             if (mobilePreviewOpen) setMobilePreviewOpen(false);
             else requestClose();
         };
         document.addEventListener('keydown', onKey);
         return () => document.removeEventListener('keydown', onKey);
-    }, [mobilePreviewOpen, requestClose]);
+    }, [mobilePreviewOpen, requestClose, tab]);
 
     // 直しかけのままブラウザのタブを閉じようとしたら確認する
     useEffect(() => {
@@ -159,6 +176,8 @@ export default function RoadPermitEditor({ permit, company, onClose, onSaved }: 
                     status: form.status,
                     values: form.values,
                     documents: form.documents,
+                    // 図面はまだ描いていなければ送らない（送らない＝変えない）
+                    ...(form.drawing ? { drawing: form.drawing } : {}),
                 }),
             });
             if (!res.ok) throw new Error(await errorMessage(res, '保存に失敗しました'));
@@ -185,7 +204,12 @@ export default function RoadPermitEditor({ permit, company, onClose, onSaved }: 
         setExporting(true);
         try {
             const { exportRoadPermitPDF } = await import('@/utils/roadPermitPdf');
-            await exportRoadPermitPDF({ values, formIds });
+            await exportRoadPermitPDF({
+                values,
+                formIds,
+                drawing: form.drawing,
+                includeDrawing: includeDrawing && !isDrawingEmpty(form.drawing),
+            });
         } catch (e) {
             logger.error('道路申請のPDF出力失敗:', e);
             toast.error(e instanceof Error ? e.message : 'PDF を出せませんでした');
@@ -294,7 +318,18 @@ export default function RoadPermitEditor({ permit, company, onClose, onSaved }: 
                             showSidePreview ? 'lg:w-3/5 lg:flex-none lg:border-r lg:border-slate-200' : ''
                         }`}
                     >
-                        <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-6">
+                        {/* 図面タブは高さいっぱい・余白なし（max-w-5xl の枠を外す） */}
+                        {tab === 'drawing' && (
+                            <div className="h-full">
+                                <DrawingEditor
+                                    key={permit.id}
+                                    value={form.drawing}
+                                    values={values}
+                                    onChange={(drawing) => setForm((f) => ({ ...f, drawing }))}
+                                />
+                            </div>
+                        )}
+                        <div className={tab === 'drawing' ? 'hidden' : 'mx-auto max-w-5xl space-y-4 p-4 md:p-6'}>
                             {tab === 'basic' && (
                                 <BasicTab
                                     key={permit.id}
@@ -331,6 +366,9 @@ export default function RoadPermitEditor({ permit, company, onClose, onSaved }: 
                                     form={form}
                                     formIds={formIds}
                                     exporting={exporting}
+                                    hasDrawing={!isDrawingEmpty(form.drawing)}
+                                    includeDrawing={includeDrawing}
+                                    onIncludeDrawing={setIncludeDrawing}
                                     onStatus={(status) => setForm((f) => ({ ...f, status }))}
                                     updateDoc={updateDoc}
                                     onExportPdf={() => void handleExportPdf()}
@@ -989,6 +1027,9 @@ function SubmitTab({
     form,
     formIds,
     exporting,
+    hasDrawing,
+    includeDrawing,
+    onIncludeDrawing,
     onStatus,
     updateDoc,
     onExportPdf,
@@ -996,6 +1037,10 @@ function SubmitTab({
     form: EditorForm;
     formIds: RoadPermitFormId[];
     exporting: boolean;
+    /** 図面に図形が 1 つ以上あるか（無ければ「図面も入れる」を出さない） */
+    hasDrawing: boolean;
+    includeDrawing: boolean;
+    onIncludeDrawing: (v: boolean) => void;
     onStatus: (s: RoadPermitStatus) => void;
     updateDoc: UpdateDoc;
     onExportPdf: () => void;
@@ -1022,6 +1067,17 @@ function SubmitTab({
                     </select>
                 </Field>
                 <div className="flex flex-col items-end gap-1">
+                    {hasDrawing && (
+                        <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                            <input
+                                type="checkbox"
+                                checked={includeDrawing}
+                                onChange={(e) => onIncludeDrawing(e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                            />
+                            図面も入れる
+                        </label>
+                    )}
                     <Button
                         type="button"
                         variant="primary"
