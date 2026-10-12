@@ -112,6 +112,7 @@ model ProjectMaster {
   purchaseInvoices           PurchaseInvoice[]
   purchaseInvoiceAllocations PurchaseInvoiceAllocation[]
   receipts                   Receipt[]
+  roadPermits                RoadPermit[]
   /// 過去データ（DandoLink 導入前 2024-01〜2026-04）を CSV から取り込んだ案件なら true。
   /// 取り込みは lib/backfill。進行中の案件（false）には取り込みが一切触れない
   isBackfilled               Boolean                          @default(false)
@@ -3568,5 +3569,40 @@ model EvaluationPointThanksSetting {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @default(now()) @updatedAt
 
+  @@schema("public")
+}
+
+/// 道路申請（1 現場の申請一式）。警察（道路使用許可申請書）・松山市（道路占用 協議書・回答書）などの
+/// 書類をまとめて持つ。入力値は values（JSON）、様式ごとの 提出日・許可日・許可番号・許可期限 は documents（JSON）。
+/// 図面（drawing・Phase 2）と手書きメモの写真（sketchFileId・Phase 3）の列は先に作ってある（マイグレを 1 回で済ませるため）。
+/// 期限の通知は作らない（2026-06-10 kei 決定）。許可期限は documents に持って一覧に出すだけ。
+model RoadPermit {
+  id              String    @id @default(uuid())
+  /// 案件（消されても申請は残す＝SetNull）
+  projectMasterId String?
+  /// 例: 案件名。案件が消えたときの一覧の表示にも使う
+  title           String
+  /// draft=下書き | submitted=提出済み | permitted=許可済み | completed=完了 | canceled=取りやめ
+  status          String    @default("draft")
+  /// 入力値（types/roadPermit.ts の RoadPermitValues。申請者・担当者・現場責任者・現場・期間・道路・占用物件・警察・松山市）
+  values          Json
+  /// 選んだ様式の一覧と、様式ごとの 提出日・許可日・許可番号・許可期限・添付書類のチェック（RoadPermitDocuments）
+  documents       Json
+  /// 図面（Phase 2〜）
+  drawing         Json?
+  /// 手書きメモの写真（Phase 3〜。案件ファイル ProjectMasterFile.id）
+  sketchFileId    String?
+  createdBy       String?
+  updatedBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  /// 論理削除（消した日時。一覧・API はこれが空のものだけ返す）
+  deletedAt       DateTime?
+
+  projectMaster ProjectMaster? @relation(fields: [projectMasterId], references: [id], onDelete: SetNull)
+
+  @@index([projectMasterId])
+  @@index([status])
+  @@index([createdAt])
   @@schema("public")
 }

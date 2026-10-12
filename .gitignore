@@ -54,3 +54,6 @@ nul
 
 # Claude Code
 .claude/
+
+# 道路申請の様式の原本（担当者の携帯番号などが入っているのでコミットしない）
+docs/road-permit/forms/
