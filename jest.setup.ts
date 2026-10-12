@@ -720,6 +720,18 @@ jest.mock('@/lib/prisma', () => ({
             aggregate: jest.fn(),
             groupBy: jest.fn(),
         },
+        // 道路申請（道路使用許可・道路占用許可の申請書）
+        roadPermit: {
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            updateMany: jest.fn(),
+            delete: jest.fn(),
+            deleteMany: jest.fn(),
+            count: jest.fn(),
+        },
         // Raw SQL (advisory lock 等) は no-op
         $executeRaw: jest.fn().mockResolvedValue(0),
         $executeRawUnsafe: jest.fn().mockResolvedValue(0),
