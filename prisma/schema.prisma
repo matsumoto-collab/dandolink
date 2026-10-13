@@ -3618,3 +3618,40 @@ model RoadPermitSetting {
 
   @@schema("public")
 }
+
+/// 道路申請の図面に置く記号（kei の JWW から取り込んだ形。docs/指示書_道路申請_Phase2b_記号.md §3.1）
+/// 形は取り込んだあと直さない（図面は symbolId で指す）。消すかわりに isActive=false。初期データは無い（画面で取り込む）
+model RoadPermitSymbol {
+  id          String   @id @default(uuid())
+  /// 画面と凡例に出す名前（例「4t ユニック車」「カラーコーン」）
+  name        String
+  /// 分類: cone | barricade | vehicle | crane | person | road | other（types/roadPermitSymbol.ts）
+  category    String   @default("other")
+  /// 数量の文での名前（例「カラーコーン」）。空なら数えない
+  countLabel  String   @default("")
+  /// 個・本・台・人 など
+  countUnit   String   @default("")
+  /// 数量の文に添える文字（例「1.5m」）
+  countNote   String   @default("")
+  /// 形（JSON・実寸 mm・基準点＝中心。types/roadPermitSymbol.ts の RoadPermitSymbolGeometry。読むときは lib/roadPermit/symbols/normalize.ts）
+  geometry    Json
+  /// 形の大きさ（実寸 mm）。lengthMm＝横（X）・widthMm＝縦（Y）
+  lengthMm    Float
+  widthMm     Float
+  /// コーンバーとして使うときのコーンの中心の間隔（mm）。null＝コーンバーではない
+  barPitchMm  Int?
+  /// 取り込み元のファイル名・ブロック名・出どころ（例「CAD素材.com」）
+  sourceFile  String   @default("")
+  sourceBlock String   @default("")
+  sourceNote  String   @default("")
+  sortOrder   Int      @default(0)
+  /// パレットに出すか（false でも過去の図面には出る）
+  isActive    Boolean  @default(true)
+  createdBy   String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([category, sortOrder])
+  @@schema("public")
+}
