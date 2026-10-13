@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
-import { Copy, FolderOpen, Loader2, MoreHorizontal, Plus, Trash2, Users } from 'lucide-react';
+import { Copy, FolderOpen, Loader2, MoreHorizontal, Plus, Shapes, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Loading from '@/components/ui/Loading';
 import ProjectMasterSearchModal from '@/components/ProjectMasterSearchModal';
@@ -21,6 +21,7 @@ import {
 } from '@/types/roadPermit';
 import RoadPermitEditor from './RoadPermitEditor';
 import RoadPermitContactsModal from './RoadPermitContactsModal';
+import RoadPermitSymbolsModal from './RoadPermitSymbolsModal';
 import {
     ROAD_PERMIT_STATUS_BADGE,
     errorMessage,
@@ -39,6 +40,7 @@ type PickMode = { kind: 'new' } | { kind: 'copy'; fromId: string };
  * - 行を押す → 1 件を取り直してから編集画面を開く
  * - 別の端末で保存・作成・削除されたら（road_permits_updated）一覧を取り直す（担当者の候補も一緒に取り直る）
  * - 「担当者の候補」ボタン → 候補の登録画面（担当者・現場責任者の「選ぶ」欄の中身）
+ * - 「記号の登録」ボタン → 図面に置く記号の登録画面（JWW から取り込む・名前などの変更）
  */
 export default function RoadPermitsPage() {
     const { data: session } = useSession();
@@ -53,6 +55,8 @@ export default function RoadPermitsPage() {
     const [editing, setEditing] = useState<RoadPermitDto | null>(null);
     const [pickMode, setPickMode] = useState<PickMode | null>(null);
     const [contactsOpen, setContactsOpen] = useState(false);
+    // 「記号の登録」画面（図面に置く記号を JWW から取り込む）
+    const [symbolsOpen, setSymbolsOpen] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
     // 絞り込みを続けて変えたとき、古い応答で上書きしないための番号
     const requestSeqRef = useRef(0);
@@ -231,6 +235,14 @@ export default function RoadPermitsPage() {
                     </Button>
                     <Button
                         type="button"
+                        variant="outline"
+                        onClick={() => setSymbolsOpen(true)}
+                        leftIcon={<Shapes className="h-4 w-4" />}
+                    >
+                        記号の登録
+                    </Button>
+                    <Button
+                        type="button"
                         variant="primary"
                         onClick={() => setPickMode({ kind: 'new' })}
                         disabled={busyId !== null}
@@ -376,6 +388,8 @@ export default function RoadPermitsPage() {
                     setPickMode(null);
                 }}
             />
+
+            {symbolsOpen && <RoadPermitSymbolsModal onClose={() => setSymbolsOpen(false)} />}
 
             {contactsOpen && data && (
                 <RoadPermitContactsModal
