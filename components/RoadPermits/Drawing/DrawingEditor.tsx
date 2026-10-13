@@ -5,6 +5,8 @@
  * - 上＝コントロールバー（いまの操作の設定）／左＝操作ボタン／中央＝用紙（DrawingCanvas）／右＝レイヤと設定／下＝ステータスバー
  * - 状態と操作は editorModel.ts の reducer。この画面は描いて、出来事を action にして渡すだけ
  * - 図形・レイヤ・設定が変わるたびに onChange（保存は編集画面の「保存」ボタン。自動保存はしない）
+ * - 記号（Phase 2b）: 記号の一覧は親（RoadPermitEditor）が API から読んで props.symbols で渡す（null＝読み込み中）。
+ *   右の「記号」（分類のタブ・下絵）で選んで置く。コーン列のコーンとバーの選択はブラウザに覚える（無くても動く）
  */
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -22,6 +24,10 @@ import type {
 } from '@/types/roadPermitDrawing';
 import { DRAWING_SCALES } from '@/types/roadPermitDrawing';
 import type { RoadPermitValues } from '@/types/roadPermit';
+import type { RoadPermitSymbolCategory, RoadPermitSymbolDto, RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
+import { ROAD_PERMIT_SYMBOL_CATEGORIES, ROAD_PERMIT_SYMBOL_CATEGORY_LABELS } from '@/types/roadPermitSymbol';
+import { sortRoadPermitSymbols, toSymbolMap } from '@/lib/roadPermit/symbols/normalize';
+import SymbolThumbnail from './SymbolThumbnail';
 import { DRAWING_LAYER_COLORS, emptyRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
 import { originToFit, paperLabel, scaleLabel } from '@/lib/roadPermit/drawing/paper';
 import { entitiesBBox } from '@/lib/roadPermit/drawing/geometry';
@@ -31,7 +37,13 @@ import {
     DRAW_COMMANDS,
     EDIT_COMMANDS,
     MEASURE_COMMANDS,
+    SYMBOL_COMMANDS,
+    SYMBOL_PLACE_MODE_LABELS,
+    activeConeBarSymbols,
+    activeConeSymbols,
     editorReducer,
+    parseNum,
+    pickSymbolActions,
     guidance,
     initialEditorState,
     realToScreen,
@@ -42,6 +54,7 @@ import {
     type DimensionToolMode,
     type EditorAction,
     type EditorState,
+    type SymbolPlaceMode,
 } from './editorModel';
 
 const DrawingCanvas = dynamic(() => import('./DrawingCanvas'), {
@@ -54,6 +67,33 @@ export interface DrawingEditorProps {
     onChange: (next: RoadPermitDrawing) => void;
     /** 表題欄の既定（場所・路線名・期間・作成）を出すため */
     values: RoadPermitValues;
+    /** 記号の一覧（使わないものも含めて全部・形つき）。null＝読み込み中 */
+    symbols: RoadPermitSymbolDto[] | null;
+}
+
+/** コーン列で前に選んだコーンとバー（ブラウザに覚える） */
+const CONE_ROW_STORAGE_KEY = 'dandolink:roadPermit:coneRow';
+
+function loadConeRowChoice(): { coneSymbolId: string | null; barSymbolId: string | null } {
+    try {
+        const raw = window.localStorage.getItem(CONE_ROW_STORAGE_KEY);
+        if (!raw) return { coneSymbolId: null, barSymbolId: null };
+        const o = JSON.parse(raw) as Record<string, unknown>;
+        return {
+            coneSymbolId: typeof o.coneSymbolId === 'string' ? o.coneSymbolId : null,
+            barSymbolId: typeof o.barSymbolId === 'string' ? o.barSymbolId : null,
+        };
+    } catch {
+        return { coneSymbolId: null, barSymbolId: null };
+    }
+}
+
+function saveConeRowChoice(coneSymbolId: string | null, barSymbolId: string | null): void {
+    try {
+        window.localStorage.setItem(CONE_ROW_STORAGE_KEY, JSON.stringify({ coneSymbolId, barSymbolId }));
+    } catch {
+        // 保存できなくても動く（次に開いたとき選び直すだけ）
+    }
 }
 
 const LINE_TYPE_LABELS: Record<LineType, string> = { solid: '実線', dashed: '破線', dashdot: '一点鎖線', dotted: '点線' };
@@ -69,7 +109,7 @@ function isTypingTarget(t: EventTarget | null): boolean {
     return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
 }
 
-export default function DrawingEditor({ value, onChange, values }: DrawingEditorProps) {
+export default function DrawingEditor({ value, onChange, values, symbols }: DrawingEditorProps) {
     const [state, dispatch] = useReducer(editorReducer, undefined, () => initialEditorState(value ?? emptyRoadPermitDrawing()));
     const [spaceDown, setSpaceDown] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -89,6 +129,27 @@ export default function DrawingEditor({ value, onChange, values }: DrawingEditor
         lastRef.current = value;
         dispatch({ type: 'replaceDrawing', drawing: value });
     }, [value]);
+
+    // ---- 記号の表 ----
+    const symbolMap = useMemo<RoadPermitSymbolMap>(() => toSymbolMap(symbols ?? []), [symbols]);
+    useEffect(() => {
+        dispatch({ type: 'setSymbols', symbols: symbolMap });
+    }, [symbolMap]);
+    // コーン列で前に選んだコーンとバーを戻す（読み込み終わったとき 1 回だけ。今の一覧に無い id は使わない）
+    const restoredRef = useRef(false);
+    useEffect(() => {
+        if (symbols === null || restoredRef.current) return;
+        restoredRef.current = true;
+        const saved = loadConeRowChoice();
+        const cone = saved.coneSymbolId && activeConeSymbols(symbolMap).some((x) => x.id === saved.coneSymbolId) ? saved.coneSymbolId : null;
+        const bar = saved.barSymbolId && activeConeBarSymbols(symbolMap).some((x) => x.id === saved.barSymbolId) ? saved.barSymbolId : null;
+        if (cone || bar) dispatch({ type: 'setSettings', patch: { coneSymbolId: cone, coneBarSymbolId: bar } });
+    }, [symbols, symbolMap]);
+
+    const pickSymbol = (sym: RoadPermitSymbolDto) => {
+        for (const a of pickSymbolActions(sym)) dispatch(a);
+        rootRef.current?.focus({ preventScroll: true });
+    };
 
     const { drawing } = state;
 
@@ -131,7 +192,7 @@ export default function DrawingEditor({ value, onChange, values }: DrawingEditor
     };
 
     const fitToPaper = () => {
-        const bb = entitiesBBox(drawing.entities);
+        const bb = entitiesBBox(drawing.entities, state.symbols);
         if (!bb) {
             dispatch({ type: 'setMessage', message: 'まだ図形がありません' });
             return;
@@ -157,11 +218,11 @@ export default function DrawingEditor({ value, onChange, values }: DrawingEditor
 
                 {/* 中央: 用紙 */}
                 <div className="relative min-w-0 flex-1">
-                    <DrawingCanvas state={state} dispatch={dispatch} values={values} spaceDown={spaceDown} />
+                    <DrawingCanvas state={state} dispatch={dispatch} values={values} spaceDown={spaceDown} symbolsLoading={symbols === null} />
                     {state.prompt && <TextPrompt state={state} dispatch={dispatch} onDone={() => rootRef.current?.focus({ preventScroll: true })} />}
                 </div>
 
-                <SidePanel state={state} dispatch={dispatch} values={values} onFit={fitToPaper} />
+                <SidePanel state={state} dispatch={dispatch} values={values} onFit={fitToPaper} symbols={symbols} onPickSymbol={pickSymbol} />
             </div>
 
             <StatusBar state={state} />
@@ -415,6 +476,12 @@ function ControlBar({ state, dispatch }: { state: EditorState; dispatch: React.D
         case 'measureArea':
             fields = <span className="text-sm text-slate-600">結果は下の帯に出ます（図面には残りません）</span>;
             break;
+        case 'symbol':
+            fields = <SymbolFields state={state} dispatch={dispatch} />;
+            break;
+        case 'coneRow':
+            fields = <ConeRowFields state={state} dispatch={dispatch} />;
+            break;
     }
 
     return (
@@ -422,6 +489,119 @@ function ControlBar({ state, dispatch }: { state: EditorState; dispatch: React.D
             <span className="min-w-[5rem] text-sm font-semibold text-slate-900">{COMMAND_LABELS[command]}</span>
             {fields}
         </div>
+    );
+}
+
+/** 角度に足す（0〜360 未満にそろえる） */
+function addAngle(angle: string, deg: number): string {
+    const v = ((((parseNum(angle) ?? 0) + deg) % 360) + 360) % 360;
+    return String(Math.round(v * 1000) / 1000);
+}
+
+const segBtn = (on: boolean) => `px-2 py-0.5 text-sm ${on ? 'bg-teal-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'}`;
+const smallBtn = 'rounded border border-slate-300 bg-white px-1.5 py-0.5 text-sm text-slate-700 hover:bg-slate-100';
+
+/** 記号: 記号名・角度（+15°・+90°）・反転・置き方（1 つずつ／線に沿って等間隔） */
+function SymbolFields({ state, dispatch }: { state: EditorState; dispatch: React.Dispatch<EditorAction> }) {
+    const { settings } = state;
+    const set = (patch: Partial<EditorState['settings']>) => dispatch({ type: 'setSettings', patch });
+    const sym = settings.symbolId ? state.symbols.get(settings.symbolId) : undefined;
+    return (
+        <>
+            <span className="max-w-[12rem] truncate text-sm text-slate-800" title={sym?.name}>
+                {sym ? sym.name : '（右の「記号」から選んでください）'}
+            </span>
+            <NumField label="角度" value={settings.angle} onChange={(v) => set({ angle: v })} unit="°" width="w-14" placeholder="0" />
+            <button type="button" onClick={() => set({ angle: addAngle(settings.angle, 15) })} className={smallBtn} title="角度に 15° 足す">
+                +15°
+            </button>
+            <button type="button" onClick={() => set({ angle: addAngle(settings.angle, 90) })} className={smallBtn} title="角度に 90° 足す">
+                +90°
+            </button>
+            <label className={ctlLabel}>
+                <input
+                    type="checkbox"
+                    checked={settings.symbolMirrored}
+                    onChange={(e) => set({ symbolMirrored: e.target.checked })}
+                    className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                />
+                反転
+            </label>
+            <div className="flex items-center gap-1">
+                <span className="text-sm text-slate-700">置き方</span>
+                <div className="flex overflow-hidden rounded border border-slate-300">
+                    {(Object.keys(SYMBOL_PLACE_MODE_LABELS) as SymbolPlaceMode[]).map((m) => (
+                        <button
+                            key={m}
+                            type="button"
+                            onClick={() => {
+                                set({ symbolMode: m });
+                                // 置き方を変えたら指示しかけの点を捨てる
+                                dispatch({ type: 'command', command: 'symbol' });
+                            }}
+                            className={segBtn(settings.symbolMode === m)}
+                        >
+                            {SYMBOL_PLACE_MODE_LABELS[m]}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            {settings.symbolMode === 'array' && (
+                <NumField label="間隔" value={settings.arraySpacing} onChange={(v) => set({ arraySpacing: v })} unit="mm" />
+            )}
+            <label className={ctlLabel}>
+                書込レイヤ
+                <LayerSelect value={state.drawing.currentLayer} layers={state.drawing.layers} onChange={(id) => dispatch({ type: 'setCurrentLayer', id })} />
+            </label>
+        </>
+    );
+}
+
+/** コーン列: コーンとコーンバーの記号を選ぶ（選んだものはブラウザに覚える） */
+function ConeRowFields({ state, dispatch }: { state: EditorState; dispatch: React.Dispatch<EditorAction> }) {
+    const { settings } = state;
+    const cones = useMemo(() => sortRoadPermitSymbols(activeConeSymbols(state.symbols)), [state.symbols]);
+    const bars = useMemo(() => sortRoadPermitSymbols(activeConeBarSymbols(state.symbols)), [state.symbols]);
+    const choose = (coneSymbolId: string | null, coneBarSymbolId: string | null) => {
+        dispatch({ type: 'setSettings', patch: { coneSymbolId, coneBarSymbolId } });
+        saveConeRowChoice(coneSymbolId, coneBarSymbolId);
+    };
+    const coneValue = settings.coneSymbolId && cones.some((c) => c.id === settings.coneSymbolId) ? settings.coneSymbolId : '';
+    const barValue = settings.coneBarSymbolId && bars.some((b) => b.id === settings.coneBarSymbolId) ? settings.coneBarSymbolId : '';
+    return (
+        <>
+            <label className={ctlLabel}>
+                コーン
+                <select value={coneValue} onChange={(e) => choose(e.target.value || null, settings.coneBarSymbolId)} className={ctlInput}>
+                    <option value="">選んでください</option>
+                    {cones.map((c) => (
+                        <option key={c.id} value={c.id}>
+                            {c.name}
+                        </option>
+                    ))}
+                </select>
+            </label>
+            {bars.length === 0 ? (
+                <span className="text-sm font-medium text-amber-700">コーンバーを登録してください</span>
+            ) : (
+                <label className={ctlLabel}>
+                    コーンバー
+                    <select value={barValue} onChange={(e) => choose(settings.coneSymbolId, e.target.value || null)} className={ctlInput}>
+                        <option value="">選んでください</option>
+                        {bars.map((b) => (
+                            <option key={b.id} value={b.id}>
+                                {b.name}（間隔 {(b.barPitchMm ?? 0).toLocaleString('ja-JP')}）
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            )}
+            <label className={ctlLabel}>
+                書込レイヤ
+                <LayerSelect value={state.drawing.currentLayer} layers={state.drawing.layers} onChange={(id) => dispatch({ type: 'setCurrentLayer', id })} />
+            </label>
+            <span className="text-sm text-slate-600">点を順にクリックして、Enter か ダブルクリックで確定</span>
+        </>
     );
 }
 
@@ -527,6 +707,7 @@ function ToolPanel({ state, onCommand, dispatch }: { state: EditorState; onComma
             {group('描く', DRAW_COMMANDS)}
             {group('直す', EDIT_COMMANDS)}
             {group('測る', MEASURE_COMMANDS)}
+            {group('記号', SYMBOL_COMMANDS)}
             <div className="mt-auto grid grid-cols-2 gap-1">
                 <button
                     type="button"
@@ -557,16 +738,83 @@ function ToolPanel({ state, onCommand, dispatch }: { state: EditorState; onComma
 // 右: レイヤと設定
 // ---------------------------------------------------------------------------
 
+/** 右パネルの「記号」: 分類のタブ → 下絵と名前のボタン（使うものだけ） */
+function SymbolPalette({
+    state,
+    symbols,
+    onPick,
+}: {
+    state: EditorState;
+    symbols: RoadPermitSymbolDto[] | null;
+    onPick: (s: RoadPermitSymbolDto) => void;
+}) {
+    const active = useMemo(() => sortRoadPermitSymbols((symbols ?? []).filter((s) => s.isActive)), [symbols]);
+    const cats = useMemo(
+        () => ROAD_PERMIT_SYMBOL_CATEGORIES.filter((c) => active.some((s) => s.category === c)),
+        [active],
+    );
+    const [cat, setCat] = useState<RoadPermitSymbolCategory | null>(null);
+    const current = cat && cats.includes(cat) ? cat : cats[0] ?? null;
+    const list = active.filter((s) => s.category === current);
+    const pickedId = state.command === 'symbol' ? state.settings.symbolId : null;
+
+    return (
+        <section className="overflow-hidden rounded border border-slate-300 bg-white">
+            <h3 className={panelTitle}>記号</h3>
+            {symbols === null ? (
+                <p className="p-2 text-sm text-slate-500">記号を読み込み中…</p>
+            ) : active.length === 0 ? (
+                <p className="p-2 text-sm text-slate-600">記号がありません。一覧の『記号の登録』で JWW から取り込んでください</p>
+            ) : (
+                <>
+                    <div className="flex flex-wrap gap-1 border-b border-slate-100 p-1.5">
+                        {cats.map((c) => (
+                            <button
+                                key={c}
+                                type="button"
+                                onClick={() => setCat(c)}
+                                className={`rounded px-1.5 py-0.5 text-xs ${current === c ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-teal-100'}`}
+                            >
+                                {ROAD_PERMIT_SYMBOL_CATEGORY_LABELS[c]}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="grid max-h-64 grid-cols-2 gap-1 overflow-y-auto p-1.5">
+                        {list.map((s) => (
+                            <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => onPick(s)}
+                                title={s.name}
+                                className={`flex flex-col items-center gap-0.5 rounded border p-1 text-xs ${
+                                    pickedId === s.id ? 'border-teal-600 bg-teal-100 text-slate-900' : 'border-slate-200 bg-white text-slate-700 hover:bg-teal-100'
+                                }`}
+                            >
+                                <SymbolThumbnail geometry={s.geometry} size={40} title={s.name} />
+                                <span className="w-full truncate text-center">{s.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
+        </section>
+    );
+}
+
 function SidePanel({
     state,
     dispatch,
     values,
     onFit,
+    symbols,
+    onPickSymbol,
 }: {
     state: EditorState;
     dispatch: React.Dispatch<EditorAction>;
     values: RoadPermitValues;
     onFit: () => void;
+    symbols: RoadPermitSymbolDto[] | null;
+    onPickSymbol: (s: RoadPermitSymbolDto) => void;
 }) {
     const { drawing, view } = state;
     const def = useMemo(() => titleBlockDefaults(values), [values]);
@@ -586,7 +834,9 @@ function SidePanel({
 
     return (
         <div className="hidden w-64 flex-shrink-0 overflow-y-auto border-l border-slate-300 bg-slate-100 p-2 md:block">
-            <section className="overflow-hidden rounded border border-slate-300 bg-white">
+            <SymbolPalette state={state} symbols={symbols} onPick={onPickSymbol} />
+
+            <section className="mt-2 overflow-hidden rounded border border-slate-300 bg-white">
                 <h3 className={panelTitle}>レイヤ</h3>
                 <ul className="divide-y divide-slate-100">
                     {drawing.layers.map((l) => {

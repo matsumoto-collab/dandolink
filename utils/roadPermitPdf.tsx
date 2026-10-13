@@ -30,6 +30,7 @@ export async function generateRoadPermitPdfBlob(input: RoadPermitPdfInput): Prom
             formIds={formIds}
             drawing={input.drawing ?? null}
             includeDrawing={input.includeDrawing === true}
+            symbols={input.symbols ?? null}
         />,
     ).toBlob();
 }

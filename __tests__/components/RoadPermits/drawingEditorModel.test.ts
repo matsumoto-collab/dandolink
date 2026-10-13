@@ -4,6 +4,7 @@
 import {
     editorReducer,
     initialEditorState,
+    pickSymbolActions,
     previewEntities,
     screenToReal,
     realToScreen,
@@ -12,7 +13,9 @@ import {
     type EditorState,
 } from '@/components/RoadPermits/Drawing/editorModel';
 import { emptyRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
-import type { DrawingEntity, LineEntity } from '@/types/roadPermitDrawing';
+import type { DrawingEntity, LineEntity, SymbolEntity } from '@/types/roadPermitDrawing';
+import type { RoadPermitSymbolCategory, RoadPermitSymbolDto } from '@/types/roadPermitSymbol';
+import { toSymbolMap } from '@/lib/roadPermit/symbols/normalize';
 
 const TOL = 50;
 
@@ -232,5 +235,132 @@ describe('作図画面の reducer', () => {
 
     it('表題欄の既定は申請の入力値から', () => {
         expect(titleBlockDefaults(null).drawingName).toBe('保安施設配置図（平面図）');
+    });
+});
+
+describe('作図画面の reducer: 記号（Phase 2b）', () => {
+    const square = (half: number) => ({
+        lines: [-half, -half, half, -half, half, -half, half, half, half, half, -half, half, -half, half, -half, -half],
+        circles: [],
+        arcs: [],
+        polylines: [],
+    });
+    const symbol = (id: string, category: RoadPermitSymbolCategory, barPitchMm: number | null = null): RoadPermitSymbolDto => ({
+        id,
+        name: id,
+        category,
+        countLabel: '',
+        countUnit: '',
+        countNote: '',
+        geometry: square(100),
+        lengthMm: 200,
+        widthMm: 200,
+        barPitchMm,
+        sourceFile: '',
+        sourceBlock: '',
+        sourceNote: '',
+        sortOrder: 0,
+        isActive: true,
+        createdAt: '',
+        updatedAt: '',
+    });
+    const cone = symbol('cone', 'cone');
+    const bar = symbol('bar1500p', 'cone', 1403);
+    const truck = symbol('truck', 'vehicle');
+    const withSymbols = (list: RoadPermitSymbolDto[]) => run(start(), { type: 'setSymbols', symbols: toSymbolMap(list) });
+    const symbolsOf = (s: EditorState): SymbolEntity[] => s.drawing.entities.filter((e): e is SymbolEntity => e.kind === 'symbol');
+
+    it('パレット → 記号を 1 つずつ置く（レイヤは分類の初期値・角度・反転）。Esc まで続けて置ける', () => {
+        let s = run(withSymbols([cone, bar, truck]), ...pickSymbolActions(truck));
+        expect(s.command).toBe('symbol');
+        expect(s.drawing.currentLayer).toBe(4);
+        s = run(s, { type: 'setSettings', patch: { angle: '30', symbolMirrored: true } }, pt(1000, 2000));
+        const [e] = symbolsOf(s);
+        expect(e.symbolId).toBe('truck');
+        expect(e.at).toEqual({ x: 1000, y: 2000 });
+        expect(e.rotationDeg).toBe(30);
+        expect(e.mirrored).toBe(true);
+        expect(e.layer).toBe(4);
+        // 続けて置ける・同じ所のダブルクリックで 2 つ重ならない
+        s = run(s, pt(3000, 2000), pt(3000, 2000));
+        expect(symbolsOf(s)).toHaveLength(2);
+        // プレビューはカーソルの位置に記号
+        const pv = previewEntities({ ...s, cursor: { x: 50, y: 60 } });
+        expect(pv).toHaveLength(1);
+        expect(pv[0].kind === 'symbol' && pv[0].at).toEqual({ x: 50, y: 60 });
+        // Esc で置くのを終わる（範囲＝選ぶに戻る）
+        s = run(s, { type: 'esc' });
+        expect(s.command).toBe('select');
+        // コーン類は 3 保安施設
+        expect(run(withSymbols([cone]), ...pickSymbolActions(cone)).drawing.currentLayer).toBe(3);
+    });
+
+    it('記号を選んでいないときは置かない（案内の文）', () => {
+        const s = run(withSymbols([cone]), { type: 'command', command: 'symbol' }, pt(0, 0));
+        expect(s.drawing.entities).toHaveLength(0);
+        expect(s.message).toContain('記号');
+    });
+
+    it('線に沿って等間隔: 2 点で並べ、向きは線の角度＋角度の欄。1 回の戻るで全部消える', () => {
+        let s = run(
+            withSymbols([cone]),
+            ...pickSymbolActions(cone),
+            { type: 'setSettings', patch: { symbolMode: 'array', arraySpacing: '2000', angle: '10' } },
+            pt(0, 0),
+            pt(0, 5000),
+        );
+        const list = symbolsOf(s);
+        expect(list).toHaveLength(3);
+        expect(list.map((e) => e.at.y)).toEqual([0, 2000, 4000]);
+        list.forEach((e) => expect(e.rotationDeg).toBeCloseTo(100));
+        expect(s.past).toHaveLength(1);
+        s = run(s, { type: 'undo' });
+        expect(s.drawing.entities).toHaveLength(0);
+    });
+
+    it('コーン列: 10,000mm・1500p（P=1,403）→ コーン 9・バー 8・間隔 1,250。1 回の戻るで全部消える', () => {
+        let s = run(
+            withSymbols([cone, bar, truck]),
+            { type: 'setSettings', patch: { coneSymbolId: 'cone', coneBarSymbolId: 'bar1500p' } },
+            { type: 'command', command: 'coneRow' },
+            pt(0, 0),
+            // ダブルクリック（同じ点の 2 回目は 1 点として扱う）→ 確定
+            pt(10000, 0),
+            pt(10000, 0),
+        );
+        expect(s.pts).toHaveLength(2);
+        // 確定前のプレビュー: 折れ線＋コーン＋バー
+        expect(previewEntities({ ...s, cursor: { x: 10000, y: 0 } }).length).toBe(1 + 9 + 8);
+        s = run(s, { type: 'finish' });
+        const all = symbolsOf(s);
+        const cones = all.filter((e) => e.symbolId === 'cone').sort((a, b) => a.at.x - b.at.x);
+        const bars = all.filter((e) => e.symbolId === 'bar1500p').sort((a, b) => a.at.x - b.at.x);
+        expect(cones).toHaveLength(9);
+        expect(bars).toHaveLength(8);
+        expect(cones[1].at.x - cones[0].at.x).toBeCloseTo(1250);
+        expect(bars[0].at.x).toBeCloseTo(625);
+        expect(bars.every((b) => b.rotationDeg === 0)).toBe(true);
+        expect(s.message).toContain('コーン 9 個・コーンバー 8 本');
+        expect(s.past).toHaveLength(1);
+        s = run(s, { type: 'undo' });
+        expect(s.drawing.entities).toHaveLength(0);
+    });
+
+    it('コーン列: コーンバーが 1 つも登録されていなければ「コーンバーを登録してください」', () => {
+        const s = run(withSymbols([cone]), { type: 'setSettings', patch: { coneSymbolId: 'cone' } }, { type: 'command', command: 'coneRow' }, pt(0, 0));
+        expect(s.message).toContain('コーンバーを登録してください');
+        expect(s.pts).toHaveLength(0);
+    });
+
+    it('コーン列: コーンかバーを選んでいなければ「コーンとコーンバーを選んでください」', () => {
+        const s = run(withSymbols([cone, bar]), { type: 'setSettings', patch: { coneSymbolId: 'cone' } }, { type: 'command', command: 'coneRow' }, pt(0, 0));
+        expect(s.message).toBe('コーンとコーンバーを選んでください');
+    });
+
+    it('記号の表を渡すと、記号の線をクリックして選べる', () => {
+        let s = run(withSymbols([truck]), ...pickSymbolActions(truck), pt(0, 0), { type: 'command', command: 'select' });
+        // 記号の右端の線（x=100）
+        s = run(s, pt(100, 0, { tolMm: 5 }));
+        expect(s.selection).toHaveLength(1);
     });
 });

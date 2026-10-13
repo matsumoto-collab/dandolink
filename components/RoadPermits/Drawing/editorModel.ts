@@ -8,6 +8,9 @@
  * - 図形の追加／変更／削除のたびに履歴を積む（50 回まで）。履歴は図形の並びだけを持つ
  *   （レイヤの表示や用紙の設定は戻る／進むの対象にしない＝戻るで表示が勝手に変わらないように）
  * - 点は実寸 mm・Y 上向き。画面の px との変換は realToScreen / screenToReal
+ * - 記号（Phase 2b・docs/指示書_道路申請_Phase2b_記号.md §5.1）: 記号の表は state.symbols（画面が読み込んで setSymbols）。
+ *   「記号」＝クリックで 1 つずつ／線に沿って等間隔、「コーン列」＝点を順にクリック → Enter かダブルクリックで確定。
+ *   どちらも 1 回の操作で足したものは 1 回の「戻る」でまとめて消える（addEntities を 1 回だけ呼ぶ）
  */
 import type {
     DimensionMode,
@@ -25,6 +28,10 @@ import type {
     RoadPermitDrawing,
 } from '@/types/roadPermitDrawing';
 import type { RoadPermitValues } from '@/types/roadPermit';
+import type { RoadPermitSymbolDto, RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
+import { ROAD_PERMIT_SYMBOL_DEFAULT_LAYER } from '@/types/roadPermitSymbol';
+import { isConeBarSymbol } from '@/lib/roadPermit/symbols/normalize';
+import { arrayAlong, coneRowLayout } from '@/lib/roadPermit/symbols/place';
 import { drawingPaperMm, fromPaper, toPaper } from '@/lib/roadPermit/drawing/paper';
 import {
     add,
@@ -78,7 +85,9 @@ export type CommandId =
     | 'mirror'
     | 'attr'
     | 'measureDistance'
-    | 'measureArea';
+    | 'measureArea'
+    | 'symbol'
+    | 'coneRow';
 
 /** 画面のボタン名（画面イメージの言葉） */
 export const COMMAND_LABELS: Record<CommandId, string> = {
@@ -101,11 +110,22 @@ export const COMMAND_LABELS: Record<CommandId, string> = {
     attr: '属性',
     measureDistance: '距離',
     measureArea: '面積',
+    symbol: '記号',
+    coneRow: 'コーン列',
 };
 
 export const DRAW_COMMANDS: readonly CommandId[] = ['line', 'polyline', 'rect', 'circle', 'arc', 'double', 'text', 'dimension', 'leader', 'hatch'];
 export const EDIT_COMMANDS: readonly CommandId[] = ['select', 'erase', 'copy', 'move', 'rotate', 'mirror', 'attr'];
 export const MEASURE_COMMANDS: readonly CommandId[] = ['measureDistance', 'measureArea'];
+export const SYMBOL_COMMANDS: readonly CommandId[] = ['symbol', 'coneRow'];
+
+/** 記号の置き方: 1 つずつ／線に沿って等間隔 */
+export type SymbolPlaceMode = 'single' | 'array';
+
+export const SYMBOL_PLACE_MODE_LABELS: Record<SymbolPlaceMode, string> = {
+    single: '1 つずつ',
+    array: '線に沿って等間隔',
+};
 
 /** 選んでから点を指示する操作 */
 const TRANSFORM_COMMANDS: readonly CommandId[] = ['copy', 'move', 'rotate', 'mirror'];
@@ -136,6 +156,16 @@ export interface ToolSettings {
     dimTextHeight: number;
     dimMode: DimensionToolMode;
     hatchPattern: HatchPattern;
+    /** 置く記号（RoadPermitSymbol.id）。角度は angle を使う */
+    symbolId: string | null;
+    /** 記号を左右反転して置くか */
+    symbolMirrored: boolean;
+    symbolMode: SymbolPlaceMode;
+    /** 線に沿って等間隔のときの間隔（mm） */
+    arraySpacing: string;
+    /** コーン列のコーンとコーンバーの記号 */
+    coneSymbolId: string | null;
+    coneBarSymbolId: string | null;
 }
 
 export interface ViewState {
@@ -176,6 +206,8 @@ export interface EditorState {
     /** カーソルの位置（実寸）。ゴム線と座標の表示に使う */
     cursor: DrawingPoint | null;
     cursorShift: boolean;
+    /** 記号の表（symbolId → 記号）。画面が API から読み込んで setSymbols で入れる。戻る／進むの対象にしない */
+    symbols: RoadPermitSymbolMap;
 }
 
 export type EditorAction =
@@ -204,7 +236,8 @@ export type EditorAction =
     | { type: 'setMessage'; message: string | null }
     | { type: 'undo' }
     | { type: 'redo' }
-    | { type: 'replaceDrawing'; drawing: RoadPermitDrawing };
+    | { type: 'replaceDrawing'; drawing: RoadPermitDrawing }
+    | { type: 'setSymbols'; symbols: RoadPermitSymbolMap };
 
 export interface AttributePatch {
     layer?: DrawingLayerId;
@@ -231,7 +264,15 @@ export const DEFAULT_TOOL_SETTINGS: ToolSettings = {
     dimTextHeight: DEFAULT_DIMENSION_TEXT_HEIGHT_PAPER_MM,
     dimMode: 'horizontal',
     hatchPattern: 'diagonal',
+    symbolId: null,
+    symbolMirrored: false,
+    symbolMode: 'single',
+    arraySpacing: '2000',
+    coneSymbolId: null,
+    coneBarSymbolId: null,
 };
+
+const EMPTY_SYMBOLS: RoadPermitSymbolMap = new Map();
 
 export function initialEditorState(drawing: RoadPermitDrawing): EditorState {
     return {
@@ -249,6 +290,7 @@ export function initialEditorState(drawing: RoadPermitDrawing): EditorState {
         message: null,
         cursor: null,
         cursorShift: false,
+        symbols: EMPTY_SYMBOLS,
     };
 }
 
@@ -300,6 +342,111 @@ function commitEntities(s: EditorState, entities: DrawingEntity[], patch: Partia
 function addEntities(s: EditorState, list: DrawingEntity[], patch: Partial<EditorState> = {}): EditorState {
     if (list.length === 0) return { ...s, ...patch };
     return commitEntities(s, [...s.drawing.entities, ...list], patch);
+}
+
+// ---------------------------------------------------------------------------
+// 記号
+// ---------------------------------------------------------------------------
+
+/** 角度を -180 より大きく 180 以下にそろえる（保存する値を読みやすくするため） */
+function normalizeDeg(deg: number): number {
+    if (!Number.isFinite(deg)) return 0;
+    let d = deg % 360;
+    if (d > 180) d -= 360;
+    if (d <= -180) d += 360;
+    return Math.abs(d) < 1e-9 ? 0 : d;
+}
+
+/** 記号 1 つ（線の太さは「細」・書込レイヤ） */
+function symbolEntity(s: EditorState, symbolId: string, at: DrawingPoint, rotationDeg: number, mirrored: boolean, id?: string): DrawingEntity {
+    return {
+        id: id ?? newEntityId(),
+        layer: s.drawing.currentLayer,
+        style: { lineType: 'solid', width: 'thin', color: '#000000' },
+        kind: 'symbol',
+        symbolId,
+        at,
+        rotationDeg: normalizeDeg(rotationDeg),
+        mirrored,
+    };
+}
+
+/** パレットに出す記号（使うもの）のうち、コーンバーとして使えるもの */
+export function activeConeBarSymbols(symbols: RoadPermitSymbolMap): RoadPermitSymbolDto[] {
+    return Array.from(symbols.values()).filter((s) => s.isActive && isConeBarSymbol(s));
+}
+
+/** コーン列のコーンの候補（分類「コーン類」の使うもの。コーンバーは除く） */
+export function activeConeSymbols(symbols: RoadPermitSymbolMap): RoadPermitSymbolDto[] {
+    return Array.from(symbols.values()).filter((s) => s.isActive && s.category === 'cone' && !isConeBarSymbol(s));
+}
+
+/** パレットで記号を押したとき: 記号を選ぶ → 「記号」の操作 → 書込レイヤを分類の初期値に */
+export function pickSymbolActions(sym: Pick<RoadPermitSymbolDto, 'id' | 'category'>): EditorAction[] {
+    return [
+        { type: 'setSettings', patch: { symbolId: sym.id } },
+        { type: 'command', command: 'symbol' },
+        { type: 'setCurrentLayer', id: ROAD_PERMIT_SYMBOL_DEFAULT_LAYER[sym.category] },
+    ];
+}
+
+/** コーン列の記号を確かめる。使えなければ message の文 */
+function coneRowSymbols(s: EditorState): { cone: RoadPermitSymbolDto; bar: RoadPermitSymbolDto } | string {
+    if (activeConeBarSymbols(s.symbols).length === 0) {
+        return 'コーンバーを登録してください（一覧の「記号の登録」で「コーンバーとして使う」にチェック）';
+    }
+    const cone = s.settings.coneSymbolId ? s.symbols.get(s.settings.coneSymbolId) : undefined;
+    const bar = s.settings.coneBarSymbolId ? s.symbols.get(s.settings.coneBarSymbolId) : undefined;
+    if (!cone || !bar || !isConeBarSymbol(bar)) return 'コーンとコーンバーを選んでください';
+    return { cone, bar };
+}
+
+/** コーン列の記号（idPrefix を渡せばプレビュー用の id にする） */
+function coneRowEntities(s: EditorState, pts: readonly DrawingPoint[], cone: RoadPermitSymbolDto, bar: RoadPermitSymbolDto, idPrefix?: string): DrawingEntity[] {
+    const layout = coneRowLayout(pts, bar.barPitchMm ?? 0);
+    let i = 0;
+    const id = () => (idPrefix ? `${idPrefix}${i++}` : undefined);
+    return [
+        ...layout.bars.map((b) => symbolEntity(s, bar.id, b.at, b.rotationDeg, false, id())),
+        ...layout.cones.map((c) => symbolEntity(s, cone.id, c, 0, false, id())),
+    ];
+}
+
+/** 線に沿って等間隔の記号（向きは線の角度＋角度の欄） */
+function arrayEntities(s: EditorState, a: DrawingPoint, b: DrawingPoint, symbolId: string, spacing: number, idPrefix?: string): DrawingEntity[] {
+    const rot = angleDeg(a, b) + (parseNum(s.settings.angle) ?? 0);
+    return arrayAlong(a, b, spacing).map((p, i) => symbolEntity(s, symbolId, p, rot, s.settings.symbolMirrored, idPrefix ? `${idPrefix}${i}` : undefined));
+}
+
+function symbolPoint(st: EditorState, p: DrawingPoint, shift: boolean, snapped: boolean): EditorState {
+    const id = st.settings.symbolId;
+    if (!id) return { ...st, message: '右の「記号」から置く記号を選んでください' };
+    if (!st.symbols.has(id)) return { ...st, message: '記号が見つかりません（右の「記号」から選び直してください）' };
+    if (st.settings.symbolMode === 'array') {
+        if (st.pts.length === 0) return { ...st, pts: [p] };
+        const a = st.pts[0];
+        const b = shift && !snapped ? orthoSnap(a, p) : p;
+        if (distance(a, b) < EPS) return st;
+        const spacing = parseNum(st.settings.arraySpacing);
+        if (spacing == null || spacing <= 0) return { ...st, message: '間隔（mm）を入れてください' };
+        const list = arrayEntities(st, a, b, id, spacing);
+        return addEntities(st, list, { pts: [], message: `記号を ${list.length} 個置きました` });
+    }
+    // 1 つずつ: ダブルクリックで同じ所に 2 つ重ならないよう、直前に置いた同じ記号と同じ位置なら置かない
+    const last = st.drawing.entities[st.drawing.entities.length - 1];
+    if (last && last.kind === 'symbol' && last.symbolId === id && distance(last.at, p) < EPS) return st;
+    const rot = parseNum(st.settings.angle) ?? 0;
+    return addEntities(st, [symbolEntity(st, id, p, rot, st.settings.symbolMirrored)]);
+}
+
+function finishConeRow(s: EditorState): EditorState {
+    if (s.pts.length === 0) return resetStage(s);
+    const chk = coneRowSymbols(s);
+    if (typeof chk === 'string') return resetStage(s, { message: chk });
+    const list = coneRowEntities(s, s.pts, chk.cone, chk.bar);
+    const nBar = list.filter((e) => e.kind === 'symbol' && e.symbolId === chk.bar.id).length;
+    const nCone = list.length - nBar;
+    return addEntities(s, list, { pts: [], message: `コーン ${nCone} 個・コーンバー ${nBar} 本を置きました` });
 }
 
 /** Shift（水平垂直）・角度・長さの指定で点を直す（読取点はそのまま） */
@@ -384,7 +531,7 @@ function resetStage(s: EditorState, patch: Partial<EditorState> = {}): EditorSta
 // ---------------------------------------------------------------------------
 
 function pickAt(s: EditorState, p: DrawingPoint, tolMm: number): DrawingEntity | null {
-    return pickEntity(p, pickableEntities(s.drawing), tolMm);
+    return pickEntity(p, pickableEntities(s.drawing), tolMm, s.symbols);
 }
 
 /** クリックで選ぶ（追加＝Shift／Ctrl なら足す・同じものなら外す） */
@@ -524,6 +671,19 @@ function handlePoint(s: EditorState, a: Extract<EditorAction, { type: 'point' }>
 
         case 'measureArea':
             return { ...st, pts: [...st.pts, p] };
+
+        case 'symbol':
+            return symbolPoint(st, p, !!a.shift, !!a.snapped);
+
+        case 'coneRow': {
+            if (st.pts.length === 0) {
+                const chk = coneRowSymbols(st);
+                if (typeof chk === 'string') return { ...st, message: chk };
+            }
+            const q = a.shift && !a.snapped && st.pts.length > 0 ? orthoSnap(st.pts[st.pts.length - 1], p) : p;
+            if (st.pts.length > 0 && distance(st.pts[st.pts.length - 1], q) < EPS) return st;
+            return { ...st, pts: [...st.pts, q] };
+        }
     }
 }
 
@@ -637,6 +797,8 @@ function finish(s: EditorState): EditorState {
         case 'polyline':
             if (s.pts.length >= 2) return addEntities(s, [{ ...base(s), kind: 'polyline', points: s.pts, closed: false }], { pts: [] });
             return resetStage(s);
+        case 'coneRow':
+            return finishConeRow(s);
         case 'measureArea': {
             if (s.pts.length < 3) return resetStage(s, { message: s.pts.length > 0 ? '面積は 3 点以上を指示してください' : s.message });
             const m2 = mm2ToM2(polygonArea(s.pts));
@@ -662,6 +824,8 @@ function esc(s: EditorState): EditorState {
         if (s.pts.length > 0) return finish(s);
     }
     if (s.pts.length > 0 || s.chain) return resetStage(s);
+    // 記号を 1 つずつ置いているときの Esc は「置くのを終わり」＝範囲（選ぶ）に戻る
+    if (s.command === 'symbol') return startCommand(s, 'select');
     if (TRANSFORM_COMMANDS.includes(s.command) && s.phase === 'points') return { ...s, phase: 'select', selection: [] };
     if (s.selection.length > 0) return { ...s, selection: [] };
     return { ...s, message: null };
@@ -697,7 +861,7 @@ export function editorReducer(s: EditorState, a: EditorAction): EditorState {
         case 'point':
             return handlePoint(s, a);
         case 'rectSelect': {
-            const hits = entitiesInRect(a.rect, pickableEntities(s.drawing)).map((e) => e.id);
+            const hits = entitiesInRect(a.rect, pickableEntities(s.drawing), s.symbols).map((e) => e.id);
             if (s.command === 'erase') {
                 if (hits.length === 0) return s;
                 const set = new Set(hits);
@@ -856,6 +1020,8 @@ export function editorReducer(s: EditorState, a: EditorAction): EditorState {
             const ids = new Set(a.drawing.entities.map((e) => e.id));
             return { ...resetStage(s), drawing: a.drawing, selection: s.selection.filter((id) => ids.has(id)) };
         }
+        case 'setSymbols':
+            return { ...s, symbols: a.symbols };
     }
 }
 
@@ -928,10 +1094,35 @@ export function previewEntities(s: EditorState): DrawingEntity[] {
             const t = transformed(s, p, true);
             return t ? t.map((e, i) => ({ ...e, id: `preview${i}` })) : [];
         }
+        case 'symbol': {
+            const id = s.settings.symbolId;
+            if (!id || !s.symbols.has(id)) return [];
+            if (s.settings.symbolMode === 'single' || pts.length !== 1) {
+                return [symbolEntity(s, id, p, parseNum(s.settings.angle) ?? 0, s.settings.symbolMirrored, 'preview')];
+            }
+            const end = s.cursorShift ? orthoSnap(pts[0], p) : p;
+            const spacing = parseNum(s.settings.arraySpacing);
+            const line: DrawingEntity = { ...b, kind: 'line', a: pts[0], b: end };
+            if (spacing == null || spacing <= 0 || distance(pts[0], end) < EPS) return [line];
+            return [line, ...arrayEntities(s, pts[0], end, id, spacing, 'preview-s').slice(0, PREVIEW_SYMBOL_MAX)];
+        }
+        case 'coneRow': {
+            if (pts.length === 0) return [];
+            const last = pts[pts.length - 1];
+            const end = s.cursorShift ? orthoSnap(last, p) : p;
+            const all = distance(last, end) < EPS ? [...pts] : [...pts, end];
+            const out: DrawingEntity[] = [{ ...b, kind: 'polyline', points: all, closed: false }];
+            const chk = coneRowSymbols(s);
+            if (typeof chk !== 'string') out.push(...coneRowEntities(s, all, chk.cone, chk.bar, 'preview-c').slice(0, PREVIEW_SYMBOL_MAX));
+            return out;
+        }
         default:
             return [];
     }
 }
+
+/** プレビューで描く記号の上限（多すぎると動かすたびに重くなる） */
+const PREVIEW_SYMBOL_MAX = 300;
 
 /** ステータスバーの案内文 */
 export function guidance(s: EditorState): string {
@@ -981,6 +1172,17 @@ export function guidance(s: EditorState): string {
             return n === 0 ? `◆測る 1 点目を指示してください${LR}` : `◆測る 2 点目を指示してください${LR}`;
         case 'measureArea':
             return n === 0 ? `◆面積を測る 1 点目を指示してください${LR}` : `◆次の点を指示してください${LR}（Enter／Esc で面積を出す）`;
+        case 'symbol': {
+            if (!s.settings.symbolId) return '◆右の「記号」から置く記号を選んでください';
+            if (s.settings.symbolMode === 'array') {
+                return n === 0 ? `◆並べる線の始点を指示してください${LR}` : `◆並べる線の終点を指示してください${LR}（Shift で水平垂直・Esc でやめる）`;
+            }
+            return `◆置く位置を指示してください${LR}  Esc で終わり`;
+        }
+        case 'coneRow':
+            return n === 0
+                ? `◆コーン列の始点を指示してください${LR}`
+                : `◆次の点を指示してください${LR}（Enter かダブルクリックで確定・Esc でやめる）`;
     }
 }
 

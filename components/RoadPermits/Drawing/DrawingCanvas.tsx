@@ -3,10 +3,12 @@
 'use client';
 
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { DrawingEntity, DrawingPoint, LineType, RoadPermitDrawing } from '@/types/roadPermitDrawing';
 import type { RoadPermitValues } from '@/types/roadPermit';
+import type { RoadPermitSymbolDto, RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
+import { isSymbolGeometryEmpty, placedSymbolPolylines } from '@/lib/roadPermit/symbols/geometry';
 import { LINE_WIDTH_MM, PAPER_MARGIN_MM, drawingPaperMm, scaleLabel } from '@/lib/roadPermit/drawing/paper';
 import {
     angleDeg,
@@ -41,6 +43,8 @@ interface DrawingCanvasProps {
     values: RoadPermitValues | null;
     /** Space を押している間は左ドラッグでパン */
     spaceDown: boolean;
+    /** 記号の表を読み込み中か（読み込み中は「記号が見つかりません」を出さない） */
+    symbolsLoading?: boolean;
 }
 
 /** 読取点（右クリック）の吸い付く範囲（画面 px） */
@@ -124,6 +128,33 @@ function arrowHead(tip: Px, from: Px, size: number): number[][] {
     ];
 }
 
+/**
+ * 置いた記号（記号 1 つ＝konva の Shape 1 つ）。点列は lib/roadPermit/symbols/geometry.ts の placedSymbolPolylines（自前で座標変換を書かない）。
+ * 全部の折れ線を 1 つの path にして 1 回で線を引く（コーンを 50 個置いても軽い）
+ */
+function PlacedSymbol({ e, sym, toS, color, strokeWidth }: { e: Extract<DrawingEntity, { kind: 'symbol' }>; sym: RoadPermitSymbolDto; toS: (p: DrawingPoint) => Px; color: string; strokeWidth: number }) {
+    const polys = placedSymbolPolylines(sym.geometry, e).map((poly) => poly.map(toS));
+    return (
+        <Shape
+            sceneFunc={(ctx, shape) => {
+                ctx.beginPath();
+                for (const poly of polys) {
+                    if (poly.length < 2) continue;
+                    ctx.moveTo(poly[0].x, poly[0].y);
+                    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
+                }
+                ctx.strokeShape(shape);
+            }}
+            stroke={color}
+            strokeWidth={strokeWidth}
+            lineCap="round"
+            lineJoin="round"
+            listening={false}
+            perfectDrawEnabled={false}
+        />
+    );
+}
+
 /** 図形 1 つを konva の部品にする */
 const EntityShape = memo(function EntityShape({
     e,
@@ -131,12 +162,17 @@ const EntityShape = memo(function EntityShape({
     view,
     selected,
     preview,
+    sym,
+    symbolsLoading,
 }: {
     e: DrawingEntity;
     geo: Geo;
     view: View;
     selected: boolean;
     preview: boolean;
+    /** 記号のときだけ: 記号の表で見つかった記号（無ければ undefined） */
+    sym?: RoadPermitSymbolDto;
+    symbolsLoading?: boolean;
 }) {
     const toS = (p: DrawingPoint) => realToScreen(geo, view, p);
     const px = view.pxPerMm;
@@ -237,9 +273,20 @@ const EntityShape = memo(function EntityShape({
             );
         }
         case 'symbol': {
-            // 記号は Phase 2b。いまは位置がわかる小さな印だけ出す
+            if (sym && !isSymbolGeometryEmpty(sym.geometry)) {
+                return <PlacedSymbol e={e} sym={sym} toS={toS} color={color} strokeWidth={thin.strokeWidth} />;
+            }
+            // 記号の表に無い（消された・読み込めない）: 位置がわかる ○ と「記号が見つかりません」
             const c = toS(e.at);
-            return <Circle x={c.x} y={c.y} radius={Math.max(3, 2 * px)} stroke={color} strokeWidth={1} listening={false} />;
+            const r = Math.max(3, 2 * px);
+            return (
+                <Group listening={false}>
+                    <Circle x={c.x} y={c.y} radius={r} stroke={color} strokeWidth={1} listening={false} />
+                    {!symbolsLoading && !preview && (
+                        <TextNode at={{ x: c.x + r + 2, y: c.y + Math.max(5, 1 * px) }} text="記号が見つかりません" fontSize={Math.max(10, 2 * px)} rotationDeg={0} align="left" color={color} />
+                    )}
+                </Group>
+            );
         }
     }
 });
@@ -250,17 +297,30 @@ const EntitiesLayer = memo(function EntitiesLayer({
     geo,
     view,
     selection,
+    symbols,
+    symbolsLoading,
 }: {
     entities: DrawingEntity[];
     geo: Geo;
     view: View;
     selection: string[];
+    symbols: RoadPermitSymbolMap;
+    symbolsLoading: boolean;
 }) {
     const sel = useMemo(() => new Set(selection), [selection]);
     return (
         <Layer listening={false}>
             {entities.map((e) => (
-                <EntityShape key={e.id} e={e} geo={geo} view={view} selected={sel.has(e.id)} preview={false} />
+                <EntityShape
+                    key={e.id}
+                    e={e}
+                    geo={geo}
+                    view={view}
+                    selected={sel.has(e.id)}
+                    preview={false}
+                    sym={e.kind === 'symbol' ? symbols.get(e.symbolId) : undefined}
+                    symbolsLoading={symbolsLoading}
+                />
             ))}
         </Layer>
     );
@@ -395,7 +455,7 @@ type TouchState =
     | { mode: 'pinch'; dist: number; cx: number; cy: number; view: View }
     | null;
 
-export default function DrawingCanvas({ state, dispatch, values, spaceDown }: DrawingCanvasProps) {
+export default function DrawingCanvas({ state, dispatch, values, spaceDown, symbolsLoading = false }: DrawingCanvasProps) {
     const wrapRef = useRef<HTMLDivElement>(null);
     const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
     const [rect, setRect] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
@@ -464,7 +524,7 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown }: Dr
         }
         if (btn === 2) {
             // 右クリック＝読取点（近くの端点・中点・交点・中心に吸い付く）
-            const cand = snapCandidate(toReal(pos.x, pos.y), visibleEntities(stateRef.current.drawing), tol());
+            const cand = snapCandidate(toReal(pos.x, pos.y), visibleEntities(stateRef.current.drawing), tol(), stateRef.current.symbols);
             if (!cand) {
                 dispatch({ type: 'setMessage', message: '読取点がありません（図形の端・中点・交点・円の中心の近くで右クリック）' });
                 return;
@@ -511,6 +571,16 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown }: Dr
         }
         // 左クリック＝自由点（押した位置）
         dispatch({ type: 'point', p: toReal(d.sx, d.sy), shift: ev.evt.shiftKey, tolMm: tol(), additive });
+    };
+
+    // ダブルクリック＝コーン列の確定（2 回のクリックは同じ点なので 1 点として扱われる）
+    const onDblClick = (ev: KonvaEventObject<MouseEvent>) => {
+        if (ev.evt.button !== 0 || stateRef.current.command !== 'coneRow') return;
+        dispatch({ type: 'finish' });
+    };
+    const onDblTap = () => {
+        if (stateRef.current.command !== 'coneRow') return;
+        dispatch({ type: 'finish' });
     };
 
     const onMouseLeave = () => {
@@ -569,8 +639,8 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown }: Dr
     const previews = useMemo(() => previewEntities(state), [state]);
     const hoverSnap = useMemo(() => {
         if (!state.cursor) return null;
-        return snapCandidate(state.cursor, shown, tolMm);
-    }, [state.cursor, shown, tolMm]);
+        return snapCandidate(state.cursor, shown, tolMm, state.symbols);
+    }, [state.cursor, shown, tolMm, state.symbols]);
     const cursorPx = state.cursor ? realToScreen(geo, viewPx, state.cursor) : null;
 
     return (
@@ -588,16 +658,33 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown }: Dr
                     onMouseMove={onMouseMove}
                     onMouseUp={onMouseUp}
                     onMouseLeave={onMouseLeave}
+                    onDblClick={onDblClick}
+                    onDblTap={onDblTap}
                     onTouchStart={onTouchStart}
                     onTouchMove={onTouchMove}
                     onTouchEnd={onTouchEnd}
                     onContextMenu={(e) => e.evt.preventDefault()}
                 >
                     <PaperLayer drawing={drawing} view={viewPx} showGrid={view.showGrid} showFrame={view.showPaperFrame} values={values} />
-                    <EntitiesLayer entities={shown} geo={geo} view={viewPx} selection={state.selection} />
+                    <EntitiesLayer
+                        entities={shown}
+                        geo={geo}
+                        view={viewPx}
+                        selection={state.selection}
+                        symbols={state.symbols}
+                        symbolsLoading={symbolsLoading}
+                    />
                     <Layer listening={false}>
                         {previews.map((e) => (
-                            <EntityShape key={e.id} e={e} geo={geo} view={viewPx} selected={false} preview />
+                            <EntityShape
+                                key={e.id}
+                                e={e}
+                                geo={geo}
+                                view={viewPx}
+                                selected={false}
+                                preview
+                                sym={e.kind === 'symbol' ? state.symbols.get(e.symbolId) : undefined}
+                            />
                         ))}
                         {state.pts.map((p, i) => {
                             const s = realToScreen(geo, viewPx, p);

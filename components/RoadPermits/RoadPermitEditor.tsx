@@ -9,13 +9,14 @@ import { Button } from '@/components/ui/Button';
 import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { logger } from '@/lib/logger';
-import { sendBroadcast } from '@/lib/broadcastChannel';
+import { onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
 import { ROAD_PERMIT_FORMS, getRoadPermitForm } from '@/lib/roadPermit/forms';
 import { enabledFormIdsOf, normalizeRoadPermitDocuments, normalizeRoadPermitValues } from '@/lib/roadPermit/defaults';
 import { contactPresetIndexOf, isContactBlank } from '@/lib/roadPermit/contacts';
 import { approxAreaOf, countDaysInclusive } from '@/lib/roadPermit/format';
 import { isDrawingEmpty, normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
 import type { RoadPermitDrawing } from '@/types/roadPermitDrawing';
+import type { RoadPermitSymbolDto, RoadPermitSymbolsResponse } from '@/types/roadPermitSymbol';
 import {
     ROAD_PERMIT_STATUSES,
     ROAD_PERMIT_STATUS_LABELS,
@@ -98,6 +99,37 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
     // 二重押しを防ぐ同期ロック（state の反映を待たずに止める）
     const lockRef = useRef(false);
     const isLg = useMediaQuery('(min-width: 1024px)');
+
+    // ---- 記号の一覧（図面の記号を描くため。null＝読み込み中・読めなければ空＝記号は ○ で出る） ----
+    const [symbols, setSymbols] = useState<RoadPermitSymbolDto[] | null>(null);
+    const symbolsSeqRef = useRef(0);
+    const loadSymbols = useCallback(async () => {
+        const seq = ++symbolsSeqRef.current;
+        try {
+            const res = await fetch('/api/road-permits/symbols', { cache: 'no-store' });
+            if (!res.ok) throw new Error(await errorMessage(res, '記号を読み込めませんでした'));
+            const json = (await res.json()) as Partial<RoadPermitSymbolsResponse>;
+            if (seq !== symbolsSeqRef.current) return;
+            setSymbols(Array.isArray(json.symbols) ? json.symbols : []);
+        } catch (e) {
+            if (seq !== symbolsSeqRef.current) return;
+            logger.error('道路申請の記号の読み込み失敗:', e);
+            toast.error('記号を読み込めませんでした（図面の記号は ○ で出ます）');
+            setSymbols((prev) => prev ?? []);
+        }
+    }, []);
+    useEffect(() => {
+        void loadSymbols();
+        // 記号の登録画面で変えたら読み直す
+        const off = onBroadcast('road_permit_symbols_updated', () => {
+            void loadSymbols();
+        });
+        return () => {
+            off();
+            // 閉じたあとに届いた応答は捨てる
+            symbolsSeqRef.current++;
+        };
+    }, [loadSymbols]);
 
     // 別の申請に切り替わったら（コピーして作った直後など）入力欄を作り直す
     const permitIdRef = useRef(permit.id);
@@ -212,6 +244,7 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
                 formIds,
                 drawing: form.drawing,
                 includeDrawing: includeDrawing && !isDrawingEmpty(form.drawing),
+                symbols,
             });
         } catch (e) {
             logger.error('道路申請のPDF出力失敗:', e);
@@ -328,6 +361,7 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
                                     key={permit.id}
                                     value={form.drawing}
                                     values={values}
+                                    symbols={symbols}
                                     onChange={(drawing) => setForm((f) => ({ ...f, drawing }))}
                                 />
                             </div>

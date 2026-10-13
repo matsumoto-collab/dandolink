@@ -1,7 +1,17 @@
 /**
  * 図面の幾何計算（純粋関数・実寸 mm・Y 上向き）。
  * 読取点の候補・選択の当たり判定・面積・回転／反転 など、作図画面と PDF と 2b（占用面積）で使う。
+ *
+ * 記号（SymbolEntity）は、記号の表（symbols）を渡せば本物の形（lib/roadPermit/symbols/geometry.ts の
+ * placedSymbol*）で当たり判定・範囲・読取点を出す。渡さないか表に無いときは、基準点のまわりの小さな四角（実寸 100mm）。
  */
+import type { RoadPermitSymbolDto, RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
+import {
+    isSymbolGeometryEmpty,
+    placedSymbolBBox,
+    placedSymbolCorners,
+    placedSymbolSegments,
+} from '@/lib/roadPermit/symbols/geometry';
 import type {
     ArcEntity,
     CircleEntity,
@@ -12,6 +22,7 @@ import type {
     LeaderEntity,
     LineEntity,
     PolylineEntity,
+    SymbolEntity,
 } from '@/types/roadPermitDrawing';
 
 export interface BBox {
@@ -209,8 +220,20 @@ export function dimensionLabel(dim: Pick<DimensionEntity, 'a' | 'b' | 'mode' | '
     return Math.round(dimensionValue(dim)).toLocaleString('ja-JP');
 }
 
-/** 図形を線分の集まりにする（文字・記号は基準点のまわりの小さな四角） */
-export function entitySegments(e: DrawingEntity): Segment[] {
+/** 記号の表から、その記号（形が空でないもの）を引く。無ければ null（小さな四角で扱う） */
+export function symbolFor(e: SymbolEntity, symbols?: RoadPermitSymbolMap | null): RoadPermitSymbolDto | null {
+    if (!symbols) return null;
+    const s = symbols.get(e.symbolId);
+    if (!s || isSymbolGeometryEmpty(s.geometry)) return null;
+    return s;
+}
+
+/** 図形を線分の集まりにする（文字・表に無い記号は基準点のまわりの小さな四角。記号の表を渡せば記号は本物の形） */
+export function entitySegments(e: DrawingEntity, symbols?: RoadPermitSymbolMap | null): Segment[] {
+    if (e.kind === 'symbol') {
+        const sym = symbolFor(e, symbols);
+        if (sym) return placedSymbolSegments(sym.geometry, e);
+    }
     switch (e.kind) {
         case 'line':
             return [[e.a, e.b]];
@@ -245,8 +268,8 @@ export function entitySegments(e: DrawingEntity): Segment[] {
     }
 }
 
-/** 図形の読取点の候補（端点・中点・中心）。交点は snapCandidates で別に出す */
-export function entitySnapPoints(e: DrawingEntity): { kind: 'end' | 'mid' | 'center'; p: DrawingPoint }[] {
+/** 図形の読取点の候補（端点・中点・中心）。交点は snapCandidates で別に出す。記号（表にあるもの）は 中心＋外形の 4 隅 */
+export function entitySnapPoints(e: DrawingEntity, symbols?: RoadPermitSymbolMap | null): { kind: 'end' | 'mid' | 'center'; p: DrawingPoint }[] {
     const out: { kind: 'end' | 'mid' | 'center'; p: DrawingPoint }[] = [];
     const pushSegs = (segs: Segment[]) => {
         for (const [a, b] of segs) {
@@ -279,9 +302,18 @@ export function entitySnapPoints(e: DrawingEntity): { kind: 'end' | 'mid' | 'cen
             break;
         }
         case 'text':
-        case 'symbol':
             out.push({ kind: 'end', p: e.at });
             break;
+        case 'symbol': {
+            const sym = symbolFor(e, symbols);
+            if (sym) {
+                out.push({ kind: 'center', p: e.at });
+                for (const p of placedSymbolCorners(sym.geometry, e)) out.push({ kind: 'end', p });
+            } else {
+                out.push({ kind: 'end', p: e.at });
+            }
+            break;
+        }
     }
     return out;
 }
@@ -296,7 +328,12 @@ export interface SnapCandidate {
  * 読取点（右クリック）の候補のうち、p にいちばん近いもの。tolerance（実寸 mm）より遠ければ null。
  * 優先順: 端点 > 交点 > 中点 > 中心（同じ距離のとき）
  */
-export function snapCandidate(p: DrawingPoint, entities: readonly DrawingEntity[], toleranceMm: number): SnapCandidate | null {
+export function snapCandidate(
+    p: DrawingPoint,
+    entities: readonly DrawingEntity[],
+    toleranceMm: number,
+    symbols?: RoadPermitSymbolMap | null,
+): SnapCandidate | null {
     const rank: Record<SnapCandidate['kind'], number> = { end: 0, intersection: 1, mid: 2, center: 3 };
     let best: SnapCandidate | null = null;
     const consider = (c: SnapCandidate) => {
@@ -305,13 +342,13 @@ export function snapCandidate(p: DrawingPoint, entities: readonly DrawingEntity[
     };
     const near: DrawingEntity[] = [];
     for (const e of entities) {
-        const bb = entityBBox(e);
+        const bb = entityBBox(e, symbols);
         if (p.x < bb.minX - toleranceMm || p.x > bb.maxX + toleranceMm || p.y < bb.minY - toleranceMm || p.y > bb.maxY + toleranceMm) continue;
         near.push(e);
-        for (const sp of entitySnapPoints(e)) consider({ kind: sp.kind, p: sp.p, dist: distance(p, sp.p) });
+        for (const sp of entitySnapPoints(e, symbols)) consider({ kind: sp.kind, p: sp.p, dist: distance(p, sp.p) });
     }
     // 交点（近くの図形どうし）
-    const segsOf = near.map((e) => entitySegments(e).filter(([a, b]) => pointToSegment(p, a, b).dist <= toleranceMm * 4));
+    const segsOf = near.map((e) => entitySegments(e, symbols).filter(([a, b]) => pointToSegment(p, a, b).dist <= toleranceMm * 4));
     for (let i = 0; i < near.length; i++) {
         for (let j = i + 1; j < near.length; j++) {
             for (const [a1, b1] of segsOf[i]) {
@@ -325,8 +362,12 @@ export function snapCandidate(p: DrawingPoint, entities: readonly DrawingEntity[
     return best;
 }
 
-/** 図形の外接の範囲 */
-export function entityBBox(e: DrawingEntity): BBox {
+/** 図形の外接の範囲（記号の表を渡せば、記号は置いた形の範囲） */
+export function entityBBox(e: DrawingEntity, symbols?: RoadPermitSymbolMap | null): BBox {
+    if (e.kind === 'symbol') {
+        const sym = symbolFor(e, symbols);
+        if (sym) return placedSymbolBBox(sym.geometry, e);
+    }
     const pts: DrawingPoint[] = [];
     for (const [a, b] of entitySegments(e)) pts.push(a, b);
     if (e.kind === 'circle') {
@@ -350,9 +391,9 @@ export function bboxOf(points: readonly DrawingPoint[]): BBox {
     return { minX, minY, maxX, maxY };
 }
 
-export function entitiesBBox(entities: readonly DrawingEntity[]): BBox | null {
+export function entitiesBBox(entities: readonly DrawingEntity[], symbols?: RoadPermitSymbolMap | null): BBox | null {
     if (entities.length === 0) return null;
-    const boxes = entities.map(entityBBox);
+    const boxes = entities.map((e) => entityBBox(e, symbols));
     return {
         minX: Math.min(...boxes.map((b) => b.minX)),
         minY: Math.min(...boxes.map((b) => b.minY)),
@@ -361,9 +402,16 @@ export function entitiesBBox(entities: readonly DrawingEntity[]): BBox | null {
     };
 }
 
-/** 点 p から図形までの距離（線分への最短）。文字・記号は基準点まで */
-export function entityDistance(e: DrawingEntity, p: DrawingPoint): number {
-    if (e.kind === 'text' || e.kind === 'symbol') return distance(p, e.at);
+/** 点 p から図形までの距離（線分への最短）。文字・表に無い記号は基準点まで。表にある記号は記号の線まで */
+export function entityDistance(e: DrawingEntity, p: DrawingPoint, symbols?: RoadPermitSymbolMap | null): number {
+    if (e.kind === 'symbol') {
+        const sym = symbolFor(e, symbols);
+        if (!sym) return distance(p, e.at);
+        let best = distance(p, e.at);
+        for (const [a, b] of placedSymbolSegments(sym.geometry, e)) best = Math.min(best, pointToSegment(p, a, b).dist);
+        return best;
+    }
+    if (e.kind === 'text') return distance(p, e.at);
     if (e.kind === 'circle') return Math.abs(distance(p, e.center) - e.r);
     let best = Infinity;
     for (const [a, b] of entitySegments(e)) best = Math.min(best, pointToSegment(p, a, b).dist);
@@ -371,11 +419,16 @@ export function entityDistance(e: DrawingEntity, p: DrawingPoint): number {
 }
 
 /** クリックで選ぶ: p にいちばん近い図形（tolerance 以内）。無ければ null */
-export function pickEntity(p: DrawingPoint, entities: readonly DrawingEntity[], toleranceMm: number): DrawingEntity | null {
+export function pickEntity(
+    p: DrawingPoint,
+    entities: readonly DrawingEntity[],
+    toleranceMm: number,
+    symbols?: RoadPermitSymbolMap | null,
+): DrawingEntity | null {
     let best: DrawingEntity | null = null;
     let bestD = toleranceMm;
     for (const e of entities) {
-        const d = entityDistance(e, p);
+        const d = entityDistance(e, p, symbols);
         if (d <= bestD) {
             bestD = d;
             best = e;
@@ -385,9 +438,9 @@ export function pickEntity(p: DrawingPoint, entities: readonly DrawingEntity[], 
 }
 
 /** 範囲選択: 矩形に全部入っている図形 */
-export function entitiesInRect(rect: BBox, entities: readonly DrawingEntity[]): DrawingEntity[] {
+export function entitiesInRect(rect: BBox, entities: readonly DrawingEntity[], symbols?: RoadPermitSymbolMap | null): DrawingEntity[] {
     return entities.filter((e) => {
-        const b = entityBBox(e);
+        const b = entityBBox(e, symbols);
         return b.minX >= rect.minX && b.maxX <= rect.maxX && b.minY >= rect.minY && b.maxY <= rect.maxY;
     });
 }

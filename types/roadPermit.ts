@@ -11,6 +11,7 @@
  */
 
 import type { RoadPermitDrawing } from './roadPermitDrawing';
+import type { RoadPermitSymbolDto } from './roadPermitSymbol';
 
 // ---------------------------------------------------------------------------
 // 状態・様式の id
@@ -331,4 +332,6 @@ export interface RoadPermitPdfInput {
     drawing?: RoadPermitDrawing | null;
     /** 図面のページを最後に入れるか（図形が 1 つも無ければ入れない） */
     includeDrawing?: boolean;
+    /** 記号の一覧（図面の記号を描くため・Phase 2b）。無ければ記号は ○ と「記号が見つかりません」 */
+    symbols?: RoadPermitSymbolDto[] | null;
 }

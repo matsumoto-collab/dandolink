@@ -13,11 +13,17 @@
  *   - 図面（--drawing か --sample-drawing）があるとき: ページ数が 1 増えること・最後のページの大きさが用紙どおりなこと・
  *     表題欄の文言（図面名・縮尺など）が入ること・文字が用紙の外に出ないこと（枠＝10mm 内側を越えたものは注意として出す）
  *
- * 実行: npx tsx scripts/verify-road-permit-pdf.tsx --values <json> [--out <pdf>] [--drawing <json> | --sample-drawing]
+ *   - 記号（--symbols）があるとき: 図面のページに「記号が見つかりません」が出ないこと（置いた記号がすべて一覧にあること）
+ *
+ * 実行: npx tsx scripts/verify-road-permit-pdf.tsx --values <json> [--out <pdf>] [--drawing <json> | --sample-drawing] [--symbols <json>]
  *   例: npx tsx scripts/verify-road-permit-pdf.tsx --values docs/road-permit/forms/sample-values.json --out tmp/road.pdf
  *   図面つき: ... --values docs/road-permit/forms/sample-values.json --sample-drawing --out tmp/road-drawing.pdf
  *   --drawing の JSON は RoadPermitDrawing（normalizeRoadPermitDrawing を通す）。--sample-drawing は画面イメージの
  *   西条市の例（道路 2線・官民境界・既存建物・足場の帯・寸法・文字・引出線）をこのスクリプトの中で組み立てる。
+ *   --symbols の JSON は RoadPermitSymbolDto[]（または { symbols: [...] }＝GET /api/road-permits/symbols の応答）。
+ *   kei のデータ（JWW から取り込んだ形）はリポジトリに入れないので、ファイルはリポジトリの外に置いてパスで渡す。
+ *   --sample-drawing と一緒に渡すと、最初の記号を 1 つ置き、コーン（分類 cone）とコーンバー（barPitchMm あり）が
+ *   あれば足場の前にコーン列（11,100mm）を置く。
  * JSON は RoadPermitValues（＋ formIds。無ければ 3 様式すべて）。normalizeRoadPermitValues を通すので欠けた欄は空になる。
  */
 import React from 'react';
@@ -38,6 +44,9 @@ import type { DrawingEntity, DrawingLayerId, DrawingStyle, RoadPermitDrawing } f
 import { emptyRoadPermitDrawing, isDrawingEmpty, normalizeRoadPermitDrawing } from '../lib/roadPermit/drawing/defaults';
 import { drawingPaperMm, PAPER_MARGIN_MM, PT_PER_MM, scaleLabel } from '../lib/roadPermit/drawing/paper';
 import { titleBlockRows } from '../components/pdf/roadPermit/DrawingPage';
+import type { RoadPermitSymbolDto } from '../types/roadPermitSymbol';
+import { isConeBarSymbol, normalizeRoadPermitSymbolCategory, normalizeRoadPermitSymbolGeometry } from '../lib/roadPermit/symbols/normalize';
+import { coneRowLayout } from '../lib/roadPermit/symbols/place';
 // styles.ts（CDNフォント）の後に評価させるため import は最後に置く
 import '../lib/pdf/registerServerFonts';
 
@@ -155,8 +164,18 @@ function expectedTexts(id: RoadPermitFormId, v: RoadPermitValues): string[] {
 // ---------------------------------------------------------------------------
 
 /** 図面のページを確かめる: 用紙の大きさ・表題欄の文言・文字が用紙の外に出ないこと */
-function checkDrawingPage(pageNo: number, page: PageInfo, drawing: RoadPermitDrawing, values: RoadPermitValues, isSample: boolean): string[] {
+function checkDrawingPage(
+    pageNo: number,
+    page: PageInfo,
+    drawing: RoadPermitDrawing,
+    values: RoadPermitValues,
+    isSample: boolean,
+    symbols: RoadPermitSymbolDto[] | null,
+): string[] {
     const problems: string[] = [];
+    if (symbols && symbols.length > 0 && page.text.includes(norm('記号が見つかりません'))) {
+        problems.push(`${pageNo}ページ目（図面）に「記号が見つかりません」が出ている（置いた記号が --symbols に無い）`);
+    }
     const paper = drawingPaperMm(drawing);
     const W = paper.w * PT_PER_MM;
     const H = paper.h * PT_PER_MM;
@@ -204,7 +223,7 @@ function checkDrawingPage(pageNo: number, page: PageInfo, drawing: RoadPermitDra
  *   既存建物 x 6,000〜20,000・y 1,500〜12,000（ハッチ）／足場の帯 x 9,000〜20,100・y -810〜0（11,100×810）
  * 寸法・占用面積などの値は西条市の過去の申請書の値（番地は省略）。
  */
-function sampleDrawing(): RoadPermitDrawing {
+function sampleDrawing(symbols: RoadPermitSymbolDto[] | null): RoadPermitDrawing {
     const d = emptyRoadPermitDrawing();
     let n = 0;
     const id = () => `s${++n}`;
@@ -303,13 +322,35 @@ function sampleDrawing(): RoadPermitDrawing {
         // 下敷き（レイヤ 6・印刷しない）: PDF に出ないことを確かめるための文字
         text(6, 30000, 9000, '下敷き（印刷しない）', 3),
     ];
+    // 記号（--symbols があるときだけ）: 最初の記号を 1 つ（30 度回して反転）と、足場の前のコーン列
+    if (symbols && symbols.length > 0) {
+        const sym = (symbolId: string, x: number, y: number, rotationDeg: number, mirrored: boolean): DrawingEntity => ({
+            id: id(),
+            layer: 3,
+            style: st('solid', 'thin'),
+            kind: 'symbol',
+            symbolId,
+            at: { x, y },
+            rotationDeg,
+            mirrored,
+        });
+        d.entities.push(sym(symbols[0].id, 27000, -1800, 30, true));
+        const cone = symbols.find((s) => s.category === 'cone' && !isConeBarSymbol(s));
+        const bar = symbols.find((s) => isConeBarSymbol(s));
+        if (cone && bar) {
+            const layout = coneRowLayout([{ x: 9000, y: -1300 }, { x: 20100, y: -1300 }], bar.barPitchMm ?? 0);
+            for (const b of layout.bars) d.entities.push(sym(bar.id, b.at.x, b.at.y, b.rotationDeg, false));
+            for (const c of layout.cones) d.entities.push(sym(cone.id, c.x, c.y, 0, false));
+            console.log(`見本の図面: コーン列 コーン ${layout.cones.length} 個・コーンバー ${layout.bars.length} 本（${cone.name}・${bar.name}）`);
+        }
+    }
     // 用紙の左下隅に来る図面座標: x=-2,000 が枠の左（10mm）・道路が用紙の下 1/3 に来る位置
     d.origin = { x: -3000, y: -15000 };
     return d;
 }
 
 function usage(): never {
-    console.error('使い方: npx tsx scripts/verify-road-permit-pdf.tsx --values <json> [--out <pdf>] [--drawing <json> | --sample-drawing]');
+    console.error('使い方: npx tsx scripts/verify-road-permit-pdf.tsx --values <json> [--out <pdf>] [--drawing <json> | --sample-drawing] [--symbols <json>]');
     process.exit(1);
 }
 
@@ -332,17 +373,46 @@ async function main() {
         process.exit(1);
     }
 
+    // 記号の一覧（--symbols <json>）。API の応答と同じ形にそろえる（形は normalize を通す）
+    const symbolsPath = arg('--symbols');
+    let symbols: RoadPermitSymbolDto[] | null = null;
+    if (symbolsPath) {
+        const rawSymbols = JSON.parse(fs.readFileSync(symbolsPath, 'utf8')) as unknown;
+        const list = Array.isArray(rawSymbols) ? rawSymbols : ((rawSymbols as { symbols?: unknown }).symbols ?? []);
+        if (!Array.isArray(list)) usage();
+        symbols = (list as Record<string, unknown>[]).map((o, i) => ({
+            id: String(o.id ?? `symbol-${i}`),
+            name: String(o.name ?? ''),
+            category: normalizeRoadPermitSymbolCategory(o.category),
+            countLabel: String(o.countLabel ?? ''),
+            countUnit: String(o.countUnit ?? ''),
+            countNote: String(o.countNote ?? ''),
+            geometry: normalizeRoadPermitSymbolGeometry(o.geometry),
+            lengthMm: Number(o.lengthMm ?? 0),
+            widthMm: Number(o.widthMm ?? 0),
+            barPitchMm: typeof o.barPitchMm === 'number' ? o.barPitchMm : null,
+            sourceFile: String(o.sourceFile ?? ''),
+            sourceBlock: String(o.sourceBlock ?? ''),
+            sourceNote: String(o.sourceNote ?? ''),
+            sortOrder: Number(o.sortOrder ?? i),
+            isActive: o.isActive !== false,
+            createdAt: String(o.createdAt ?? ''),
+            updatedAt: String(o.updatedAt ?? ''),
+        }));
+        console.log(`記号 ${symbols.length} 個を読みました: ${symbols.map((x) => x.name).join('・')}`);
+    }
+
     // 図面（--drawing <json> か --sample-drawing）。DB から読むときと同じく normalizeRoadPermitDrawing を通す
     const drawingPath = arg('--drawing');
     const useSample = !drawingPath && args.includes('--sample-drawing');
     let drawing: RoadPermitDrawing | null = null;
     if (drawingPath) drawing = normalizeRoadPermitDrawing(JSON.parse(fs.readFileSync(drawingPath, 'utf8')));
-    else if (useSample) drawing = normalizeRoadPermitDrawing(JSON.parse(JSON.stringify(sampleDrawing())));
+    else if (useSample) drawing = normalizeRoadPermitDrawing(JSON.parse(JSON.stringify(sampleDrawing(symbols))));
     const hasDrawing = drawing != null && !isDrawingEmpty(drawing);
     if (drawing && !hasDrawing) console.log('図面に図形が 1 つも無いので、図面のページは入りません');
 
     const buf = await renderToBuffer(
-        <RoadPermitDocument values={values} formIds={formIds} drawing={drawing} includeDrawing={hasDrawing} />,
+        <RoadPermitDocument values={values} formIds={formIds} drawing={drawing} includeDrawing={hasDrawing} symbols={symbols} />,
     );
     if (outPath) {
         fs.writeFileSync(outPath, buf);
@@ -367,7 +437,7 @@ async function main() {
 
     if (hasDrawing && drawing) {
         const page = pages[formIds.length];
-        if (page) problems.push(...checkDrawingPage(formIds.length + 1, page, drawing, values, useSample));
+        if (page) problems.push(...checkDrawingPage(formIds.length + 1, page, drawing, values, useSample, symbols));
     }
 
     console.log(`期間（警察）: ${formatReiwaYmdOrBlank(values.period.useFrom)}${formatHourLabel(values.period.timeFrom)}から${formatReiwaYmdOrBlank(values.period.useTo)}${formatHourLabel(values.period.timeTo)}まで`);

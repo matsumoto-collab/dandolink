@@ -34,7 +34,9 @@ import {
     normalizeEntity,
     normalizeRoadPermitDrawing,
 } from '@/lib/roadPermit/drawing/defaults';
-import type { DrawingEntity, LineEntity, PolylineEntity } from '@/types/roadPermitDrawing';
+import type { DrawingEntity, LineEntity, PolylineEntity, SymbolEntity } from '@/types/roadPermitDrawing';
+import type { RoadPermitSymbolDto } from '@/types/roadPermitSymbol';
+import { toSymbolMap } from '@/lib/roadPermit/symbols/normalize';
 
 const line = (id: string, ax: number, ay: number, bx: number, by: number, layer: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 0): LineEntity => ({
     id,
@@ -276,5 +278,74 @@ describe('既定値と正規化（defaults）', () => {
     it('null や文字列を渡しても空の図面になる', () => {
         expect(normalizeRoadPermitDrawing(null).entities).toEqual([]);
         expect(normalizeRoadPermitDrawing('x').scale).toBe(100);
+    });
+});
+
+describe('記号（Phase 2b）の当たり判定と範囲（symbols を渡したとき）', () => {
+    // 1,500×97 の長方形（コーンバー風）を中心に置いた記号
+    const bar: RoadPermitSymbolDto = {
+        id: 'bar',
+        name: 'コーンバー',
+        category: 'cone',
+        countLabel: '',
+        countUnit: '',
+        countNote: '',
+        geometry: { lines: [-750, -48.5, 750, -48.5, 750, -48.5, 750, 48.5, 750, 48.5, -750, 48.5, -750, 48.5, -750, -48.5], circles: [], arcs: [], polylines: [] },
+        lengthMm: 1500,
+        widthMm: 97,
+        barPitchMm: 1403,
+        sourceFile: '',
+        sourceBlock: '',
+        sourceNote: '',
+        sortOrder: 0,
+        isActive: true,
+        createdAt: '',
+        updatedAt: '',
+    };
+    const symbols = toSymbolMap([bar]);
+    const sym = (rotationDeg: number, symbolId = 'bar'): SymbolEntity => ({
+        id: 's1',
+        kind: 'symbol',
+        layer: 3,
+        style: DEFAULT_STYLE,
+        symbolId,
+        at: { x: 10000, y: 0 },
+        rotationDeg,
+        mirrored: false,
+    });
+
+    it('entityBBox: 置いた形の範囲（90 度回すと縦長）', () => {
+        const b0 = entityBBox(sym(0), symbols);
+        expect(b0.minX).toBeCloseTo(9250);
+        expect(b0.maxX).toBeCloseTo(10750);
+        expect(b0.maxY).toBeCloseTo(48.5);
+        const b90 = entityBBox(sym(90), symbols);
+        expect(b90.minY).toBeCloseTo(-750);
+        expect(b90.maxY).toBeCloseTo(750);
+        expect(b90.maxX).toBeCloseTo(10048.5);
+    });
+
+    it('pickEntity: 記号の線に当たる（中心から離れた端の線でも選べる）', () => {
+        // 右端の線（x=10,750）の近く。中心からは 700mm 以上離れている
+        expect(pickEntity({ x: 10740, y: 0 }, [sym(0)], 30, symbols)?.id).toBe('s1');
+        // 記号の外
+        expect(pickEntity({ x: 10000, y: 500 }, [sym(0)], 30, symbols)).toBeNull();
+    });
+
+    it('entitiesInRect・読取点（中心と 4 隅）', () => {
+        expect(entitiesInRect({ minX: 9000, minY: -100, maxX: 11000, maxY: 100 }, [sym(0)], symbols)).toHaveLength(1);
+        expect(entitiesInRect({ minX: 9500, minY: -100, maxX: 11000, maxY: 100 }, [sym(0)], symbols)).toHaveLength(0);
+        const c = snapCandidate({ x: 10745, y: 45 }, [sym(0)], 20, symbols);
+        expect(c?.kind).toBe('end');
+        expect(c?.p.x).toBeCloseTo(10750);
+        expect(c?.p.y).toBeCloseTo(48.5);
+        expect(snapCandidate({ x: 10005, y: 0 }, [sym(0)], 20, symbols)?.kind).toBe('center');
+    });
+
+    it('symbols を渡さないとき・表に無い記号は今までどおり（基準点のまわり 100mm の四角）', () => {
+        expect(entityBBox(sym(0))).toEqual({ minX: 9900, minY: -100, maxX: 10100, maxY: 100 });
+        expect(entityBBox(sym(0, 'none'), symbols)).toEqual({ minX: 9900, minY: -100, maxX: 10100, maxY: 100 });
+        expect(pickEntity({ x: 10740, y: 0 }, [sym(0)], 30)).toBeNull();
+        expect(pickEntity({ x: 10010, y: 0 }, [sym(0)], 30)?.id).toBe('s1');
     });
 });

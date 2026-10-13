@@ -7,11 +7,14 @@
  * - 印刷は黒だけ（画面のレイヤ色は使わない）。印刷するのは visible かつ printable のレイヤだけ。
  * - 図形は用紙の枠（10mm 内側）で切り取る。表題欄・縮尺・方位は図形の上に重ねる。
  * - 部品（線・矢印・文字）は drawingPdfShared.tsx。
+ * - 記号（Phase 2b）は記号の表（symbols）の形を placedSymbolPolylines で置いて、細い線で描く。表に無ければ ○ と「記号が見つかりません」。
  */
 import React from 'react';
 import { ClipPath, Defs, G, Page, Rect, Svg, Text as PdfText } from '@react-pdf/renderer';
 import type { RoadPermitValues } from '@/types/roadPermit';
 import type { DrawingEntity, DrawingLayer, RoadPermitDrawing } from '@/types/roadPermitDrawing';
+import type { RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
+import { isSymbolGeometryEmpty, placedSymbolPolylines } from '@/lib/roadPermit/symbols/geometry';
 import { drawingPaperMm, PAPER_MARGIN_MM, PT_PER_MM, scaleLabel, toPt } from '@/lib/roadPermit/drawing/paper';
 import { arcPoints, circlePoints, dimensionLabel, dimensionLinePoints, hatchLines } from '@/lib/roadPermit/drawing/geometry';
 import { formatReiwaRange } from '@/lib/roadPermit/format';
@@ -31,7 +34,11 @@ import {
 export interface DrawingPageProps {
     drawing: RoadPermitDrawing;
     values: RoadPermitValues;
+    /** symbolId → 記号（形）。無ければ記号は ○ と「記号が見つかりません」 */
+    symbols?: RoadPermitSymbolMap;
 }
+
+const NO_SYMBOLS: RoadPermitSymbolMap = new Map();
 
 const mm = (v: number) => v * PT_PER_MM;
 
@@ -67,7 +74,7 @@ function inFrame(p: Pt, f: FrameBox): boolean {
     return p.x >= f.x && p.x <= f.x + f.w && p.y >= f.y && p.y <= f.y + f.h;
 }
 
-function EntityShape({ e, d, part, frame }: { e: DrawingEntity; d: RoadPermitDrawing; part: Part; frame: FrameBox }) {
+function EntityShape({ e, d, part, frame, symbols }: { e: DrawingEntity; d: RoadPermitDrawing; part: Part; frame: FrameBox; symbols: RoadPermitSymbolMap }) {
     const P = (p: { x: number; y: number }): Pt => toPt(p, d);
     const sw = lineWidthPt(e.style.width);
     const dash = strokeDash(e.style.lineType);
@@ -105,13 +112,26 @@ function EntityShape({ e, d, part, frame }: { e: DrawingEntity; d: RoadPermitDra
         case 'hatch':
             return isShape ? <Hatch e={e} d={d} sw={sw} /> : null;
         case 'symbol': {
-            // 記号の絵は Phase 2b。いまは基準点に小さな ○ と記号の id だけ出す
+            const sym = symbols.get(e.symbolId);
+            if (sym && !isSymbolGeometryEmpty(sym.geometry)) {
+                // 記号の形を置いた位置・角度・反転で線にする（線の太さは「細」）。文字は持たない
+                if (!isShape) return null;
+                const thin = lineWidthPt('thin');
+                return (
+                    <>
+                        {placedSymbolPolylines(sym.geometry, e).map((poly, i) => (
+                            <PolyPt key={i} pts={poly.map(P)} closed={false} sw={thin} />
+                        ))}
+                    </>
+                );
+            }
+            // 記号の表に無い（消された・読み込めない）: 基準点に小さな ○ と「記号が見つかりません」
             const at = P(e.at);
             const r = mm(1.5);
             const circle = circlePoints({ center: { x: 0, y: 0 }, r }, 24).map((p) => ({ x: at.x + p.x, y: at.y + p.y }));
             if (isShape) return <PolyPt pts={circle} closed sw={sw} />;
             if (!inFrame(at, frame)) return null;
-            return <DrawText at={{ x: at.x + r + mm(0.8), y: at.y + mm(0.8) }} text={e.symbolId} sizePt={mm(2)} />;
+            return <DrawText at={{ x: at.x + r + mm(0.8), y: at.y + mm(0.8) }} text="記号が見つかりません" sizePt={mm(2)} />;
         }
         default:
             return null;
@@ -366,7 +386,7 @@ function isPrintable(layers: DrawingLayer[], id: number): boolean {
     return !layer || (layer.visible && layer.printable);
 }
 
-export function DrawingPage({ drawing, values }: DrawingPageProps) {
+export function DrawingPage({ drawing, values, symbols = NO_SYMBOLS }: DrawingPageProps) {
     const paper = drawingPaperMm(drawing);
     const W = mm(paper.w);
     const H = mm(paper.h);
@@ -395,12 +415,12 @@ export function DrawingPage({ drawing, values }: DrawingPageProps) {
                 {/* 図形の線・塗り（用紙の枠で切り取る） */}
                 <G clipPath="url(#drawing-frame)">
                     {ordered.map((e) => (
-                        <EntityShape key={e.id} e={e} d={drawing} part="shape" frame={frame} />
+                        <EntityShape key={e.id} e={e} d={drawing} part="shape" frame={frame} symbols={symbols} />
                     ))}
                 </G>
                 {/* 図形の文字（切り取りの外で描く。基準点が枠の外の文字は出さない） */}
                 {ordered.map((e) => (
-                    <EntityShape key={`t-${e.id}`} e={e} d={drawing} part="text" frame={frame} />
+                    <EntityShape key={`t-${e.id}`} e={e} d={drawing} part="text" frame={frame} symbols={symbols} />
                 ))}
                 {/* 用紙の枠（10mm 内側） */}
                 <Rect x={frame.x} y={frame.y} width={frame.w} height={frame.h} fill="none" stroke={INK} strokeWidth={lineWidthPt('normal')} />
