@@ -26,7 +26,9 @@ const nextConfig = {
         // webpack の interop で壊れ `Cy.Component is not a constructor` になるため
         // サーバーバンドルから除外し node_modules から実体をロードさせる
         // （client 側は transpilePackages で従来どおり transpile される）。
-        serverComponentsExternalPackages: ['pdfjs-dist', 'react-pdf', '@react-pdf/renderer'],
+        // ezjww（道路申請の記号＝JWW の読み取り）は読み込み時に __dirname から wasm をファイルで読むため、
+        // サーバーバンドルから除外して node_modules の実体を使う（wasm はファイルトレースで同梱される）。
+        serverComponentsExternalPackages: ['pdfjs-dist', 'react-pdf', '@react-pdf/renderer', 'ezjww'],
         // 出庫伝票の印刷PDFはサーバーで日本語フォントをローカル読込するため、
         // 同梱TTFをサーバーレス関数のファイルトレースに明示的に含める
         // （CDN フォント取得への依存を排除し、Vercel での生成失敗を防ぐ）。
@@ -54,6 +56,9 @@ const nextConfig = {
             '/api/order-backlog/reports/[id]/xlsx': [
                 './public/templates/order-backlog-template.xlsx',
             ],
+            // 道路申請の記号（JWW の読み取り）は ezjww の wasm をファイルで読む。ファイルトレースで拾えることは確認済みだが、
+            // フォントと同じく明示して Vercel の関数に必ず同梱する
+            '/api/road-permits/symbols/parse': ['./node_modules/ezjww/wasm/ezjww_wasm_bg.wasm'],
         },
     },
     webpack: (config) => {

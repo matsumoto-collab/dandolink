@@ -31,6 +31,7 @@
     "bcryptjs": "^2.4.3",
     "browser-image-compression": "^2.0.2",
     "exceljs": "^4.4.0",
+    "ezjww": "^0.7.1",
     "jszip": "^3.10.1",
     "konva": "^10.3.0",
     "lucide-react": "^0.344.0",
