@@ -4,8 +4,9 @@
  *
  * 自動入力の決まり（docs/指示書_道路申請_Phase1.md §7）
  * - 申請者 … 自社情報（申請ごとに上書きできる。自社情報の値は初期値として入れるだけ）
- * - 担当者 … 前回の申請（無ければ自社情報の contactPerson・連絡先は空）
- * - 現場責任者（警察） … 前回の申請（無ければ空）
+ * - 担当者 … 前回の申請（前回が空なら候補の 1 人目・無ければ空）※候補は RoadPermitSetting.contacts
+ * - 現場責任者（警察） … 氏名・電話は前回の申請（前回が空なら担当者と同じ）。住所は前回の申請（前回が空なら自社情報の住所）
+ *   （docs/指示書_道路申請_担当者の選択と住所.md §3.4。既にある申請は開いても変えない＝既定値は新しく作るときだけ）
  * - 現場 … 案件の location（無ければ prefecture＋city）・title
  * - 期間 … 案件の scheduledStartDate / scheduledEndDate。時間は 9:00〜17:00
  * - 道路 … 空
@@ -17,6 +18,7 @@ import type {
     RoadPermitApplicant,
     RoadPermitCompanyDefaults,
     RoadPermitContact,
+    RoadPermitContactPreset,
     RoadPermitDocumentEntry,
     RoadPermitDocuments,
     RoadPermitFormId,
@@ -38,6 +40,7 @@ import type {
 } from '@/types/roadPermit';
 import { ROAD_PERMIT_FORM_IDS, ROAD_PERMIT_STATUSES } from '@/types/roadPermit';
 import { ROAD_PERMIT_FORMS, getRoadPermitForm, isRoadPermitFormId, sortFormIds } from './forms';
+import { isContactBlank } from './contacts';
 
 // ---------------------------------------------------------------------------
 // 既定の文言
@@ -177,21 +180,35 @@ export interface BuildDefaultValuesInput {
     project: RoadPermitProjectSource | null;
     /** 前回の申請の入力値（いちばん新しく作ったもの）。無ければ null */
     previous: RoadPermitValues | null;
+    /** 担当者の候補（RoadPermitSetting.contacts・並び順）。無ければ省略 */
+    contacts?: readonly RoadPermitContactPreset[];
 }
 
 /** 新しく作るときの入力値 */
 export function buildDefaultRoadPermitValues(input: BuildDefaultValuesInput): RoadPermitValues {
     const { company, project, previous } = input;
+    const contacts = input.contacts ?? [];
     const prev = previous ? normalizeRoadPermitValues(previous) : null;
     const location = projectLocationOf(project);
 
-    const contact: RoadPermitContact = prev
-        ? { name: prev.contact.name, phone: prev.contact.phone }
-        : { name: company?.contactPerson ?? '', phone: '' };
+    // 担当者: 前回の申請（氏名・電話とも空なら無いものとみなす）→ 候補の 1 人目 → 空
+    const prevContact = prev && !isContactBlank(prev.contact) ? prev.contact : null;
+    const contact: RoadPermitContact = prevContact
+        ? { name: prevContact.name, phone: prevContact.phone }
+        : contacts.length > 0
+          ? { name: contacts[0].name, phone: contacts[0].phone }
+          : emptyContact();
 
-    const siteManager: RoadPermitSiteManager = prev
-        ? { address: prev.siteManager.address, name: prev.siteManager.name, phone: prev.siteManager.phone }
-        : emptySiteManager();
+    // 現場責任者: 氏名・電話は前回（空なら担当者と同じ）。住所は前回（空なら自社情報の住所）
+    const prevManager = prev?.siteManager ?? null;
+    const managerPerson =
+        prevManager && !isContactBlank(prevManager)
+            ? { name: prevManager.name, phone: prevManager.phone }
+            : { name: contact.name, phone: contact.phone };
+    const siteManager: RoadPermitSiteManager = {
+        address: pick(prevManager?.address, company?.address ?? ''),
+        ...managerPerson,
+    };
 
     const occupancy: RoadPermitOccupancy = {
         ...emptyOccupancy(),

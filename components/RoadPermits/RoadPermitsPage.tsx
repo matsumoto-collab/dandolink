@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
-import { Copy, FolderOpen, Loader2, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { Copy, FolderOpen, Loader2, MoreHorizontal, Plus, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Loading from '@/components/ui/Loading';
 import ProjectMasterSearchModal from '@/components/ProjectMasterSearchModal';
@@ -20,6 +20,7 @@ import {
     type RoadPermitsListResponse,
 } from '@/types/roadPermit';
 import RoadPermitEditor from './RoadPermitEditor';
+import RoadPermitContactsModal from './RoadPermitContactsModal';
 import {
     ROAD_PERMIT_STATUS_BADGE,
     errorMessage,
@@ -36,7 +37,8 @@ type PickMode = { kind: 'new' } | { kind: 'copy'; fromId: string };
  * 道路申請（道路使用許可・道路占用許可の申請書）の一覧（指示書 docs/指示書_道路申請_Phase1.md §6.1）。
  * - 使えるのは admin・manager だけ（API も 403）
  * - 行を押す → 1 件を取り直してから編集画面を開く
- * - 別の端末で保存・作成・削除されたら（road_permits_updated）一覧を取り直す
+ * - 別の端末で保存・作成・削除されたら（road_permits_updated）一覧を取り直す（担当者の候補も一緒に取り直る）
+ * - 「担当者の候補」ボタン → 候補の登録画面（担当者・現場責任者の「選ぶ」欄の中身）
  */
 export default function RoadPermitsPage() {
     const { data: session } = useSession();
@@ -50,6 +52,7 @@ export default function RoadPermitsPage() {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [editing, setEditing] = useState<RoadPermitDto | null>(null);
     const [pickMode, setPickMode] = useState<PickMode | null>(null);
+    const [contactsOpen, setContactsOpen] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
     // 絞り込みを続けて変えたとき、古い応答で上書きしないための番号
     const requestSeqRef = useRef(0);
@@ -216,16 +219,27 @@ export default function RoadPermitsPage() {
                         </select>
                     </label>
                 </div>
-                <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => setPickMode({ kind: 'new' })}
-                    disabled={busyId !== null}
-                    isLoading={busyId === 'new'}
-                    leftIcon={<Plus className="h-4 w-4" />}
-                >
-                    新しく作る
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setContactsOpen(true)}
+                        disabled={!data}
+                        leftIcon={<Users className="h-4 w-4" />}
+                    >
+                        担当者の候補
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="primary"
+                        onClick={() => setPickMode({ kind: 'new' })}
+                        disabled={busyId !== null}
+                        isLoading={busyId === 'new'}
+                        leftIcon={<Plus className="h-4 w-4" />}
+                    >
+                        新しく作る
+                    </Button>
+                </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto">
@@ -363,10 +377,23 @@ export default function RoadPermitsPage() {
                 }}
             />
 
+            {contactsOpen && data && (
+                <RoadPermitContactsModal
+                    contacts={data.contacts}
+                    onClose={() => setContactsOpen(false)}
+                    onSaved={(contacts) => {
+                        // 保存後の候補をそのまま持つ（一覧を取り直さなくても、次に開く申請の「選ぶ」欄に出る）
+                        setData((d) => (d ? { ...d, contacts } : d));
+                        setContactsOpen(false);
+                    }}
+                />
+            )}
+
             {editing && (
                 <RoadPermitEditor
                     permit={editing}
                     company={data?.company ?? null}
+                    contacts={data?.contacts ?? []}
                     onClose={() => setEditing(null)}
                     onSaved={(dto) => {
                         setEditing(dto);

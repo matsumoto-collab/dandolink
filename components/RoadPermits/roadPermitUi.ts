@@ -7,6 +7,10 @@ import type { RoadPermitStatus } from '@/types/roadPermit';
 import { ROAD_PERMIT_STATUS_LABELS } from '@/types/roadPermit';
 import { formatReiwaYmdOrBlank, isValidYmd } from '@/lib/roadPermit/format';
 
+/** 入力欄の見た目（編集画面と「担当者の候補」の登録画面で同じにする） */
+export const ROAD_PERMIT_INPUT_CLASS =
+    'w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 read-only:bg-slate-50 read-only:text-slate-700 disabled:bg-slate-100';
+
 /** 状態のバッジの色（一覧と編集画面で同じにする）。下書き・完了は灰色、提出済み=青、許可済み=ティール、取りやめ=赤 */
 export const ROAD_PERMIT_STATUS_BADGE: Record<RoadPermitStatus, string> = {
     draft: 'bg-slate-100 text-slate-700 border-slate-200',

@@ -12,6 +12,7 @@ import { logger } from '@/lib/logger';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { ROAD_PERMIT_FORMS, getRoadPermitForm } from '@/lib/roadPermit/forms';
 import { enabledFormIdsOf, normalizeRoadPermitDocuments, normalizeRoadPermitValues } from '@/lib/roadPermit/defaults';
+import { contactPresetIndexOf, isContactBlank } from '@/lib/roadPermit/contacts';
 import { approxAreaOf, countDaysInclusive } from '@/lib/roadPermit/format';
 import { isDrawingEmpty, normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
 import type { RoadPermitDrawing } from '@/types/roadPermitDrawing';
@@ -19,6 +20,7 @@ import {
     ROAD_PERMIT_STATUSES,
     ROAD_PERMIT_STATUS_LABELS,
     type RoadPermitCompanyDefaults,
+    type RoadPermitContactPreset,
     type RoadPermitDocumentEntry,
     type RoadPermitDocuments,
     type RoadPermitDto,
@@ -26,7 +28,7 @@ import {
     type RoadPermitStatus,
     type RoadPermitValues,
 } from '@/types/roadPermit';
-import { ROAD_PERMIT_STATUS_BADGE, errorMessage, parseDayCountInput, statusLabel } from './roadPermitUi';
+import { ROAD_PERMIT_INPUT_CLASS, ROAD_PERMIT_STATUS_BADGE, errorMessage, parseDayCountInput, statusLabel } from './roadPermitUi';
 
 // 図面タブ（作図画面）は konva を使うので、開いたときだけ読み込む（サーバーでは描かない）
 const DrawingEditor = dynamic(() => import('./Drawing'), {
@@ -38,6 +40,8 @@ interface RoadPermitEditorProps {
     permit: RoadPermitDto;
     /** 自社情報（「自社情報から入れ直す」に使う）。未登録なら null（ボタンを出さない） */
     company: RoadPermitCompanyDefaults | null;
+    /** 担当者の候補（並び順）。0 件なら担当者・現場責任者の「選ぶ」欄を出さない */
+    contacts: RoadPermitContactPreset[];
     onClose: () => void;
     /** 保存できたとき（画面は開いたまま） */
     onSaved: (dto: RoadPermitDto) => void;
@@ -73,8 +77,7 @@ function toForm(p: RoadPermitDto): EditorForm {
     };
 }
 
-const inputBase =
-    'w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 read-only:bg-slate-50 read-only:text-slate-700 disabled:bg-slate-100';
+const inputBase = ROAD_PERMIT_INPUT_CLASS;
 const sectionBox = 'bg-white rounded-lg border border-slate-200 p-4';
 
 /**
@@ -82,7 +85,7 @@ const sectionBox = 'bg-white rounded-lg border border-slate-200 p-4';
  * - 保存は「保存」ボタンだけ（自動保存はしない）。保存していない変更があれば、閉じる前に確かめる
  * - 「申請書」タブだけ、右側（lg 以上）にその場の PDF プレビューを出す。lg 未満は「プレビュー」ボタンで全画面
  */
-export default function RoadPermitEditor({ permit, company, onClose, onSaved }: RoadPermitEditorProps) {
+export default function RoadPermitEditor({ permit, company, contacts, onClose, onSaved }: RoadPermitEditorProps) {
     const [form, setForm] = useState<EditorForm>(() => toForm(permit));
     // 保存済みの値（直しかけかどうかの判定に使う）
     const [baseJson, setBaseJson] = useState<string>(() => JSON.stringify(toForm(permit)));
@@ -335,6 +338,7 @@ export default function RoadPermitEditor({ permit, company, onClose, onSaved }: 
                                     key={permit.id}
                                     form={form}
                                     company={company}
+                                    contacts={contacts}
                                     setTitle={(title) => setForm((f) => ({ ...f, title }))}
                                     updateGroup={updateGroup}
                                     updateDoc={updateDoc}
@@ -517,6 +521,81 @@ function ChoiceButtons<T extends string>({
     );
 }
 
+type PresetChoice = 'auto' | 'free' | 'same';
+
+/**
+ * 担当者・現場責任者の「選ぶ」欄（指示書_道路申請_担当者の選択と住所 §3.3）。
+ * 中身は 候補の名前（登録順）＋「自由入力」。sameAs があれば先頭に「担当者と同じ」（現場責任者の欄だけ）。
+ * - 候補を選ぶ → その人の氏名・電話を欄に入れる（入ったあとも手で直せる）
+ * - 「担当者と同じ」→ 担当者の氏名・連絡先をそのとき写すだけ（あとで担当者を変えても追いかけない）
+ * - 「自由入力」→ 氏名・電話を空にして、手で入れてもらう
+ * 表示は氏名・電話の今の値から決める（候補と同じなら候補。どれとも合わなければ「自由入力」）。
+ * 「自由入力」「担当者と同じ」を選んだことは覚えておき、値がそのままの間はその表示を続ける。
+ */
+function ContactPresetSelect({
+    contacts,
+    value,
+    sameAs,
+    hint,
+    onPick,
+}: {
+    contacts: RoadPermitContactPreset[];
+    value: { name: string; phone: string };
+    /** 「担当者と同じ」の元（現場責任者の欄だけ渡す）。無ければその選択肢を出さない */
+    sameAs?: { name: string; phone: string };
+    hint?: React.ReactNode;
+    onPick: (next: { name: string; phone: string }) => void;
+}) {
+    const [choice, setChoice] = useState<PresetChoice>('auto');
+    const matchIndex = contactPresetIndexOf(contacts, value);
+    const sameAvailable = !!sameAs && !isContactBlank(sameAs);
+    const equalsSameAs =
+        sameAvailable && sameAs!.name.trim() === value.name.trim() && sameAs!.phone.trim() === value.phone.trim();
+
+    let selected: string;
+    if (choice === 'same' && equalsSameAs) selected = 'same';
+    else if (choice === 'free' && matchIndex < 0) selected = 'free';
+    else if (matchIndex >= 0) selected = String(matchIndex);
+    else if (equalsSameAs) selected = 'same';
+    else selected = 'free';
+
+    const handleChange = (v: string) => {
+        if (v === 'free') {
+            setChoice('free');
+            onPick({ name: '', phone: '' });
+            return;
+        }
+        if (v === 'same') {
+            if (!sameAs) return;
+            setChoice('same');
+            onPick({ name: sameAs.name, phone: sameAs.phone });
+            return;
+        }
+        const c = contacts[Number(v)];
+        if (!c) return;
+        setChoice('auto');
+        onPick({ name: c.name, phone: c.phone });
+    };
+
+    return (
+        <Field label="選ぶ" hint={hint}>
+            <select value={selected} onChange={(e) => handleChange(e.target.value)} className={`${inputBase} bg-white`}>
+                {sameAs && (
+                    <option value="same" disabled={!sameAvailable}>
+                        担当者と同じ{sameAvailable ? '' : '（担当者が空です）'}
+                    </option>
+                )}
+                {contacts.map((c, i) => (
+                    <option key={`${i}-${c.name}-${c.phone}`} value={String(i)}>
+                        {c.name || c.phone}
+                    </option>
+                ))}
+                <option value="free">自由入力</option>
+            </select>
+        </Field>
+    );
+}
+
 // ---------------------------------------------------------------------------
 // 基本タブ
 // ---------------------------------------------------------------------------
@@ -524,6 +603,7 @@ function ChoiceButtons<T extends string>({
 function BasicTab({
     form,
     company,
+    contacts,
     setTitle,
     updateGroup,
     updateDoc,
@@ -531,6 +611,7 @@ function BasicTab({
 }: {
     form: EditorForm;
     company: RoadPermitCompanyDefaults | null;
+    contacts: RoadPermitContactPreset[];
     setTitle: (v: string) => void;
     updateGroup: UpdateGroup;
     updateDoc: UpdateDoc;
@@ -626,6 +707,16 @@ function BasicTab({
             </Section>
 
             <Section title="担当者">
+                {contacts.length > 0 && (
+                    <div className="mb-3">
+                        <ContactPresetSelect
+                            contacts={contacts}
+                            value={contact}
+                            hint="候補を選ぶと氏名・連絡先に入ります。入ったあとも手で直せます（候補は一覧の「担当者の候補」で登録）"
+                            onPick={(next) => updateGroup('contact', next)}
+                        />
+                    </div>
+                )}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field label="氏名">
                         <TextInput value={contact.name} onChange={(v) => updateGroup('contact', { name: v })} />
@@ -637,6 +728,17 @@ function BasicTab({
             </Section>
 
             <Section title="現場責任者（警察）">
+                {contacts.length > 0 && (
+                    <div className="mb-3">
+                        <ContactPresetSelect
+                            contacts={contacts}
+                            value={siteManager}
+                            sameAs={contact}
+                            hint="「担当者と同じ」はそのとき写すだけです（あとで担当者を変えても追いかけません）。住所は手で直せます"
+                            onPick={(next) => updateGroup('siteManager', next)}
+                        />
+                    </div>
+                )}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field label="住所" className="sm:col-span-2">
                         <TextInput value={siteManager.address} onChange={(v) => updateGroup('siteManager', { address: v })} />

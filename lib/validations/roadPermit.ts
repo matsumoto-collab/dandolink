@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ROAD_PERMIT_FORM_IDS, ROAD_PERMIT_STATUSES } from '@/types/roadPermit';
+import { ROAD_PERMIT_CONTACTS_MAX } from '@/lib/roadPermit/contacts';
 
 /**
  * 道路申請 API の入力検証（docs/指示書_道路申請_Phase1.md §5）。
@@ -280,6 +281,29 @@ export const roadPermitsQuerySchema = z.object({
     ),
 });
 
+// ---------------------------------------------------------------------------
+// 設定（担当者の候補・RoadPermitSetting.contacts）
+// ---------------------------------------------------------------------------
+
+/** PUT /api/road-permits/settings  { contacts: [{ name, phone }] }。名前は必須・電話は空でもよい */
+export const roadPermitSettingsSchema = z.object({
+    contacts: z
+        .array(
+            z.object({
+                name: z.preprocess(
+                    trimIfString,
+                    z
+                        .string()
+                        .min(1, '担当者の候補の名前を入れてください')
+                        .max(SHORT, `担当者の候補の名前は${SHORT}文字以内で入力してください`),
+                ),
+                phone: text('担当者の候補の電話', 30),
+            }),
+        )
+        .max(ROAD_PERMIT_CONTACTS_MAX, `担当者の候補は${ROAD_PERMIT_CONTACTS_MAX}人までです`),
+});
+
 export type RoadPermitCreateInput = z.infer<typeof roadPermitCreateSchema>;
+export type RoadPermitSettingsInput = z.infer<typeof roadPermitSettingsSchema>;
 export type RoadPermitUpdateInput = z.infer<typeof roadPermitUpdateSchema>;
 export type RoadPermitsQueryInput = z.infer<typeof roadPermitsQuerySchema>;

@@ -1,6 +1,8 @@
 /**
  * 道路申請の既定値の組み立てと正規化（lib/roadPermit/defaults.ts）。
  * 自動入力の決まり（指示書 §7）: 申請者=自社情報／現場・期間=案件／担当者・現場責任者・文言=前回の申請。
+ * 担当者・現場責任者の既定値（指示書_道路申請_担当者の選択と住所 §3.4）: 担当者=前回→候補の 1 人目→空／
+ * 現場責任者の氏名・電話=前回→（前回が空なら）担当者と同じ／住所=前回→（前回が空なら）自社情報の住所。
  */
 import {
     buildCopiedRoadPermitDocuments,
@@ -19,6 +21,7 @@ import {
 import { ROAD_PERMIT_FORMS } from '@/lib/roadPermit/forms';
 import type {
     RoadPermitCompanyDefaults,
+    RoadPermitContactPreset,
     RoadPermitDocuments,
     RoadPermitProjectSource,
     RoadPermitValues,
@@ -107,10 +110,10 @@ describe('buildDefaultRoadPermitValues', () => {
         expect(v.road).toEqual({ routeName: '', part: '', surface: '', mapPage: '' });
     });
 
-    it('前回が無ければ 担当者=自社情報の contactPerson・連絡先は空、現場責任者は空、文言は既定', () => {
+    it('前回も候補も無ければ 担当者は空（自社情報の contactPerson は使わない）、現場責任者は氏名・電話が空で住所は自社情報、文言は既定', () => {
         const v = buildDefaultRoadPermitValues({ company, project, previous: null });
-        expect(v.contact).toEqual({ name: '鈴木', phone: '' });
-        expect(v.siteManager).toEqual({ address: '', name: '', phone: '' });
+        expect(v.contact).toEqual({ name: '', phone: '' });
+        expect(v.siteManager).toEqual({ address: '愛媛県松山市一番町1-1-1', name: '', phone: '' });
         expect(v.occupancy).toMatchObject({
             purpose: '建物改修工事に伴う足場設置',
             name: '足場',
@@ -139,6 +142,7 @@ describe('buildDefaultRoadPermitValues', () => {
         const v = buildDefaultRoadPermitValues({ company: null, project: null, previous: null });
         expect(v.applicant.companyName).toBe('');
         expect(v.contact).toEqual({ name: '', phone: '' });
+        expect(v.siteManager).toEqual({ address: '', name: '', phone: '' });
         expect(v.site.location).toBe('');
         expect(v.period.useFrom).toBe('');
     });
@@ -172,6 +176,78 @@ describe('buildDefaultRoadPermitValues', () => {
         const v = buildDefaultRoadPermitValues({ company, project, previous: prev });
         expect(v.police.stationName).toBe('松山東警察署長');
         expect(v.occupancy.purpose).toBe('建物改修工事に伴う足場設置');
+    });
+});
+
+describe('buildDefaultRoadPermitValues: 担当者・現場責任者（担当者の選択と住所 §3.4）', () => {
+    const contacts: RoadPermitContactPreset[] = [
+        { name: '候補　一郎', phone: '089-000-1111' },
+        { name: '候補　二郎', phone: '090-000-2222' },
+    ];
+
+    it('前回が無く候補があれば 担当者=候補の 1 人目。現場責任者の氏名・電話は担当者と同じ、住所は自社情報の住所', () => {
+        const v = buildDefaultRoadPermitValues({ company, project, previous: null, contacts });
+        expect(v.contact).toEqual({ name: '候補　一郎', phone: '089-000-1111' });
+        expect(v.siteManager).toEqual({ address: '愛媛県松山市一番町1-1-1', name: '候補　一郎', phone: '089-000-1111' });
+    });
+
+    it('前回があれば 担当者・現場責任者とも前回の値（候補より前回を優先）', () => {
+        const v = buildDefaultRoadPermitValues({ company, project, previous: previousValues(), contacts });
+        expect(v.contact).toEqual({ name: '前回の担当', phone: '090-1111-2222' });
+        expect(v.siteManager).toEqual({ address: '松山市東町3-3', name: '前回の責任者', phone: '090-3333-4444' });
+    });
+
+    it('前回の担当者が空（空白だけ）なら候補の 1 人目。候補も無ければ空', () => {
+        const prev = previousValues();
+        prev.contact = { name: ' ', phone: '' };
+        expect(buildDefaultRoadPermitValues({ company, project, previous: prev, contacts }).contact).toEqual({
+            name: '候補　一郎',
+            phone: '089-000-1111',
+        });
+        expect(buildDefaultRoadPermitValues({ company, project, previous: prev, contacts: [] }).contact).toEqual({ name: '', phone: '' });
+        expect(buildDefaultRoadPermitValues({ company, project, previous: prev }).contact).toEqual({ name: '', phone: '' });
+    });
+
+    it('前回の現場責任者が空なら 氏名・電話は担当者と同じ、住所は自社情報の住所（完了の条件 3）', () => {
+        const prev = previousValues();
+        prev.siteManager = { address: '', name: '', phone: '' };
+        const v = buildDefaultRoadPermitValues({ company, project, previous: prev, contacts });
+        expect(v.siteManager).toEqual({ address: '愛媛県松山市一番町1-1-1', name: '前回の担当', phone: '090-1111-2222' });
+    });
+
+    it('前回の担当者も現場責任者も空なら 現場責任者の氏名・電話は候補の 1 人目（＝担当者と同じ）', () => {
+        const prev = previousValues();
+        prev.contact = { name: '', phone: '' };
+        prev.siteManager = { address: '', name: '', phone: '' };
+        const v = buildDefaultRoadPermitValues({ company, project, previous: prev, contacts });
+        expect(v.contact).toEqual({ name: '候補　一郎', phone: '089-000-1111' });
+        expect(v.siteManager).toEqual({ address: '愛媛県松山市一番町1-1-1', name: '候補　一郎', phone: '089-000-1111' });
+    });
+
+    it('前回の現場責任者の住所だけ空なら 住所は自社情報、氏名・電話は前回のまま', () => {
+        const prev = previousValues();
+        prev.siteManager = { address: '  ', name: '前回の責任者', phone: '090-3333-4444' };
+        const v = buildDefaultRoadPermitValues({ company, project, previous: prev, contacts });
+        expect(v.siteManager).toEqual({ address: '愛媛県松山市一番町1-1-1', name: '前回の責任者', phone: '090-3333-4444' });
+    });
+
+    it('前回の現場責任者の氏名だけあれば（電話が空でも）前回のまま＝担当者の電話は混ぜない', () => {
+        const prev = previousValues();
+        prev.siteManager = { address: '松山市東町3-3', name: '前回の責任者', phone: '' };
+        const v = buildDefaultRoadPermitValues({ company, project, previous: prev, contacts });
+        expect(v.siteManager).toEqual({ address: '松山市東町3-3', name: '前回の責任者', phone: '' });
+    });
+
+    it('自社情報が無ければ 現場責任者の住所は空（コードに住所を書かない）', () => {
+        const v = buildDefaultRoadPermitValues({ company: null, project, previous: null, contacts });
+        expect(v.siteManager).toEqual({ address: '', name: '候補　一郎', phone: '089-000-1111' });
+    });
+
+    it('「コピーして作る」は候補に関係なく コピー元の担当者・現場責任者をそのまま写す', () => {
+        const src = previousValues();
+        const v = buildCopiedRoadPermitValues({ source: src, project, sameProject: true });
+        expect(v.contact).toEqual(src.contact);
+        expect(v.siteManager).toEqual(src.siteManager);
     });
 });
 

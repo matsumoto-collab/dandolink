@@ -75,13 +75,13 @@ export interface RoadPermitApplicant {
     tel: string;
 }
 
-/** 担当者（松山市の様式の「担当者・連絡先」。初期値は前回の申請） */
+/** 担当者（松山市の様式の「担当者・連絡先」。初期値は前回の申請、無ければ候補の 1 人目） */
 export interface RoadPermitContact {
     name: string;
     phone: string;
 }
 
-/** 現場責任者（警察の様式。初期値は前回の申請） */
+/** 現場責任者（警察の様式。氏名・電話の初期値は前回の申請、前回が空なら担当者と同じ。住所は前回の申請、前回が空なら自社情報の住所） */
 export interface RoadPermitSiteManager {
     address: string;
     name: string;
@@ -235,6 +235,17 @@ export interface RoadPermitCompanyDefaults {
     contactPerson: string;
 }
 
+/** 担当者の候補（RoadPermitSetting.contacts の 1 件。並び順＝「選ぶ」欄の順。読むときは lib/roadPermit/contacts.ts の normalize を通す） */
+export interface RoadPermitContactPreset {
+    name: string;
+    phone: string;
+}
+
+/** GET /api/road-permits/settings の応答。PUT の body も同じ形 { contacts } */
+export interface RoadPermitSettingsResponse {
+    contacts: RoadPermitContactPreset[];
+}
+
 /** 案件から取り出す既定値の元（サーバーで ProjectMaster から作る） */
 export interface RoadPermitProjectSource {
     id: string;
@@ -287,6 +298,8 @@ export interface RoadPermitsListResponse {
     company: RoadPermitCompanyDefaults | null;
     /** 前回の申請（いちばん新しく作ったもの）の入力値。無ければ null */
     previous: RoadPermitValues | null;
+    /** 担当者の候補（並び順）。無ければ空 */
+    contacts: RoadPermitContactPreset[];
 }
 
 /** POST /api/road-permits */

@@ -23,6 +23,7 @@ import {
     ROAD_PERMIT_ROW_INCLUDE,
     loadPreviousRoadPermitValues,
     loadRoadPermitCompanyDefaults,
+    loadRoadPermitContacts,
     projectSourceOf,
     toRoadPermitDto,
     toRoadPermitListItem,
@@ -33,7 +34,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/road-permits?status=&projectMasterId=
- * 道路申請の一覧（消していないもの・更新が新しい順）。新しく作るときの初期値に使う自社情報と前回の入力値も一緒に返す。
+ * 道路申請の一覧（消していないもの・更新が新しい順）。新しく作るときの初期値に使う自社情報・前回の入力値・担当者の候補も一緒に返す。
  * 権限は requireManagerOrAbove（admin / manager のみ。ロールは lib/auth.ts で小文字化済み）。
  */
 export async function GET(req: NextRequest) {
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
         if (!parsed.success) return validationErrorResponse(parsed.error, parsed.details);
         const { status, projectMasterId } = parsed.data;
 
-        const [rows, company, previous] = await Promise.all([
+        const [rows, company, previous, contacts] = await Promise.all([
             prisma.roadPermit.findMany({
                 where: {
                     deletedAt: null,
@@ -61,12 +62,14 @@ export async function GET(req: NextRequest) {
             }),
             loadRoadPermitCompanyDefaults(),
             loadPreviousRoadPermitValues(),
+            loadRoadPermitContacts(),
         ]);
 
         const body: RoadPermitsListResponse = {
             permits: rows.map(toRoadPermitListItem),
             company,
             previous,
+            contacts,
         };
         return NextResponse.json(body, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
@@ -77,7 +80,7 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/road-permits  { projectMasterId, fromId? }
  * 案件を選んで新しく作る。fromId があればその申請の入力値を写す（「この申請をコピーして作る」）。
- * 無ければ 自社情報・案件・前回の申請 から自動入力する（指示書 §7）。
+ * 無ければ 自社情報・案件・前回の申請・担当者の候補 から自動入力する（指示書 §7・担当者の選択と住所 §3.4）。
  * broadcast はサーバーでは送らない（lib/broadcastChannel.ts はブラウザ専用。画面が作成後に送る）。
  */
 export async function POST(req: NextRequest) {
@@ -110,11 +113,12 @@ export async function POST(req: NextRequest) {
             });
             documents = buildCopiedRoadPermitDocuments(normalizeRoadPermitDocuments(source.documents));
         } else {
-            const [company, previous] = await Promise.all([
+            const [company, previous, contacts] = await Promise.all([
                 loadRoadPermitCompanyDefaults(),
                 loadPreviousRoadPermitValues(),
+                loadRoadPermitContacts(),
             ]);
-            values = buildDefaultRoadPermitValues({ company, project, previous });
+            values = buildDefaultRoadPermitValues({ company, project, previous, contacts });
             documents = buildDefaultRoadPermitDocuments();
         }
 

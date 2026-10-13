@@ -16,8 +16,10 @@ import {
     normalizeRoadPermitValues,
 } from '@/lib/roadPermit/defaults';
 import { normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
+import { normalizeRoadPermitContacts } from '@/lib/roadPermit/contacts';
 import type {
     RoadPermitCompanyDefaults,
+    RoadPermitContactPreset,
     RoadPermitDto,
     RoadPermitListItem,
     RoadPermitProjectSource,
@@ -100,6 +102,35 @@ export async function loadPreviousRoadPermitValues(db: Db = prisma, excludeId?: 
     });
     if (!row) return null;
     return normalizeRoadPermitValues(row.values);
+}
+
+/** 道路申請の設定の行（RoadPermitSetting は 1 行だけ。AllowanceSetting と同じ作り） */
+export const ROAD_PERMIT_SETTING_ID = 'default';
+
+/** 担当者の候補（並び順）。行が無ければ空。JSON は必ず normalize を通す */
+export async function loadRoadPermitContacts(db: Db = prisma): Promise<RoadPermitContactPreset[]> {
+    const row = await db.roadPermitSetting.findUnique({
+        where: { id: ROAD_PERMIT_SETTING_ID },
+        select: { contacts: true },
+    });
+    return row ? normalizeRoadPermitContacts(row.contacts) : [];
+}
+
+/** 担当者の候補を丸ごと置き換える（行が無ければ作る）。返すのは保存後の候補（正規化済み） */
+export async function saveRoadPermitContacts(
+    contacts: readonly RoadPermitContactPreset[],
+    userId: string,
+    db: Db = prisma,
+): Promise<RoadPermitContactPreset[]> {
+    const normalized = normalizeRoadPermitContacts(contacts);
+    const json = normalized as unknown as Prisma.InputJsonValue;
+    const row = await db.roadPermitSetting.upsert({
+        where: { id: ROAD_PERMIT_SETTING_ID },
+        create: { id: ROAD_PERMIT_SETTING_ID, contacts: json, updatedBy: userId },
+        update: { contacts: json, updatedBy: userId },
+        select: { contacts: true },
+    });
+    return normalizeRoadPermitContacts(row.contacts);
 }
 
 // ---------------------------------------------------------------------------

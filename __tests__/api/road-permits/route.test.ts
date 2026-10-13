@@ -75,6 +75,8 @@ describe('/api/road-permits', () => {
         (prisma.companyInfo.findFirst as jest.Mock).mockResolvedValue(companyRow);
         (prisma.roadPermit.findFirst as jest.Mock).mockResolvedValue(null);
         (prisma.roadPermit.findMany as jest.Mock).mockResolvedValue([]);
+        // 担当者の候補（RoadPermitSetting）は無い＝空
+        (prisma.roadPermitSetting.findUnique as jest.Mock).mockResolvedValue(null);
         (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue(projectRow);
         (prisma.roadPermit.create as jest.Mock).mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
             id: 'new1',
@@ -98,10 +100,13 @@ describe('/api/road-permits', () => {
             expect(prisma.roadPermit.findMany).not.toHaveBeenCalled();
         });
 
-        it('一覧の行（申請先・期間・許可期限）と自社情報・前回の値を返す', async () => {
+        it('一覧の行（申請先・期間・許可期限）と自社情報・前回の値・担当者の候補を返す', async () => {
             (prisma.roadPermit.findMany as jest.Mock).mockResolvedValue([permitRow()]);
             const prev = permitRow().values;
             (prisma.roadPermit.findFirst as jest.Mock).mockResolvedValue({ values: prev });
+            (prisma.roadPermitSetting.findUnique as jest.Mock).mockResolvedValue({
+                contacts: [{ name: ' 候補　一郎 ', phone: '089-000-1111' }, { name: '', phone: '' }],
+            });
 
             const res = await GET(getReq());
             const json = await res.json();
@@ -125,6 +130,9 @@ describe('/api/road-permits', () => {
             // null の列は '' にそろえる
             expect(json.company).toEqual({ ...companyRow, representativeTitle: '' });
             expect(json.previous).toEqual(prev);
+            // 候補は normalize（前後の空白を取る・空の行は落とす）して返す
+            expect(json.contacts).toEqual([{ name: '候補　一郎', phone: '089-000-1111' }]);
+            expect((prisma.roadPermitSetting.findUnique as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { id: 'default' } });
 
             // 消したものは出さない・更新が新しい順
             const args = (prisma.roadPermit.findMany as jest.Mock).mock.calls[0][0];
@@ -137,12 +145,12 @@ describe('/api/road-permits', () => {
             });
         });
 
-        it('status・projectMasterId で絞り込む。自社情報・前回が無ければ null', async () => {
+        it('status・projectMasterId で絞り込む。自社情報・前回が無ければ null・候補が無ければ空', async () => {
             (prisma.companyInfo.findFirst as jest.Mock).mockResolvedValue(null);
             const res = await GET(getReq('status=draft&projectMasterId=pm1'));
             const json = await res.json();
             expect(res.status).toBe(200);
-            expect(json).toEqual({ permits: [], company: null, previous: null });
+            expect(json).toEqual({ permits: [], company: null, previous: null, contacts: [] });
             expect((prisma.roadPermit.findMany as jest.Mock).mock.calls[0][0].where).toEqual({
                 deletedAt: null,
                 status: 'draft',
@@ -194,7 +202,9 @@ describe('/api/road-permits', () => {
                 updatedBy: 'u1',
             });
             expect(data.values.applicant).toMatchObject({ companyName: '株式会社テスト足場', representativeName: '山田　太郎', representativeTitle: '' });
-            expect(data.values.contact).toEqual({ name: '鈴木', phone: '' });
+            // 前回も候補も無いので担当者は空（自社情報の contactPerson は使わない）。現場責任者の住所は自社情報の住所
+            expect(data.values.contact).toEqual({ name: '', phone: '' });
+            expect(data.values.siteManager).toEqual({ address: '愛媛県松山市一番町1-1-1', name: '', phone: '' });
             expect(data.values.site).toEqual({ location: '松山市北井門1丁目1-1', projectName: '北井門様邸 足場工事' });
             expect(data.values.period).toMatchObject({ useFrom: '2026-09-05', useTo: '2026-10-04', workFrom: '2026-09-05' });
             expect(data.documents.forms.every((f: { enabled: boolean }) => f.enabled)).toBe(true);
@@ -203,7 +213,22 @@ describe('/api/road-permits', () => {
             expect(json.values.period.useFrom).toBe('2026-09-05');
         });
 
-        it('新規作成: 前回の申請があれば担当者を引き継ぐ', async () => {
+        it('新規作成: 担当者の候補があれば 担当者=候補の 1 人目、現場責任者は担当者と同じ＋自社情報の住所', async () => {
+            (prisma.roadPermitSetting.findUnique as jest.Mock).mockResolvedValue({
+                contacts: [
+                    { name: '候補　一郎', phone: '089-000-1111' },
+                    { name: '候補　二郎', phone: '090-000-2222' },
+                ],
+            });
+
+            await POST(postReq({ projectMasterId: 'pm1' }));
+            const { data } = (prisma.roadPermit.create as jest.Mock).mock.calls[0][0];
+            expect(data.values.contact).toEqual({ name: '候補　一郎', phone: '089-000-1111' });
+            expect(data.values.siteManager).toEqual({ address: '愛媛県松山市一番町1-1-1', name: '候補　一郎', phone: '089-000-1111' });
+        });
+
+        it('新規作成: 前回の申請があれば担当者を引き継ぐ（候補があっても前回を優先）', async () => {
+            (prisma.roadPermitSetting.findUnique as jest.Mock).mockResolvedValue({ contacts: [{ name: '候補　一郎', phone: '089-000-1111' }] });
             const prev = permitRow().values;
             prev.contact = { name: '前回の担当', phone: '090-1111-2222' };
             (prisma.roadPermit.findFirst as jest.Mock).mockResolvedValue({ values: prev });
