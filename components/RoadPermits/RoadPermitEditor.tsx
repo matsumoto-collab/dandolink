@@ -15,6 +15,9 @@ import { enabledFormIdsOf, normalizeRoadPermitDocuments, normalizeRoadPermitValu
 import { contactPresetIndexOf, isContactBlank } from '@/lib/roadPermit/contacts';
 import { approxAreaOf, countDaysInclusive } from '@/lib/roadPermit/format';
 import { isDrawingEmpty, normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
+import { occupancyFormPatch, type OccupancyApplyItem } from '@/lib/roadPermit/drawing/occupancy';
+import { countSymbols, symbolCountText } from '@/lib/roadPermit/symbols/counting';
+import { toSymbolMap } from '@/lib/roadPermit/symbols/normalize';
 import type { RoadPermitDrawing } from '@/types/roadPermitDrawing';
 import type { RoadPermitSymbolDto, RoadPermitSymbolsResponse } from '@/types/roadPermitSymbol';
 import {
@@ -152,6 +155,25 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
     const updateGroup = useCallback(<K extends keyof RoadPermitValues>(key: K, patch: Partial<RoadPermitValues[K]>) => {
         setForm((f) => ({ ...f, values: { ...f.values, [key]: { ...f.values[key], ...patch } } }));
     }, []);
+
+    // 図面の「占用範囲」→ 申請書の占用物件（長さ・幅・数量・規模の文言）。「約○㎡」は自動のまま触らない
+    const applyOccupancy = useCallback(
+        (items: OccupancyApplyItem[]) => {
+            const patch = occupancyFormPatch(items);
+            if (!patch) {
+                toast.error('図面に占用範囲がありません');
+                return;
+            }
+            const preview =
+                items.length === 1
+                    ? `長さ ${patch.length} m・幅 ${patch.width} m・数量 ${patch.quantity} ㎡`
+                    : `規模の文言「${patch.scaleNote}」・数量（合計）${patch.quantity} ㎡（長さ・幅は空にします）`;
+            if (!window.confirm(`申請書の占用物件に入れます。よろしいですか？\n\n${preview}`)) return;
+            updateGroup('occupancy', patch);
+            toast.success('占用物件に入れました（保存すると残ります）');
+        },
+        [updateGroup],
+    );
 
     const updateDoc = useCallback((formId: RoadPermitFormId, patch: Partial<RoadPermitDocumentEntry>) => {
         setForm((f) => ({
@@ -363,6 +385,7 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
                                     values={values}
                                     symbols={symbols}
                                     onChange={(drawing) => setForm((f) => ({ ...f, drawing }))}
+                                    onApplyOccupancy={applyOccupancy}
                                 />
                             </div>
                         )}
@@ -393,6 +416,8 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
                             {tab === 'forms' && (
                                 <FormsTab
                                     values={values}
+                                    drawing={form.drawing}
+                                    symbols={symbols}
                                     hasPolice={hasPolice}
                                     hasMatsuyama={hasMatsuyama}
                                     updateGroup={updateGroup}
@@ -921,12 +946,18 @@ function PeriodSection({ period, updateGroup }: { period: RoadPermitValues['peri
 
 function FormsTab({
     values,
+    drawing,
+    symbols,
     hasPolice,
     hasMatsuyama,
     updateGroup,
     goBasic,
 }: {
     values: RoadPermitValues;
+    /** 図面（「方法又は形態」に置いた記号の数を入れるため） */
+    drawing: RoadPermitDrawing | null;
+    /** 記号の一覧（null＝読み込み中） */
+    symbols: RoadPermitSymbolDto[] | null;
     hasPolice: boolean;
     hasMatsuyama: boolean;
     updateGroup: UpdateGroup;
@@ -944,6 +975,21 @@ function FormsTab({
     }
     const { police, matsuyama, occupancy } = values;
     const autoArea = approxAreaOf(occupancy.quantity);
+
+    // 「方法又は形態」に図面の記号の数（「カラーコーン 11個・コーンバー 10本（1.5m）」）を入れる
+    const fillMethodFromDrawing = () => {
+        if (symbols === null) {
+            toast.error('記号を読み込み中です。少し待ってからもう一度押してください');
+            return;
+        }
+        const text = drawing ? symbolCountText(countSymbols(drawing.entities, toSymbolMap(symbols), drawing.layers)) : '';
+        if (!text) {
+            toast.error('図面に数える記号がありません');
+            return;
+        }
+        if (police.method.trim() !== '' && !window.confirm('今の文を置きかえます。よろしいですか？\n\n' + text)) return;
+        updateGroup('police', { method: text });
+    };
 
     return (
         <>
@@ -970,9 +1016,19 @@ function FormsTab({
                         <Field label="場所又は区間" className="sm:col-span-2">
                             <TextArea value={police.section} onChange={(v) => updateGroup('police', { section: v })} />
                         </Field>
-                        <Field label="方法又は形態" className="sm:col-span-2">
+                        {/* 見出しの横にボタンを置くので Field（label で包む）は使わない（ボタンが label の操作先にならないように） */}
+                        <div className="block text-sm sm:col-span-2">
+                            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                <span className="font-medium text-slate-700">方法又は形態</span>
+                                <Button type="button" variant="outline" size="sm" onClick={fillMethodFromDrawing}>
+                                    図面から入れる
+                                </Button>
+                            </div>
                             <TextArea value={police.method} rows={3} onChange={(v) => updateGroup('police', { method: v })} />
-                        </Field>
+                            <span className="mt-1 block text-xs text-slate-500">
+                                「図面から入れる」で、図面に置いた記号の数（例: カラーコーン 11個・コーンバー 10本（1.5m））を入れます
+                            </span>
+                        </div>
                         <Field label="添付書類" className="sm:col-span-2">
                             <TextArea value={police.attachments} onChange={(v) => updateGroup('police', { attachments: v })} />
                         </Field>

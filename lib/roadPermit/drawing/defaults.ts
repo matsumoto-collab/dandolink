@@ -49,6 +49,10 @@ export const DEFAULT_STYLE: DrawingStyle = { lineType: 'solid', width: 'normal',
 export const DEFAULT_TEXT_HEIGHT_PAPER_MM = 3;
 export const DEFAULT_DIMENSION_TEXT_HEIGHT_PAPER_MM = 2.5;
 export const DEFAULT_HATCH_SPACING_PAPER_MM = 2;
+/** 占用範囲を描くときの書込レイヤの既定（2 足場・養生） */
+export const OCCUPANCY_DEFAULT_LAYER: DrawingLayerId = 2;
+/** 占用範囲の斜線の間隔（用紙上 mm・PDF） */
+export const OCCUPANCY_HATCH_SPACING_PAPER_MM = 3;
 export const DEFAULT_SCALE: DrawingScale = 100;
 export const DEFAULT_PAPER: { size: PaperSize; orientation: PaperOrientation } = { size: 'A3', orientation: 'landscape' };
 
@@ -80,6 +84,7 @@ export function emptyRoadPermitDrawing(): RoadPermitDrawing {
         showTitleBlock: true,
         showNorthArrow: true,
         showScaleBar: true,
+        showLegend: true,
     };
 }
 
@@ -229,6 +234,16 @@ export function normalizeEntity(raw: unknown): DrawingEntity | null {
                 ? { ...base, kind: 'symbol', symbolId, at, rotationDeg: num(o.rotationDeg, 0), mirrored: bool(o.mirrored, false) }
                 : null;
         }
+        case 'occupancy': {
+            const pts = points(o.points);
+            // 閉じる点（最初と同じ点）が最後に重なっていたら外す
+            if (pts.length >= 4) {
+                const f = pts[0];
+                const l = pts[pts.length - 1];
+                if (Math.abs(f.x - l.x) < 1e-6 && Math.abs(f.y - l.y) < 1e-6) pts.pop();
+            }
+            return pts.length >= 3 ? { ...base, kind: 'occupancy', points: pts, routeName: str(o.routeName).slice(0, 100) } : null;
+        }
         default:
             return null;
     }
@@ -281,5 +296,6 @@ export function normalizeRoadPermitDrawing(raw: unknown): RoadPermitDrawing {
         showTitleBlock: bool(o.showTitleBlock, true),
         showNorthArrow: bool(o.showNorthArrow, true),
         showScaleBar: bool(o.showScaleBar, true),
+        showLegend: bool(o.showLegend, true),
     };
 }

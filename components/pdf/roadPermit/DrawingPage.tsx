@@ -8,13 +8,19 @@
  * - 図形は用紙の枠（10mm 内側）で切り取る。表題欄・縮尺・方位は図形の上に重ねる。
  * - 部品（線・矢印・文字）は drawingPdfShared.tsx。
  * - 記号（Phase 2b）は記号の表（symbols）の形を placedSymbolPolylines で置いて、細い線で描く。表に無ければ ○ と「記号が見つかりません」。
+ * - 占用範囲（Phase 2b）は 斜線（間隔 3mm）＋輪郭（普通）＋中に「占用 8.991㎡」。
+ * - 凡例（Phase 2b・showLegend）は表題欄の上に、置いた記号の下絵・名前・数（印刷するレイヤの記号だけ数える）。
  */
 import React from 'react';
 import { ClipPath, Defs, G, Page, Rect, Svg, Text as PdfText } from '@react-pdf/renderer';
 import type { RoadPermitValues } from '@/types/roadPermit';
 import type { DrawingEntity, DrawingLayer, RoadPermitDrawing } from '@/types/roadPermitDrawing';
 import type { RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
-import { isSymbolGeometryEmpty, placedSymbolPolylines } from '@/lib/roadPermit/symbols/geometry';
+import type { RoadPermitSymbolGeometry } from '@/types/roadPermitSymbol';
+import { isSymbolGeometryEmpty, placedSymbolPolylines, symbolBBox, symbolPolylines } from '@/lib/roadPermit/symbols/geometry';
+import { legendLayout, legendRows, legendVisibleRows, LEGEND_WIDTH_MM } from '@/lib/roadPermit/symbols/counting';
+import { occupancyLabel, occupancyLabelPoint } from '@/lib/roadPermit/drawing/occupancy';
+import { OCCUPANCY_HATCH_SPACING_PAPER_MM } from '@/lib/roadPermit/drawing/defaults';
 import { drawingPaperMm, PAPER_MARGIN_MM, PT_PER_MM, scaleLabel, toPt } from '@/lib/roadPermit/drawing/paper';
 import { arcPoints, circlePoints, dimensionLabel, dimensionLinePoints, hatchLines } from '@/lib/roadPermit/drawing/geometry';
 import { formatReiwaRange } from '@/lib/roadPermit/format';
@@ -111,6 +117,35 @@ function EntityShape({ e, d, part, frame, symbols }: { e: DrawingEntity; d: Road
             return <Leader e={e} d={d} sw={sw} dash={dash} part={part} frame={frame} />;
         case 'hatch':
             return isShape ? <Hatch e={e} d={d} sw={sw} /> : null;
+        case 'occupancy': {
+            if (e.points.length < 3) return null;
+            if (isShape) {
+                const segs = hatchLines(e.points, OCCUPANCY_HATCH_SPACING_PAPER_MM * d.scale, 45);
+                const thin = lineWidthPt('thin');
+                return (
+                    <>
+                        {segs.map(([a, b], i) => (
+                            <SegPt key={i} a={P(a)} b={P(b)} sw={thin} />
+                        ))}
+                        <PolyPt pts={e.points.map(P)} closed sw={lineWidthPt('normal')} dash={dash} />
+                    </>
+                );
+            }
+            // 文字の中ほどが多角形の重心に来るように（基準点は文字の下端）
+            const c = P(occupancyLabelPoint(e.points));
+            if (!inFrame(c, frame)) return null;
+            const size = mm(OCCUPANCY_TEXT_MM);
+            const label = occupancyLabel(e);
+            // ハッチの上でも読めるよう、文字の範囲を白で塗ってから書く（文字は切り取りの外＝線の上に描かれる）
+            const labelW = estimateDrawTextWidth(label, size);
+            const padX = mm(1);
+            return (
+                <>
+                    <Rect x={c.x - labelW / 2 - padX} y={c.y - size * 0.7} width={labelW + padX * 2} height={size * 1.4} fill="#ffffff" />
+                    <DrawText at={{ x: c.x, y: c.y + size * 0.35 }} text={label} sizePt={size} anchor="middle" />
+                </>
+            );
+        }
         case 'symbol': {
             const sym = symbols.get(e.symbolId);
             if (sym && !isSymbolGeometryEmpty(sym.geometry)) {
@@ -137,6 +172,9 @@ function EntityShape({ e, d, part, frame, symbols }: { e: DrawingEntity; d: Road
             return null;
     }
 }
+
+/** 占用範囲の中の文字の大きさ（用紙上 mm） */
+const OCCUPANCY_TEXT_MM = 3;
 
 /** 寸法: 寸法線・引出し線 2 本・両端の矢印・寸法値 */
 function Dimension({
@@ -308,6 +346,73 @@ function TitleBlock({ right, bottom, rows }: { right: number; bottom: number; ro
     );
 }
 
+/** 凡例の下絵: 記号の形を size（pt）の正方形に収めて、中心 (cx, cy) に描く */
+function LegendThumb({ geometry, cx, cy, size }: { geometry: RoadPermitSymbolGeometry; cx: number; cy: number; size: number }) {
+    const bb = symbolBBox(geometry);
+    const span = Math.max(bb.maxX - bb.minX, bb.maxY - bb.minY);
+    if (!(span > 0)) return null;
+    const k = size / span;
+    const mx = (bb.minX + bb.maxX) / 2;
+    const my = (bb.minY + bb.maxY) / 2;
+    const thin = lineWidthPt('thin');
+    return (
+        <>
+            {symbolPolylines(geometry).map((poly, i) =>
+                poly.length < 2 ? null : (
+                    <PolyPt key={i} pts={poly.map((p) => ({ x: cx + (p.x - mx) * k, y: cy - (p.y - my) * k }))} closed={false} sw={thin} />
+                ),
+            )}
+        </>
+    );
+}
+
+/**
+ * 凡例（表題欄の上・右寄せ・幅 140mm）。1 行＝下絵（8mm 角）・名前・数。下に図形があっても白で塗ってから描く。
+ * 12 行を超えたら最後の行を「ほか n 種」にする。行が多いほど小さくする（legendLayout）
+ */
+function Legend({ right, bottom, drawing, symbols }: { right: number; bottom: number; drawing: RoadPermitDrawing; symbols: RoadPermitSymbolMap }) {
+    const all = legendRows(drawing.entities, symbols, drawing.layers);
+    if (all.length === 0) return null;
+    const { rows, more } = legendVisibleRows(all);
+    const lines = [
+        ...rows.map((r) => ({ key: r.symbolId, geometry: r.geometry as RoadPermitSymbolGeometry | null, name: r.name, count: `${r.count} ${r.unit}` })),
+        ...(more > 0 ? [{ key: '__more', geometry: null, name: `ほか ${more} 種`, count: '' }] : []),
+    ];
+    const lay = legendLayout(lines.length);
+    const w = mm(LEGEND_WIDTH_MM);
+    const h = mm(lay.heightMm);
+    const x0 = right - w;
+    const y0 = bottom - h;
+    const fs = mm(lay.fontMm);
+    const header = mm(lay.headerMm);
+    const rh = mm(lay.rowMm);
+    const thumb = mm(lay.thumbMm);
+    const sw = lineWidthPt('normal');
+    const nameX = x0 + mm(2) + thumb + mm(3);
+    const countX = right - mm(3);
+    const nameW = countX - mm(18) - nameX;
+    return (
+        <>
+            <Rect x={x0} y={y0} width={w} height={h} fill="#ffffff" stroke={INK} strokeWidth={lineWidthPt('thick')} />
+            <DrawText at={{ x: x0 + w / 2, y: y0 + header / 2 + fs * 0.35 }} text="凡　例" sizePt={fs} anchor="middle" />
+            {lines.map((r, i) => {
+                const top = y0 + header + rh * i;
+                const midY = top + rh / 2;
+                const est = estimateDrawTextWidth(r.name, fs);
+                const nfs = est > nameW ? Math.max(fs * 0.6, (fs * nameW) / est) : fs;
+                return (
+                    <React.Fragment key={r.key}>
+                        <SegPt a={{ x: x0, y: top }} b={{ x: right, y: top }} sw={sw} />
+                        {r.geometry && <LegendThumb geometry={r.geometry} cx={x0 + mm(2) + thumb / 2} cy={midY} size={thumb} />}
+                        <DrawText at={{ x: nameX, y: midY + nfs * 0.35 }} text={r.name} sizePt={nfs} />
+                        {r.count && <DrawText at={{ x: countX, y: midY + fs * 0.35 }} text={r.count} sizePt={fs} anchor="end" />}
+                    </React.Fragment>
+                );
+            })}
+        </>
+    );
+}
+
 /** 縮尺の棒の 1 区切り（m）。5 区切りの長さが用紙上 50mm にいちばん近いものを選ぶ */
 export function scaleBarStepM(scale: number): number {
     const steps = [0.5, 1, 2, 5];
@@ -396,8 +501,9 @@ export function DrawingPage({ drawing, values, symbols = NO_SYMBOLS }: DrawingPa
     // 枠や表題欄は下端から 10mm 内側なので、下の 1pt が無くても何も欠けない
     const SVG_H = H - 1;
     const entities = drawing.entities.filter((e) => isPrintable(drawing.layers, e.layer));
-    // ハッチ・塗りは線の下に敷く（線や文字を隠さないように先に描く）
-    const ordered = [...entities.filter((e) => e.kind === 'hatch'), ...entities.filter((e) => e.kind !== 'hatch')];
+    // ハッチ・塗り・占用範囲は線の下に敷く（線や文字を隠さないように先に描く）
+    const under = (e: DrawingEntity) => e.kind === 'hatch' || e.kind === 'occupancy';
+    const ordered = [...entities.filter(under), ...entities.filter((e) => !under(e))];
 
     return (
         <Page size={[W, H]} style={{ position: 'relative', padding: 0, fontFamily: 'NotoSerifJP' }}>
@@ -426,6 +532,14 @@ export function DrawingPage({ drawing, values, symbols = NO_SYMBOLS }: DrawingPa
                 <Rect x={frame.x} y={frame.y} width={frame.w} height={frame.h} fill="none" stroke={INK} strokeWidth={lineWidthPt('normal')} />
                 {drawing.showTitleBlock && (
                     <TitleBlock right={frame.x + frame.w} bottom={frame.y + frame.h} rows={titleBlockRows(drawing, values)} />
+                )}
+                {drawing.showLegend && (
+                    <Legend
+                        right={frame.x + frame.w}
+                        bottom={frame.y + frame.h - (drawing.showTitleBlock ? mm(TB_ROW_MM) * titleBlockRows(drawing, values).length : 0)}
+                        drawing={drawing}
+                        symbols={symbols}
+                    />
                 )}
                 {drawing.showScaleBar && <ScaleBar left={frame.x + mm(15)} bottom={frame.y + frame.h - mm(12)} scale={drawing.scale} />}
                 {drawing.showNorthArrow && <NorthArrow cx={frame.x + mm(18)} cy={frame.y + mm(20)} />}

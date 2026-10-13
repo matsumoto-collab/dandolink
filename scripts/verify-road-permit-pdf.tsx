@@ -45,8 +45,10 @@ import { emptyRoadPermitDrawing, isDrawingEmpty, normalizeRoadPermitDrawing } fr
 import { drawingPaperMm, PAPER_MARGIN_MM, PT_PER_MM, scaleLabel } from '../lib/roadPermit/drawing/paper';
 import { titleBlockRows } from '../components/pdf/roadPermit/DrawingPage';
 import type { RoadPermitSymbolDto } from '../types/roadPermitSymbol';
-import { isConeBarSymbol, normalizeRoadPermitSymbolCategory, normalizeRoadPermitSymbolGeometry } from '../lib/roadPermit/symbols/normalize';
+import { isConeBarSymbol, normalizeRoadPermitSymbolCategory, normalizeRoadPermitSymbolGeometry, toSymbolMap } from '../lib/roadPermit/symbols/normalize';
 import { coneRowLayout } from '../lib/roadPermit/symbols/place';
+import { countSymbols, legendRows, legendVisibleRows, symbolCountText } from '../lib/roadPermit/symbols/counting';
+import { occupancyLabel, occupancyMeasure } from '../lib/roadPermit/drawing/occupancy';
 // styles.ts（CDNフォント）の後に評価させるため import は最後に置く
 import '../lib/pdf/registerServerFonts';
 
@@ -189,6 +191,17 @@ function checkDrawingPage(
     if (drawing.showScaleBar || drawing.showTitleBlock) expected.push(scaleLabel(drawing.scale));
     if (drawing.showNorthArrow) expected.push('N');
     if (isSample) expected.push('市道　新屋敷線', 'くさび緊結式足場', '既存建物（改修）', '11,100', '810', '6,000');
+    // 占用範囲の文字（見本は 11.1×0.81＝8.991㎡）
+    for (const e of drawing.entities) if (e.kind === 'occupancy') expected.push(occupancyLabel(e));
+    // 凡例（記号があるとき）: 見出しと、置いた記号の名前
+    if (drawing.showLegend && symbols && symbols.length > 0) {
+        const rows = legendRows(drawing.entities, toSymbolMap(symbols), drawing.layers);
+        if (rows.length > 0) {
+            expected.push('凡　例', ...legendVisibleRows(rows).rows.map((r) => r.name));
+            const countText = symbolCountText(countSymbols(drawing.entities, toSymbolMap(symbols), drawing.layers));
+            console.log(`凡例 ${rows.length} 行／数量の文: ${countText || '（数える記号なし）'}`);
+        }
+    }
     for (const t of expected) {
         const n = norm(t);
         if (n !== '' && !page.text.includes(n)) problems.push(`${pageNo}ページ目（図面）に「${t}」が見つからない`);
@@ -319,6 +332,8 @@ function sampleDrawing(symbols: RoadPermitSymbolDto[] | null): RoadPermitDrawing
             text: 'くさび緊結式足場',
             heightPaperMm: 3,
         },
+        // 占用範囲（レイヤ 2）: 足場の帯と同じ 11,100×810 → 「市道 新屋敷線 占用 8.991㎡」
+        { id: id(), layer: 2, style: st('solid', 'normal'), kind: 'occupancy', points: scaffold, routeName: '市道 新屋敷線' },
         // 下敷き（レイヤ 6・印刷しない）: PDF に出ないことを確かめるための文字
         text(6, 30000, 9000, '下敷き（印刷しない）', 3),
     ];
@@ -344,6 +359,8 @@ function sampleDrawing(symbols: RoadPermitSymbolDto[] | null): RoadPermitDrawing
             console.log(`見本の図面: コーン列 コーン ${layout.cones.length} 個・コーンバー ${layout.bars.length} 本（${cone.name}・${bar.name}）`);
         }
     }
+    const occ = occupancyMeasure(scaffold);
+    console.log(`見本の図面: 占用範囲 ${occ.expression}`);
     // 用紙の左下隅に来る図面座標: x=-2,000 が枠の左（10mm）・道路が用紙の下 1/3 に来る位置
     d.origin = { x: -3000, y: -15000 };
     return d;

@@ -20,6 +20,7 @@ import type {
     DrawingPoint,
     HatchEntity,
     LeaderEntity,
+    OccupancyEntity,
     LineEntity,
     PolylineEntity,
     SymbolEntity,
@@ -250,6 +251,7 @@ export function entitySegments(e: DrawingEntity, symbols?: RoadPermitSymbolMap |
         case 'leader':
             return polyToSegments(e.points, false);
         case 'hatch':
+        case 'occupancy':
             return polyToSegments(e.points, true);
         case 'text':
         case 'symbol': {
@@ -282,7 +284,8 @@ export function entitySnapPoints(e: DrawingEntity, symbols?: RoadPermitSymbolMap
             break;
         case 'polyline':
         case 'hatch':
-            pushSegs(polyToSegments(e.points, e.kind === 'hatch' ? true : e.closed));
+        case 'occupancy':
+            pushSegs(polyToSegments(e.points, e.kind === 'polyline' ? e.closed : true));
             break;
         case 'leader':
             pushSegs(polyToSegments(e.points, false));
@@ -459,6 +462,8 @@ function mapPoints(e: DrawingEntity, f: (p: DrawingPoint) => DrawingPoint): Draw
             return { ...e, points: e.points.map(f) };
         case 'leader':
             return { ...e, points: e.points.map(f) };
+        case 'occupancy':
+            return { ...e, points: e.points.map(f) };
         case 'circle':
             return { ...e, center: f(e.center) };
         case 'arc':
@@ -548,4 +553,4 @@ export function hatchLines(points: readonly DrawingPoint[], spacingMm: number, d
     return out;
 }
 
-export type { LineEntity, PolylineEntity, CircleEntity, ArcEntity, DimensionEntity, LeaderEntity, HatchEntity };
+export type { LineEntity, PolylineEntity, CircleEntity, ArcEntity, DimensionEntity, LeaderEntity, HatchEntity, OccupancyEntity };

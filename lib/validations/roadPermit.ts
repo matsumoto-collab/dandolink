@@ -221,6 +221,7 @@ export const roadPermitDrawingEntitySchema = z.discriminatedUnion('kind', [
         rotationDeg: MM.optional(),
         mirrored: z.boolean().optional(),
     }),
+    z.object({ ...entityBase, kind: z.literal('occupancy'), points: pointsSchema, routeName: z.string().max(100).optional() }),
 ]);
 
 export const roadPermitDrawingSchema = z.object({
@@ -254,6 +255,7 @@ export const roadPermitDrawingSchema = z.object({
     showTitleBlock: z.boolean().optional(),
     showNorthArrow: z.boolean().optional(),
     showScaleBar: z.boolean().optional(),
+    showLegend: z.boolean().optional(),
 });
 
 /** PUT /api/road-permits/[id] */

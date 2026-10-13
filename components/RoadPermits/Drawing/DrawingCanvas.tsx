@@ -8,7 +8,9 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { DrawingEntity, DrawingPoint, LineType, RoadPermitDrawing } from '@/types/roadPermitDrawing';
 import type { RoadPermitValues } from '@/types/roadPermit';
 import type { RoadPermitSymbolDto, RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
-import { isSymbolGeometryEmpty, placedSymbolPolylines } from '@/lib/roadPermit/symbols/geometry';
+import { isSymbolGeometryEmpty, placedSymbolPolylines, symbolBBox, symbolPolylines } from '@/lib/roadPermit/symbols/geometry';
+import { legendLayout, legendRows, legendVisibleRows, LEGEND_WIDTH_MM } from '@/lib/roadPermit/symbols/counting';
+import { occupancyLabel, occupancyLabelPoint } from '@/lib/roadPermit/drawing/occupancy';
 import { LINE_WIDTH_MM, PAPER_MARGIN_MM, drawingPaperMm, scaleLabel } from '@/lib/roadPermit/drawing/paper';
 import {
     angleDeg,
@@ -272,6 +274,40 @@ const EntityShape = memo(function EntityShape({
                 </Group>
             );
         }
+        case 'occupancy': {
+            // 占用範囲: 薄い塗り＋輪郭＋中に「占用 8.991㎡」（印刷は斜線。PDF 側が正）
+            const pts = flat(e.points.map(toS));
+            const lc = toS(occupancyLabelPoint(e.points));
+            // 文字の中ほどが重心に来るように（基準点は文字の下端）
+            const labelAt = { x: lc.x, y: lc.y + OCCUPANCY_TEXT_MM * px * 0.5 };
+            return (
+                <Group listening={false}>
+                    <Line points={pts} closed fill={color} opacity={0.15} strokeEnabled={false} listening={false} />
+                    <Line points={pts} closed {...common} />
+                    {!preview && (
+                        <Rect
+                            x={labelAt.x - (occupancyLabel(e).length * OCCUPANCY_TEXT_MM * px * 1.05) / 2 - 2}
+                            y={labelAt.y - OCCUPANCY_TEXT_MM * px - 1}
+                            width={occupancyLabel(e).length * OCCUPANCY_TEXT_MM * px * 1.05 + 4}
+                            height={OCCUPANCY_TEXT_MM * px + 2}
+                            fill="#ffffff"
+                            opacity={0.85}
+                            listening={false}
+                        />
+                    )}
+                    {!preview && (
+                        <TextNode
+                            at={labelAt}
+                            text={occupancyLabel(e)}
+                            fontSize={OCCUPANCY_TEXT_MM * px}
+                            rotationDeg={0}
+                            align="center"
+                            color={color}
+                        />
+                    )}
+                </Group>
+            );
+        }
         case 'symbol': {
             if (sym && !isSymbolGeometryEmpty(sym.geometry)) {
                 return <PlacedSymbol e={e} sym={sym} toS={toS} color={color} strokeWidth={thin.strokeWidth} />;
@@ -290,6 +326,37 @@ const EntityShape = memo(function EntityShape({
         }
     }
 });
+
+/** 占用範囲の中の文字の大きさ（用紙上 mm・PDF と同じ） */
+const OCCUPANCY_TEXT_MM = 3;
+
+/** 凡例の下絵（記号の形を枠に収めて 1 つの path で描く）。cx・cy は枠の中心（px）、size は枠の 1 辺（px） */
+function LegendThumb({ geometry, cx, cy, size }: { geometry: Parameters<typeof symbolPolylines>[0]; cx: number; cy: number; size: number }) {
+    const bb = symbolBBox(geometry);
+    const span = Math.max(bb.maxX - bb.minX, bb.maxY - bb.minY);
+    if (!(span > 0)) return null;
+    const k = size / span;
+    const mx = (bb.minX + bb.maxX) / 2;
+    const my = (bb.minY + bb.maxY) / 2;
+    const polys = symbolPolylines(geometry).map((poly) => poly.map((p) => ({ x: cx + (p.x - mx) * k, y: cy - (p.y - my) * k })));
+    return (
+        <Shape
+            sceneFunc={(ctx, shape) => {
+                ctx.beginPath();
+                for (const poly of polys) {
+                    if (poly.length < 2) continue;
+                    ctx.moveTo(poly[0].x, poly[0].y);
+                    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
+                }
+                ctx.strokeShape(shape);
+            }}
+            stroke="#0f172a"
+            strokeWidth={1}
+            listening={false}
+            perfectDrawEnabled={false}
+        />
+    );
+}
 
 /** 図形の層（カーソルが動いただけでは描き直さない） */
 const EntitiesLayer = memo(function EntitiesLayer({
@@ -333,12 +400,14 @@ const PaperLayer = memo(function PaperLayer({
     showGrid,
     showFrame,
     values,
+    symbols,
 }: {
     drawing: RoadPermitDrawing;
     view: View;
     showGrid: boolean;
     showFrame: boolean;
     values: RoadPermitValues | null;
+    symbols: RoadPermitSymbolMap;
 }) {
     const { w, h } = drawingPaperMm(drawing);
     const px = view.pxPerMm;
@@ -368,6 +437,23 @@ const PaperLayer = memo(function PaperLayer({
     const tbX = w - m - tbW;
     const tbY = m; // 下端
     const fs = 2.2 * px;
+
+    // 凡例（表題欄の上・右寄せ）。印刷は PDF 側が正（ここは目安。幅と行の高さは PDF と同じ）
+    const legend = (() => {
+        if (!drawing.showLegend) return null;
+        const all = legendRows(drawing.entities, symbols, drawing.layers);
+        if (all.length === 0) return null;
+        const { rows: shownRows, more } = legendVisibleRows(all);
+        const lay = legendLayout(shownRows.length + (more > 0 ? 1 : 0));
+        const lw = LEGEND_WIDTH_MM;
+        const bottom = drawing.showTitleBlock ? tbY + rowH * rows.length : tbY;
+        // 1 行＝下絵・名前・数。上限を超えた分は最後の行に「ほか n 種」
+        const items = [
+            ...shownRows.map((r) => ({ key: r.symbolId, geometry: r.geometry, name: r.name, count: `${r.count} ${r.unit}` })),
+            ...(more > 0 ? [{ key: '__more', geometry: null, name: `ほか ${more} 種`, count: '' }] : []),
+        ];
+        return { items, lay, lw, x: w - m - lw, bottom };
+    })();
 
     // 縮尺の棒（左下）: 用紙で 40〜60mm くらいになる長さ（m 単位で切りのよい値）
     const barM = [1, 2, 5, 10, 20, 25, 50].find((v) => (v * 1000) / drawing.scale >= 40) ?? 50;
@@ -408,6 +494,42 @@ const PaperLayer = memo(function PaperLayer({
                         );
                     })}
                     <Line points={flat([P(tbX + 19, tbY), P(tbX + 19, tbY + rowH * rows.length)])} stroke={COLOR_FRAME} strokeWidth={0.8} />
+                </Group>
+            )}
+            {legend && (
+                <Group>
+                    <Rect
+                        x={P(legend.x, legend.bottom + legend.lay.heightMm).x}
+                        y={P(legend.x, legend.bottom + legend.lay.heightMm).y}
+                        width={legend.lw * px}
+                        height={legend.lay.heightMm * px}
+                        fill="#ffffff"
+                        stroke={COLOR_FRAME}
+                        strokeWidth={1}
+                        opacity={0.9}
+                    />
+                    <TextNode
+                        at={P(legend.x + legend.lw / 2, legend.bottom + legend.lay.heightMm - legend.lay.headerMm / 2 - legend.lay.fontMm * 0.4)}
+                        text="凡　例"
+                        fontSize={legend.lay.fontMm * px}
+                        rotationDeg={0}
+                        align="center"
+                        color="#334155"
+                    />
+                    {legend.items.map((item, i) => {
+                        const top = legend.bottom + legend.lay.heightMm - legend.lay.headerMm - legend.lay.rowMm * i;
+                        const midY = top - legend.lay.rowMm / 2;
+                        const base = midY - legend.lay.fontMm * 0.4;
+                        const c = P(legend.x + 2 + legend.lay.thumbMm / 2, midY);
+                        return (
+                            <Group key={item.key}>
+                                <Line points={flat([P(legend.x, top), P(legend.x + legend.lw, top)])} stroke={COLOR_FRAME} strokeWidth={0.6} />
+                                {item.geometry && <LegendThumb geometry={item.geometry} cx={c.x} cy={c.y} size={legend.lay.thumbMm * px} />}
+                                <TextNode at={P(legend.x + legend.lay.thumbMm + 5, base)} text={item.name} fontSize={legend.lay.fontMm * px} rotationDeg={0} align="left" color="#0f172a" />
+                                <TextNode at={P(legend.x + legend.lw - 3, base)} text={item.count} fontSize={legend.lay.fontMm * px} rotationDeg={0} align="right" color="#0f172a" />
+                            </Group>
+                        );
+                    })}
                 </Group>
             )}
             {drawing.showNorthArrow && (
@@ -573,13 +695,14 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown, symb
         dispatch({ type: 'point', p: toReal(d.sx, d.sy), shift: ev.evt.shiftKey, tolMm: tol(), additive });
     };
 
-    // ダブルクリック＝コーン列の確定（2 回のクリックは同じ点なので 1 点として扱われる）
+    // ダブルクリック＝コーン列・占用範囲の確定（2 回のクリックは同じ点なので 1 点として扱われる）
+    const finishesByDblClick = () => stateRef.current.command === 'coneRow' || (stateRef.current.command === 'occupancy' && stateRef.current.pts.length > 0);
     const onDblClick = (ev: KonvaEventObject<MouseEvent>) => {
-        if (ev.evt.button !== 0 || stateRef.current.command !== 'coneRow') return;
+        if (ev.evt.button !== 0 || !finishesByDblClick()) return;
         dispatch({ type: 'finish' });
     };
     const onDblTap = () => {
-        if (stateRef.current.command !== 'coneRow') return;
+        if (!finishesByDblClick()) return;
         dispatch({ type: 'finish' });
     };
 
@@ -665,7 +788,7 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown, symb
                     onTouchEnd={onTouchEnd}
                     onContextMenu={(e) => e.evt.preventDefault()}
                 >
-                    <PaperLayer drawing={drawing} view={viewPx} showGrid={view.showGrid} showFrame={view.showPaperFrame} values={values} />
+                    <PaperLayer drawing={drawing} view={viewPx} showGrid={view.showGrid} showFrame={view.showPaperFrame} values={values} symbols={state.symbols} />
                     <EntitiesLayer
                         entities={shown}
                         geo={geo}

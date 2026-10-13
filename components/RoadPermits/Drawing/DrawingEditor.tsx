@@ -7,6 +7,8 @@
  * - 図形・レイヤ・設定が変わるたびに onChange（保存は編集画面の「保存」ボタン。自動保存はしない）
  * - 記号（Phase 2b）: 記号の一覧は親（RoadPermitEditor）が API から読んで props.symbols で渡す（null＝読み込み中）。
  *   右の「記号」（分類のタブ・下絵）で選んで置く。コーン列のコーンとバーの選択はブラウザに覚える（無くても動く）
+ * - 占用範囲（Phase 2b）: 右の「占用範囲」に面積と式を出し、「申請書に入れる」で親（onApplyOccupancy）へ渡す
+ *   （申請書の値は親が持っているので、確認と書き込みは親がする）
  */
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -31,6 +33,7 @@ import SymbolThumbnail from './SymbolThumbnail';
 import { DRAWING_LAYER_COLORS, emptyRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
 import { originToFit, paperLabel, scaleLabel } from '@/lib/roadPermit/drawing/paper';
 import { entitiesBBox } from '@/lib/roadPermit/drawing/geometry';
+import { occupancyApplyItems, occupancyTotalM2, type OccupancyApplyItem } from '@/lib/roadPermit/drawing/occupancy';
 import {
     COMMAND_LABELS,
     DIMENSION_TOOL_LABELS,
@@ -69,6 +72,8 @@ export interface DrawingEditorProps {
     values: RoadPermitValues;
     /** 記号の一覧（使わないものも含めて全部・形つき）。null＝読み込み中 */
     symbols: RoadPermitSymbolDto[] | null;
+    /** 右の「占用範囲」の「申請書に入れる」を押したとき（図面の中の占用範囲を並べた順に渡す）。無ければボタンを出さない */
+    onApplyOccupancy?: (measures: OccupancyApplyItem[]) => void;
 }
 
 /** コーン列で前に選んだコーンとバー（ブラウザに覚える） */
@@ -109,7 +114,7 @@ function isTypingTarget(t: EventTarget | null): boolean {
     return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
 }
 
-export default function DrawingEditor({ value, onChange, values, symbols }: DrawingEditorProps) {
+export default function DrawingEditor({ value, onChange, values, symbols, onApplyOccupancy }: DrawingEditorProps) {
     const [state, dispatch] = useReducer(editorReducer, undefined, () => initialEditorState(value ?? emptyRoadPermitDrawing()));
     const [spaceDown, setSpaceDown] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -222,7 +227,15 @@ export default function DrawingEditor({ value, onChange, values, symbols }: Draw
                     {state.prompt && <TextPrompt state={state} dispatch={dispatch} onDone={() => rootRef.current?.focus({ preventScroll: true })} />}
                 </div>
 
-                <SidePanel state={state} dispatch={dispatch} values={values} onFit={fitToPaper} symbols={symbols} onPickSymbol={pickSymbol} />
+                <SidePanel
+                    state={state}
+                    dispatch={dispatch}
+                    values={values}
+                    onFit={fitToPaper}
+                    symbols={symbols}
+                    onPickSymbol={pickSymbol}
+                    onApplyOccupancy={onApplyOccupancy}
+                />
             </div>
 
             <StatusBar state={state} />
@@ -479,6 +492,28 @@ function ControlBar({ state, dispatch }: { state: EditorState; dispatch: React.D
         case 'symbol':
             fields = <SymbolFields state={state} dispatch={dispatch} />;
             break;
+        case 'occupancy':
+            fields = (
+                <>
+                    <label className={ctlLabel}>
+                        路線名
+                        <input
+                            type="text"
+                            value={settings.occupancyRoute}
+                            placeholder="例: 市道 新屋敷線（空でもよい）"
+                            maxLength={100}
+                            onChange={(e) => set({ occupancyRoute: e.target.value })}
+                            className={`${ctlInput} w-56`}
+                        />
+                    </label>
+                    <label className={ctlLabel}>
+                        書込レイヤ
+                        <LayerSelect value={state.drawing.currentLayer} layers={state.drawing.layers} onChange={(id) => dispatch({ type: 'setCurrentLayer', id })} />
+                    </label>
+                    <span className="text-sm text-slate-600">閉じた連続線・矩形をクリック、または点を順にクリックして Enter で閉じる</span>
+                </>
+            );
+            break;
         case 'coneRow':
             fields = <ConeRowFields state={state} dispatch={dispatch} />;
             break;
@@ -612,7 +647,7 @@ function AttributeFields({ state, dispatch }: { state: EditorState; dispatch: Re
         return state.drawing.entities.filter((e) => set.has(e.id));
     }, [state.selection, state.drawing.entities]);
     const first: DrawingEntity | undefined = selected[0];
-    const [attr, setAttr] = useState<Required<AttributePatch>>({ layer: 0, lineType: 'solid', width: 'normal', heightPaperMm: 3 });
+    const [attr, setAttr] = useState<Required<AttributePatch>>({ layer: 0, lineType: 'solid', width: 'normal', heightPaperMm: 3, routeName: '' });
     const selKey = state.selection.join(',');
     useEffect(() => {
         if (!first) return;
@@ -621,6 +656,7 @@ function AttributeFields({ state, dispatch }: { state: EditorState; dispatch: Re
             lineType: first.style.lineType,
             width: first.style.width,
             heightPaperMm: first.kind === 'text' || first.kind === 'dimension' || first.kind === 'leader' ? first.heightPaperMm : 3,
+            routeName: first.kind === 'occupancy' ? first.routeName : '',
         });
         // 選び直したときだけ欄を入れ直す
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -631,6 +667,8 @@ function AttributeFields({ state, dispatch }: { state: EditorState; dispatch: Re
     }
     const hasText = selected.some((e) => e.kind === 'text' || e.kind === 'dimension' || e.kind === 'leader');
     const editable = selected.length === 1 && hasText;
+    // 占用範囲だけを選んでいるときは路線名も直せる
+    const onlyOccupancy = selected.every((e) => e.kind === 'occupancy');
     return (
         <>
             <span className="text-sm text-slate-600">選んでいる図形: {selected.length} 個</span>
@@ -659,9 +697,29 @@ function AttributeFields({ state, dispatch }: { state: EditorState; dispatch: Re
                 </select>
             </label>
             {hasText && <TextHeightField value={attr.heightPaperMm} onChange={(v) => setAttr((a) => ({ ...a, heightPaperMm: v }))} />}
+            {onlyOccupancy && (
+                <label className={ctlLabel}>
+                    路線名
+                    <input
+                        type="text"
+                        value={attr.routeName}
+                        maxLength={100}
+                        onChange={(e) => setAttr((a) => ({ ...a, routeName: e.target.value }))}
+                        className={`${ctlInput} w-48`}
+                    />
+                </label>
+            )}
             <button
                 type="button"
-                onClick={() => dispatch({ type: 'applyAttributes', patch: hasText ? attr : { layer: attr.layer, lineType: attr.lineType, width: attr.width } })}
+                onClick={() => {
+                    const common = { layer: attr.layer, lineType: attr.lineType, width: attr.width };
+                    const patch: AttributePatch = {
+                        ...common,
+                        ...(hasText ? { heightPaperMm: attr.heightPaperMm } : {}),
+                        ...(onlyOccupancy ? { routeName: attr.routeName } : {}),
+                    };
+                    dispatch({ type: 'applyAttributes', patch });
+                }}
                 className="rounded bg-teal-600 px-2 py-0.5 text-sm text-white hover:bg-teal-700"
             >
                 この属性にする
@@ -801,6 +859,67 @@ function SymbolPalette({
     );
 }
 
+/** 右パネルの「占用範囲」: 図面の中の占用範囲（路線名・面積・式）と合計・「申請書に入れる」 */
+function OccupancyPanel({
+    state,
+    dispatch,
+    onApply,
+}: {
+    state: EditorState;
+    dispatch: React.Dispatch<EditorAction>;
+    onApply?: (measures: OccupancyApplyItem[]) => void;
+}) {
+    const list = useMemo(
+        () => state.drawing.entities.filter((e): e is Extract<DrawingEntity, { kind: 'occupancy' }> => e.kind === 'occupancy'),
+        [state.drawing.entities],
+    );
+    const items = useMemo(() => occupancyApplyItems(list), [list]);
+    const total = occupancyTotalM2(items);
+    return (
+        <section className="mt-2 overflow-hidden rounded border border-slate-300 bg-white">
+            <h3 className={panelTitle}>占用範囲</h3>
+            {items.length === 0 ? (
+                <p className="p-2 text-xs text-slate-500">左の「占用範囲」で描くと、ここに面積と式が出ます</p>
+            ) : (
+                <div className="space-y-1.5 p-2">
+                    <ul className="space-y-1">
+                        {items.map((m, i) => (
+                            <li key={list[i].id}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        dispatch({ type: 'command', command: 'select' });
+                                        dispatch({ type: 'setSelection', ids: [list[i].id] });
+                                    }}
+                                    title="図面で選ぶ（Enter で路線名を直せます）"
+                                    className={`w-full rounded border px-1.5 py-1 text-left text-xs hover:bg-teal-100 ${
+                                        state.selection.includes(list[i].id) ? 'border-teal-600 bg-teal-50' : 'border-slate-200'
+                                    }`}
+                                >
+                                    <span className="block font-medium text-slate-800">{m.routeName || `占用範囲 ${i + 1}`}</span>
+                                    <span className="block tabular-nums text-slate-700">{m.expression}</span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                    {items.length > 1 && (
+                        <p className="text-right text-sm font-semibold tabular-nums text-slate-900">合計 {total.toFixed(3)}㎡</p>
+                    )}
+                    {onApply && (
+                        <button
+                            type="button"
+                            onClick={() => onApply(items)}
+                            className="w-full rounded bg-teal-600 py-1 text-sm text-white hover:bg-teal-700"
+                        >
+                            申請書に入れる
+                        </button>
+                    )}
+                </div>
+            )}
+        </section>
+    );
+}
+
 function SidePanel({
     state,
     dispatch,
@@ -808,6 +927,7 @@ function SidePanel({
     onFit,
     symbols,
     onPickSymbol,
+    onApplyOccupancy,
 }: {
     state: EditorState;
     dispatch: React.Dispatch<EditorAction>;
@@ -815,6 +935,7 @@ function SidePanel({
     onFit: () => void;
     symbols: RoadPermitSymbolDto[] | null;
     onPickSymbol: (s: RoadPermitSymbolDto) => void;
+    onApplyOccupancy?: (measures: OccupancyApplyItem[]) => void;
 }) {
     const { drawing, view } = state;
     const def = useMemo(() => titleBlockDefaults(values), [values]);
@@ -835,6 +956,8 @@ function SidePanel({
     return (
         <div className="hidden w-64 flex-shrink-0 overflow-y-auto border-l border-slate-300 bg-slate-100 p-2 md:block">
             <SymbolPalette state={state} symbols={symbols} onPick={onPickSymbol} />
+
+            <OccupancyPanel state={state} dispatch={dispatch} onApply={onApplyOccupancy} />
 
             <section className="mt-2 overflow-hidden rounded border border-slate-300 bg-white">
                 <h3 className={panelTitle}>レイヤ</h3>
@@ -957,6 +1080,7 @@ function SidePanel({
                         {check(drawing.showTitleBlock, (v) => dispatch({ type: 'setDrawingFlags', patch: { showTitleBlock: v } }), '表題欄')}
                         {check(drawing.showNorthArrow, (v) => dispatch({ type: 'setDrawingFlags', patch: { showNorthArrow: v } }), '方位')}
                         {check(drawing.showScaleBar, (v) => dispatch({ type: 'setDrawingFlags', patch: { showScaleBar: v } }), '縮尺バー')}
+                        {check(drawing.showLegend, (v) => dispatch({ type: 'setDrawingFlags', patch: { showLegend: v } }), '凡例')}
                     </div>
                 </div>
             </section>
@@ -972,7 +1096,8 @@ function TextPrompt({ state, dispatch, onDone }: { state: EditorState; dispatch:
     const pr = state.prompt!;
     const [text, setText] = useState(pr.initial);
     const pos = realToScreen(state.drawing, state.view, pr.anchor);
-    const title = pr.kind === 'leader' ? '引出線の文字' : pr.kind === 'edit' ? '文字を直す' : '文字';
+    const editingOccupancy = pr.kind === 'edit' && state.drawing.entities.some((e) => e.id === pr.entityId && e.kind === 'occupancy');
+    const title = pr.kind === 'leader' ? '引出線の文字' : editingOccupancy ? '占用範囲の路線名' : pr.kind === 'edit' ? '文字を直す' : '文字';
     const submit = useCallback(() => {
         dispatch({ type: 'promptSubmit', text });
         onDone();
@@ -1002,7 +1127,7 @@ function TextPrompt({ state, dispatch, onDone }: { state: EditorState; dispatch:
                         cancel();
                     }
                 }}
-                placeholder={pr.kind === 'edit' && pr.initial === '' ? '空のままで自動の寸法値' : ''}
+                placeholder={editingOccupancy ? '例: 市道 新屋敷線（空なら付けない）' : pr.kind === 'edit' && pr.initial === '' ? '空のままで自動の寸法値' : ''}
                 className={`${ctlInput} w-full`}
             />
             <div className="mt-1.5 flex justify-end gap-1">

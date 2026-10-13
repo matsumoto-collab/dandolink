@@ -13,7 +13,8 @@ import {
     type EditorState,
 } from '@/components/RoadPermits/Drawing/editorModel';
 import { emptyRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
-import type { DrawingEntity, LineEntity, SymbolEntity } from '@/types/roadPermitDrawing';
+import type { DrawingEntity, LineEntity, OccupancyEntity, SymbolEntity } from '@/types/roadPermitDrawing';
+import { occupancyMeasure } from '@/lib/roadPermit/drawing/occupancy';
 import type { RoadPermitSymbolCategory, RoadPermitSymbolDto } from '@/types/roadPermitSymbol';
 import { toSymbolMap } from '@/lib/roadPermit/symbols/normalize';
 
@@ -362,5 +363,73 @@ describe('作図画面の reducer: 記号（Phase 2b）', () => {
         // 記号の右端の線（x=100）
         s = run(s, pt(100, 0, { tolMm: 5 }));
         expect(s.selection).toHaveLength(1);
+    });
+});
+
+describe('作図画面の reducer: 占用範囲（Phase 2b）', () => {
+    const occupancies = (s: EditorState) => s.drawing.entities.filter((e): e is OccupancyEntity => e.kind === 'occupancy');
+
+    it('閉じた矩形をクリック → 輪郭を写して占用範囲を 1 つ足す（レイヤ 2・路線名はコントロールバーの欄）', () => {
+        let s = run(start(), { type: 'command', command: 'rect' }, pt(0, 0), pt(11100, 810));
+        expect(s.drawing.entities).toHaveLength(1);
+        s = run(s, { type: 'command', command: 'occupancy' });
+        expect(s.drawing.currentLayer).toBe(2);
+        s = run(s, { type: 'setSettings', patch: { occupancyRoute: ' 市道 新屋敷線 ' } }, pt(5000, 400));
+        const [o] = occupancies(s);
+        expect(o.layer).toBe(2);
+        expect(o.routeName).toBe('市道 新屋敷線');
+        expect(o.points).toEqual([
+            { x: 0, y: 0 },
+            { x: 11100, y: 0 },
+            { x: 11100, y: 810 },
+            { x: 0, y: 810 },
+        ]);
+        expect(occupancyMeasure(o.points).expression).toBe('0.81×11.10＝8.991㎡');
+        // 1 回の戻るで消える
+        s = run(s, { type: 'undo' });
+        expect(occupancies(s)).toHaveLength(0);
+        expect(s.drawing.entities).toHaveLength(1);
+    });
+
+    it('点を順にクリックして Enter で閉じる（3 点未満は足さない）・始点をもう一度指示しても閉じる', () => {
+        let s = run(start(), { type: 'command', command: 'occupancy' }, pt(0, 0), pt(10080, 0));
+        s = run(s, { type: 'finish' });
+        expect(occupancies(s)).toHaveLength(0);
+        expect(s.message).toContain('3 点以上');
+
+        s = run(s, pt(0, 0), pt(10080, 0), pt(3000, 1531));
+        // プレビューは閉じた折れ線
+        const pv = previewEntities({ ...s, cursor: { x: 0, y: 2000 } });
+        expect(pv[0].kind === 'polyline' && pv[0].closed).toBe(true);
+        s = run(s, { type: 'finish' });
+        expect(occupancies(s)).toHaveLength(1);
+        expect(occupancyMeasure(occupancies(s)[0].points).expression).toBe('1.53×10.08÷2＝7.716㎡');
+        expect(s.pts).toEqual([]);
+
+        // 始点で閉じる（読取点で始点を指示）
+        s = run(s, pt(20000, 0), pt(25000, 0), pt(25000, 1000), pt(20000, 0, { snapped: true }));
+        expect(occupancies(s)).toHaveLength(2);
+        expect(occupancies(s)[1].points).toHaveLength(3);
+        // 1 回の戻るで 1 つずつ消える
+        s = run(s, { type: 'undo' });
+        expect(occupancies(s)).toHaveLength(1);
+    });
+
+    it('選んで Enter で路線名を直す（1 回の戻るで元に戻る）・属性でも直せる', () => {
+        let s = run(start(), { type: 'command', command: 'occupancy' }, pt(0, 0), pt(11100, 0), pt(11100, 810), pt(0, 810), { type: 'finish' });
+        const id = occupancies(s)[0].id;
+        s = run(s, { type: 'command', command: 'select' }, { type: 'setSelection', ids: [id] }, { type: 'finish' });
+        expect(s.prompt).toMatchObject({ kind: 'edit', entityId: id, initial: '' });
+        s = run(s, { type: 'promptSubmit', text: '市道 新屋敷線' });
+        expect(occupancies(s)[0].routeName).toBe('市道 新屋敷線');
+        s = run(s, { type: 'undo' });
+        expect(occupancies(s)[0].routeName).toBe('');
+        s = run(s, { type: 'setSelection', ids: [id] }, { type: 'applyAttributes', patch: { routeName: '県道 1 号線' } });
+        expect(occupancies(s)[0].routeName).toBe('県道 1 号線');
+    });
+
+    it('凡例の表示の切り替え', () => {
+        const s = run(start(), { type: 'setDrawingFlags', patch: { showLegend: false } });
+        expect(s.drawing.showLegend).toBe(false);
     });
 });

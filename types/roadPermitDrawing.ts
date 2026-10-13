@@ -140,6 +140,17 @@ export interface SymbolEntity extends EntityBase {
     mirrored: boolean;
 }
 
+/**
+ * 占用範囲（Phase 2b・指示書 §5.4）。閉じた多角形（points は閉じる点を重ねない）。レイヤの既定は 2（足場・養生）。
+ * 面積と式は lib/roadPermit/drawing/occupancy.ts の occupancyMeasure で出す（保存しない＝形から毎回計算）
+ */
+export interface OccupancyEntity extends EntityBase {
+    kind: 'occupancy';
+    points: DrawingPoint[];
+    /** 路線名（例「市道 新屋敷線」）。空なら付けない */
+    routeName: string;
+}
+
 export type DrawingEntity =
     | LineEntity
     | PolylineEntity
@@ -149,7 +160,8 @@ export type DrawingEntity =
     | DimensionEntity
     | LeaderEntity
     | HatchEntity
-    | SymbolEntity;
+    | SymbolEntity
+    | OccupancyEntity;
 
 export type DrawingEntityKind = DrawingEntity['kind'];
 
@@ -176,4 +188,6 @@ export interface RoadPermitDrawing {
     showTitleBlock: boolean;
     showNorthArrow: boolean;
     showScaleBar: boolean;
+    /** 凡例（置いた記号の下絵・名前・数）を表題欄の上に出すか（Phase 2b・既定 true） */
+    showLegend: boolean;
 }

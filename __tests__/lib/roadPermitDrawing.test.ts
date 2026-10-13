@@ -34,7 +34,8 @@ import {
     normalizeEntity,
     normalizeRoadPermitDrawing,
 } from '@/lib/roadPermit/drawing/defaults';
-import type { DrawingEntity, LineEntity, PolylineEntity, SymbolEntity } from '@/types/roadPermitDrawing';
+import type { DrawingEntity, LineEntity, OccupancyEntity, PolylineEntity, SymbolEntity } from '@/types/roadPermitDrawing';
+import { roadPermitDrawingEntitySchema, roadPermitDrawingSchema } from '@/lib/validations/roadPermit';
 import type { RoadPermitSymbolDto } from '@/types/roadPermitSymbol';
 import { toSymbolMap } from '@/lib/roadPermit/symbols/normalize';
 
@@ -347,5 +348,64 @@ describe('記号（Phase 2b）の当たり判定と範囲（symbols を渡した
         expect(entityBBox(sym(0, 'none'), symbols)).toEqual({ minX: 9900, minY: -100, maxX: 10100, maxY: 100 });
         expect(pickEntity({ x: 10740, y: 0 }, [sym(0)], 30)).toBeNull();
         expect(pickEntity({ x: 10010, y: 0 }, [sym(0)], 30)?.id).toBe('s1');
+    });
+});
+
+describe('占用範囲（Phase 2b）の正規化・幾何・検査', () => {
+    const band = [
+        { x: 0, y: 0 },
+        { x: 11100, y: 0 },
+        { x: 11100, y: 810 },
+        { x: 0, y: 810 },
+    ];
+    const occ = (): OccupancyEntity => ({ id: 'o1', kind: 'occupancy', layer: 2, style: DEFAULT_STYLE, points: band, routeName: '市道 新屋敷線' });
+
+    it('normalizeEntity: 3 点以上で残す・閉じる点の重なりは外す・路線名は文字（無ければ空）', () => {
+        const e = normalizeEntity({ kind: 'occupancy', layer: 2, points: [...band, band[0]], routeName: '市道 新屋敷線' }) as OccupancyEntity;
+        expect(e.kind).toBe('occupancy');
+        expect(e.points).toHaveLength(4);
+        expect(e.routeName).toBe('市道 新屋敷線');
+        expect(e.layer).toBe(2);
+        expect((normalizeEntity({ kind: 'occupancy', points: band }) as OccupancyEntity).routeName).toBe('');
+        expect(normalizeEntity({ kind: 'occupancy', points: band.slice(0, 2) })).toBeNull();
+    });
+
+    it('showLegend: 既定 true・false を保つ', () => {
+        expect(emptyRoadPermitDrawing().showLegend).toBe(true);
+        expect(normalizeRoadPermitDrawing({}).showLegend).toBe(true);
+        expect(normalizeRoadPermitDrawing({ showLegend: false }).showLegend).toBe(false);
+    });
+
+    it('範囲・当たり判定（輪郭）・読取点', () => {
+        expect(entityBBox(occ())).toEqual({ minX: 0, minY: 0, maxX: 11100, maxY: 810 });
+        expect(pickEntity({ x: 5000, y: 805 }, [occ()], 20)?.id).toBe('o1');
+        expect(pickEntity({ x: 5000, y: 400 }, [occ()], 20)).toBeNull();
+        expect(snapCandidate({ x: 11095, y: 805 }, [occ()], 20)?.p).toEqual({ x: 11100, y: 810 });
+    });
+
+    it('移動・回転・反転で点が動き、路線名は残る', () => {
+        const t = translateEntity(occ(), { x: 100, y: -50 }) as OccupancyEntity;
+        expect(t.points[0]).toEqual({ x: 100, y: -50 });
+        expect(t.routeName).toBe('市道 新屋敷線');
+        const r = rotateEntity(occ(), { x: 0, y: 0 }, 90) as OccupancyEntity;
+        expect(r.points[1].x).toBeCloseTo(0);
+        expect(r.points[1].y).toBeCloseTo(11100);
+        const m = mirrorEntity(occ(), { x: 0, y: 0 }, { x: 1, y: 0 }) as OccupancyEntity;
+        expect(m.points[2]).toEqual({ x: 11100, y: -810 });
+        expect(polygonArea(m.points)).toBeCloseTo(polygonArea(band));
+    });
+
+    it('zod: occupancy と showLegend を受け付ける', () => {
+        const ok = roadPermitDrawingSchema.safeParse({
+            version: 1,
+            paper: { size: 'A3', orientation: 'landscape' },
+            scale: 100,
+            origin: { x: 0, y: 0 },
+            entities: [{ kind: 'occupancy', points: band, routeName: '市道 新屋敷線', layer: 2 }],
+            showLegend: false,
+        });
+        expect(ok.success).toBe(true);
+        const bad = roadPermitDrawingEntitySchema.safeParse({ kind: 'occupancy', points: band, routeName: 'x'.repeat(101) });
+        expect(bad.success).toBe(false);
     });
 });

@@ -58,8 +58,10 @@ import {
     DEFAULT_DIMENSION_TEXT_HEIGHT_PAPER_MM,
     DEFAULT_HATCH_SPACING_PAPER_MM,
     DEFAULT_TEXT_HEIGHT_PAPER_MM,
+    OCCUPANCY_DEFAULT_LAYER,
     newEntityId,
 } from '@/lib/roadPermit/drawing/defaults';
+import { occupancyLabelPoint } from '@/lib/roadPermit/drawing/occupancy';
 import { formatReiwaRange } from '@/lib/roadPermit/format';
 
 // ---------------------------------------------------------------------------
@@ -87,7 +89,8 @@ export type CommandId =
     | 'measureDistance'
     | 'measureArea'
     | 'symbol'
-    | 'coneRow';
+    | 'coneRow'
+    | 'occupancy';
 
 /** 画面のボタン名（画面イメージの言葉） */
 export const COMMAND_LABELS: Record<CommandId, string> = {
@@ -112,9 +115,10 @@ export const COMMAND_LABELS: Record<CommandId, string> = {
     measureArea: '面積',
     symbol: '記号',
     coneRow: 'コーン列',
+    occupancy: '占用範囲',
 };
 
-export const DRAW_COMMANDS: readonly CommandId[] = ['line', 'polyline', 'rect', 'circle', 'arc', 'double', 'text', 'dimension', 'leader', 'hatch'];
+export const DRAW_COMMANDS: readonly CommandId[] = ['line', 'polyline', 'rect', 'circle', 'arc', 'double', 'text', 'dimension', 'leader', 'hatch', 'occupancy'];
 export const EDIT_COMMANDS: readonly CommandId[] = ['select', 'erase', 'copy', 'move', 'rotate', 'mirror', 'attr'];
 export const MEASURE_COMMANDS: readonly CommandId[] = ['measureDistance', 'measureArea'];
 export const SYMBOL_COMMANDS: readonly CommandId[] = ['symbol', 'coneRow'];
@@ -166,6 +170,8 @@ export interface ToolSettings {
     /** コーン列のコーンとコーンバーの記号 */
     coneSymbolId: string | null;
     coneBarSymbolId: string | null;
+    /** 占用範囲に付ける路線名（例「市道 新屋敷線」）。空なら付けない */
+    occupancyRoute: string;
 }
 
 export interface ViewState {
@@ -218,6 +224,8 @@ export type EditorAction =
     | { type: 'finish' }
     | { type: 'command'; command: CommandId }
     | { type: 'clearSelection' }
+    /** 選ぶ図形を指定する（右パネルの一覧から。見えない・ロック中のレイヤの図形は選ばない） */
+    | { type: 'setSelection'; ids: string[] }
     | { type: 'deleteSelection' }
     | { type: 'applyAttributes'; patch: AttributePatch }
     | { type: 'editSelectedText' }
@@ -229,7 +237,7 @@ export type EditorAction =
     | { type: 'setPaper'; size?: PaperSize; orientation?: PaperOrientation }
     | { type: 'setScale'; scale: DrawingScale }
     | { type: 'setOrigin'; origin: DrawingPoint }
-    | { type: 'setDrawingFlags'; patch: Partial<Pick<RoadPermitDrawing, 'showTitleBlock' | 'showNorthArrow' | 'showScaleBar'>> }
+    | { type: 'setDrawingFlags'; patch: Partial<Pick<RoadPermitDrawing, 'showTitleBlock' | 'showNorthArrow' | 'showScaleBar' | 'showLegend'>> }
     | { type: 'setTitleBlock'; patch: Partial<DrawingTitleBlock> }
     | { type: 'setView'; patch: Partial<ViewState> }
     | { type: 'hover'; p: DrawingPoint | null; shift?: boolean }
@@ -245,6 +253,8 @@ export interface AttributePatch {
     width?: LineWidth;
     /** 文字・寸法・引出線の文字の大きさ */
     heightPaperMm?: number;
+    /** 占用範囲の路線名 */
+    routeName?: string;
 }
 
 export const HISTORY_LIMIT = 50;
@@ -270,6 +280,7 @@ export const DEFAULT_TOOL_SETTINGS: ToolSettings = {
     arraySpacing: '2000',
     coneSymbolId: null,
     coneBarSymbolId: null,
+    occupancyRoute: '',
 };
 
 const EMPTY_SYMBOLS: RoadPermitSymbolMap = new Map();
@@ -518,6 +529,47 @@ function closedOutline(e: DrawingEntity): DrawingPoint[] | null {
     return null;
 }
 
+/** 占用範囲 1 つ（書込レイヤ・線は普通の実線・路線名はコントロールバーの欄） */
+function occupancyEntity(s: EditorState, points: DrawingPoint[]): DrawingEntity {
+    return {
+        id: newEntityId(),
+        layer: s.drawing.currentLayer,
+        style: { lineType: 'solid', width: 'normal', color: '#000000' },
+        kind: 'occupancy',
+        points,
+        routeName: s.settings.occupancyRoute.trim(),
+    };
+}
+
+/**
+ * 占用範囲の点の指示。
+ * - 1 点目で閉じた連続線・矩形・円をクリック → その輪郭を写して 1 つ足す（ハッチと同じ）
+ * - それ以外 → 点を順に足す。始点をもう一度指示するか Enter（3 点以上）で閉じる
+ */
+function occupancyPoint(st: EditorState, p: DrawingPoint, raw: DrawingPoint, tolMm: number, snapped: boolean): EditorState {
+    const pts = st.pts;
+    if (pts.length === 0 && !snapped) {
+        const candidates = pickableEntities(st.drawing).filter((e) => closedOutline(e) != null);
+        const hit = pickEntity(raw, candidates, Math.max(tolMm, 0)) ?? candidates.find((e) => pointInOutline(raw, closedOutline(e)!)) ?? null;
+        if (hit) {
+            return addEntities(st, [occupancyEntity(st, [...closedOutline(hit)!])], {
+                pts: [],
+                message: '占用範囲を足しました（路線名は「範囲」で選んで Enter で直せます）',
+            });
+        }
+    }
+    if (pts.length > 0 && distance(pts[pts.length - 1], p) < EPS) return st;
+    if (pts.length >= 3 && distance(pts[0], p) < EPS) return finishOccupancy(st);
+    return { ...st, pts: [...pts, p] };
+}
+
+function finishOccupancy(s: EditorState): EditorState {
+    if (s.pts.length === 0) return resetStage(s);
+    if (s.pts.length < 3) return resetStage(s, { message: '占用範囲は 3 点以上を指示してください' });
+    if (polygonArea(s.pts) < EPS) return resetStage(s, { message: '面積が 0 です。点を指示し直してください' });
+    return addEntities(s, [occupancyEntity(s, s.pts)], { pts: [] });
+}
+
 function formatM(mm: number): string {
     return (mm / 1000).toLocaleString('ja-JP', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
@@ -675,6 +727,11 @@ function handlePoint(s: EditorState, a: Extract<EditorAction, { type: 'point' }>
         case 'symbol':
             return symbolPoint(st, p, !!a.shift, !!a.snapped);
 
+        case 'occupancy': {
+            const q = a.shift && !a.snapped && st.pts.length > 0 ? orthoSnap(st.pts[st.pts.length - 1], p) : p;
+            return occupancyPoint(st, q, raw, a.tolMm, !!a.snapped);
+        }
+
         case 'coneRow': {
             if (st.pts.length === 0) {
                 const chk = coneRowSymbols(st);
@@ -787,6 +844,11 @@ function startCommand(s: EditorState, command: CommandId): EditorState {
     }
     if (TRANSFORM_COMMANDS.includes(command)) return { ...st, phase: s.selection.length > 0 ? 'points' : 'select' };
     if (command === 'select' || command === 'attr') return { ...st, phase: 'select' };
+    if (command === 'occupancy') {
+        // 占用範囲は 2（足場・養生）に描く（コントロールバーで変えられる）。書込レイヤは見えてロックされていない状態にする
+        const layers = st.drawing.layers.map((l) => (l.id === OCCUPANCY_DEFAULT_LAYER ? { ...l, visible: true, locked: false } : l));
+        return { ...st, phase: 'points', selection: [], drawing: { ...st.drawing, layers, currentLayer: OCCUPANCY_DEFAULT_LAYER } };
+    }
     // 描く・測る は選択を外す（JWW と同じ）
     return { ...st, phase: 'points', selection: [] };
 }
@@ -799,6 +861,15 @@ function finish(s: EditorState): EditorState {
             return resetStage(s);
         case 'coneRow':
             return finishConeRow(s);
+        case 'occupancy':
+            return finishOccupancy(s);
+        case 'select':
+        case 'attr': {
+            // 占用範囲を 1 つ選んで Enter ＝ 路線名を直す
+            const sel = selectedEntities(s);
+            if (sel.length === 1 && sel[0].kind === 'occupancy') return editorReducer(s, { type: 'editSelectedText' });
+            return resetStage(s);
+        }
         case 'measureArea': {
             if (s.pts.length < 3) return resetStage(s, { message: s.pts.length > 0 ? '面積は 3 点以上を指示してください' : s.message });
             const m2 = mm2ToM2(polygonArea(s.pts));
@@ -882,6 +953,10 @@ export function editorReducer(s: EditorState, a: EditorAction): EditorState {
             return startCommand(s, a.command);
         case 'clearSelection':
             return { ...s, selection: [] };
+        case 'setSelection': {
+            const ok = new Set(pickableEntities(s.drawing).map((e) => e.id));
+            return { ...s, selection: a.ids.filter((id) => ok.has(id)), message: null };
+        }
         case 'deleteSelection': {
             if (s.selection.length === 0) return s;
             const set = new Set(s.selection);
@@ -901,6 +976,7 @@ export function editorReducer(s: EditorState, a: EditorAction): EditorState {
                 if (patch.heightPaperMm != null && (n.kind === 'text' || n.kind === 'dimension' || n.kind === 'leader')) {
                     n = { ...n, heightPaperMm: patch.heightPaperMm };
                 }
+                if (patch.routeName != null && n.kind === 'occupancy') n = { ...n, routeName: patch.routeName.trim() };
                 return n;
             });
             return commitEntities(s, entities);
@@ -912,6 +988,7 @@ export function editorReducer(s: EditorState, a: EditorAction): EditorState {
             if (e.kind === 'text') return { ...s, prompt: { kind: 'edit', anchor: e.at, entityId: e.id, initial: e.text } };
             if (e.kind === 'leader') return { ...s, prompt: { kind: 'edit', anchor: e.points[e.points.length - 1], entityId: e.id, initial: e.text } };
             if (e.kind === 'dimension') return { ...s, prompt: { kind: 'edit', anchor: e.b, entityId: e.id, initial: e.textOverride ?? '' } };
+            if (e.kind === 'occupancy') return { ...s, prompt: { kind: 'edit', anchor: occupancyLabelPoint(e.points), entityId: e.id, initial: e.routeName } };
             return s;
         }
         case 'promptSubmit': {
@@ -923,6 +1000,7 @@ export function editorReducer(s: EditorState, a: EditorAction): EditorState {
                     if (e.id !== pr.entityId) return e;
                     if (e.kind === 'text' || e.kind === 'leader') return { ...e, text };
                     if (e.kind === 'dimension') return { ...e, textOverride: text.trim() === '' ? null : text };
+                    if (e.kind === 'occupancy') return { ...e, routeName: text.trim() };
                     return e;
                 });
                 return commitEntities(s, entities, { prompt: null });
@@ -1045,6 +1123,11 @@ export function previewEntities(s: EditorState): DrawingEntity[] {
             return pts.length === 1 ? [{ ...b, kind: 'line', a: pts[0], b: p }] : [];
         case 'measureArea':
             return pts.length >= 1 ? [{ ...b, kind: 'polyline', points: [...pts, p], closed: pts.length >= 2 }] : [];
+        case 'occupancy': {
+            if (pts.length === 0) return [];
+            const end = s.cursorShift ? orthoSnap(pts[pts.length - 1], p) : p;
+            return [{ ...b, kind: 'polyline', points: [...pts, end], closed: pts.length >= 2 }];
+        }
         case 'rect':
             return pts.length === 1
                 ? [{ ...b, kind: 'polyline', points: [pts[0], { x: p.x, y: pts[0].y }, p, { x: pts[0].x, y: p.y }], closed: true }]
@@ -1168,6 +1251,10 @@ export function guidance(s: EditorState): string {
             return n === 0 ? `◆測る 1 点目を指示してください${LR}` : n === 1 ? `◆測る 2 点目を指示してください${LR}` : `◆寸法線の位置を指示してください${LR}`;
         case 'hatch':
             return '◆塗る形（閉じた連続線・矩形・円）をクリックしてください';
+        case 'occupancy':
+            return n === 0
+                ? `◆閉じた連続線・矩形をクリック、または占用範囲の 1 点目を指示してください${LR}`
+                : `◆次の点を指示してください${LR}（始点・Enter・ダブルクリックで閉じる／Esc でやめる）`;
         case 'measureDistance':
             return n === 0 ? `◆測る 1 点目を指示してください${LR}` : `◆測る 2 点目を指示してください${LR}`;
         case 'measureArea':
