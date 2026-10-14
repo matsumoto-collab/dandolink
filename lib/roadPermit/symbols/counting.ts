@@ -1,14 +1,15 @@
 /**
  * 図面に置いた記号を数える（純粋関数・指示書 docs/指示書_道路申請_Phase2b_記号.md §5.3・設計書 §6.7）。
  *
- * - 数量の文（警察の「方法又は形態」に入れる）＝ countLabel ごとに数えて
- *   「カラーコーン 11個・コーンバー 10本（1.5m）・トラック 1台・誘導員 2人」（ashiba3d 旧版と同じ書き方）
- * - 凡例（図面の表題欄の上）＝ 記号ごとに 下絵・名前・数
+ * - 「方法又は形態」（警察）に入れる文＝ 置いた記号の countLabel をパレットの並び順で並べ、分類ごとの言葉を付ける。
+ *   **数は書かない**（許可が出た書類と同じ。kei 決定 2026-10-14・docs/指示書_道路申請_許可書を見ての修正.md §2）
+ *   例「パイロン・コーンバー設置」「カラーコーン・コーンバー設置・トラック駐車・誘導員配置」
+ * - 数は 凡例（図面の表題欄の上）に出す＝ 記号ごとに 下絵・名前・数
  * - 印刷しないレイヤ（表示していない／印刷しない）の記号は数えない（PDF に出るものと合わせる）
  * - 記号の表に無い symbolId は数えない
  */
 import type { DrawingEntity, DrawingLayer } from '@/types/roadPermitDrawing';
-import type { RoadPermitSymbolDto, RoadPermitSymbolGeometry, RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
+import type { RoadPermitSymbolCategory, RoadPermitSymbolDto, RoadPermitSymbolGeometry, RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
 import { sortRoadPermitSymbols } from '@/lib/roadPermit/symbols/normalize';
 
 export interface SymbolCountRow {
@@ -20,6 +21,8 @@ export interface SymbolCountRow {
     count: number;
     /** まとめた中で最初（並び順で先）の記号 */
     symbolId: string;
+    /** まとめた中で最初の記号の分類（「方法又は形態」の末尾の言葉を決める） */
+    category: RoadPermitSymbolCategory;
 }
 
 export interface LegendRow {
@@ -78,19 +81,59 @@ export function countSymbols(
             row.count += count;
             continue;
         }
-        const next: SymbolCountRow = { key, countLabel: label, countUnit: sym.countUnit.trim(), countNote: note, count, symbolId: sym.id };
+        const next: SymbolCountRow = {
+            key,
+            countLabel: label,
+            countUnit: sym.countUnit.trim(),
+            countNote: note,
+            count,
+            symbolId: sym.id,
+            category: sym.category,
+        };
         byKey.set(key, next);
         rows.push(next);
     }
     return rows;
 }
 
-/** 数量の文（「カラーコーン 11個・コーンバー 10本（1.5m）」）。0 件なら '' */
-export function symbolCountText(rows: readonly SymbolCountRow[]): string {
-    return rows
-        .filter((r) => r.count > 0)
-        .map((r) => `${r.countLabel} ${r.count}${r.countUnit}${r.countNote ? `（${r.countNote}）` : ''}`)
-        .join('・');
+/** 「方法又は形態」の末尾の言葉（分類ごと）: コーン類・バリケード・路面標示・その他＝設置／車両・クレーン＝駐車／人＝配置 */
+export const SYMBOL_METHOD_SUFFIX: Record<RoadPermitSymbolCategory, string> = {
+    cone: '設置',
+    barricade: '設置',
+    road: '設置',
+    other: '設置',
+    vehicle: '駐車',
+    crane: '駐車',
+    person: '配置',
+};
+
+/**
+ * 「方法又は形態」に入れる文（数を書かない）。
+ * countLabel を並び順のまま重ならないように並べ（countNote が違っても同じ名前は 1 つ）、分類ごとの言葉を付ける。
+ * 同じ言葉が続くものは「・」でつないで最後にだけ付ける。0 件なら ''
+ * 例: [カラーコーン, コーンバー, トラック, 誘導員] → 「カラーコーン・コーンバー設置・トラック駐車・誘導員配置」
+ */
+export function symbolMethodText(rows: readonly SymbolCountRow[]): string {
+    const seen = new Set<string>();
+    const items: { label: string; suffix: string }[] = [];
+    for (const r of rows) {
+        if (r.count <= 0 || seen.has(r.countLabel)) continue;
+        seen.add(r.countLabel);
+        items.push({ label: r.countLabel, suffix: SYMBOL_METHOD_SUFFIX[r.category] ?? '設置' });
+    }
+    const parts: string[] = [];
+    let group: string[] = [];
+    let groupSuffix = '';
+    for (const it of items) {
+        if (group.length > 0 && it.suffix !== groupSuffix) {
+            parts.push(group.join('・') + groupSuffix);
+            group = [];
+        }
+        group.push(it.label);
+        groupSuffix = it.suffix;
+    }
+    if (group.length > 0) parts.push(group.join('・') + groupSuffix);
+    return parts.join('・');
 }
 
 /** 凡例の行（記号ごと。countLabel が空でも名前で出す）。layers を渡すと印刷しないレイヤの記号を除く */

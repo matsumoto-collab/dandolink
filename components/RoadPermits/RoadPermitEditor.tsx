@@ -16,7 +16,7 @@ import { contactPresetIndexOf, isContactBlank } from '@/lib/roadPermit/contacts'
 import { approxAreaOf, countDaysInclusive } from '@/lib/roadPermit/format';
 import { isDrawingEmpty, normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
 import { occupancyFormPatch, type OccupancyApplyItem } from '@/lib/roadPermit/drawing/occupancy';
-import { countSymbols, symbolCountText } from '@/lib/roadPermit/symbols/counting';
+import { countSymbols, symbolMethodText } from '@/lib/roadPermit/symbols/counting';
 import { toSymbolMap } from '@/lib/roadPermit/symbols/normalize';
 import type { RoadPermitDrawing } from '@/types/roadPermitDrawing';
 import type { RoadPermitSymbolDto, RoadPermitSymbolsResponse } from '@/types/roadPermitSymbol';
@@ -952,7 +952,7 @@ function FormsTab({
     goBasic,
 }: {
     values: RoadPermitValues;
-    /** 図面（「方法又は形態」に置いた記号の数を入れるため） */
+    /** 図面（「方法又は形態」に置いた記号の名前を入れるため） */
     drawing: RoadPermitDrawing | null;
     /** 記号の一覧（null＝読み込み中） */
     symbols: RoadPermitSymbolDto[] | null;
@@ -974,13 +974,13 @@ function FormsTab({
     const { police, matsuyama, occupancy } = values;
     const autoArea = approxAreaOf(occupancy.quantity);
 
-    // 「方法又は形態」に図面の記号の数（「カラーコーン 11個・コーンバー 10本（1.5m）」）を入れる
+    // 「方法又は形態」に図面に置いた記号の名前（「パイロン・コーンバー設置」。数は書かない＝凡例に出る）を入れる
     const fillMethodFromDrawing = () => {
         if (symbols === null) {
             toast.error('記号を読み込み中です。少し待ってからもう一度押してください');
             return;
         }
-        const text = drawing ? symbolCountText(countSymbols(drawing.entities, toSymbolMap(symbols), drawing.layers)) : '';
+        const text = drawing ? symbolMethodText(countSymbols(drawing.entities, toSymbolMap(symbols), drawing.layers)) : '';
         if (!text) {
             toast.error('図面に数える記号がありません');
             return;
@@ -1024,7 +1024,7 @@ function FormsTab({
                             </div>
                             <TextArea value={police.method} rows={3} onChange={(v) => updateGroup('police', { method: v })} />
                             <span className="mt-1 block text-xs text-slate-500">
-                                「図面から入れる」で、図面に置いた記号の数（例: カラーコーン 11個・コーンバー 10本（1.5m））を入れます
+                                「図面から入れる」で、図面に置いた記号の名前（例: パイロン・コーンバー設置）を入れます。数は図面の凡例に出ます
                             </span>
                         </div>
                         <Field label="添付書類" className="sm:col-span-2">

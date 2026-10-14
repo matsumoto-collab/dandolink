@@ -48,7 +48,7 @@ import { titleBlockRows } from '../components/pdf/roadPermit/DrawingPage';
 import type { RoadPermitSymbolDto } from '../types/roadPermitSymbol';
 import { isConeBarSymbol, normalizeRoadPermitSymbolCategory, normalizeRoadPermitSymbolGeometry, toSymbolMap } from '../lib/roadPermit/symbols/normalize';
 import { coneRowLayout } from '../lib/roadPermit/symbols/place';
-import { countSymbols, legendRows, legendVisibleRows, symbolCountText } from '../lib/roadPermit/symbols/counting';
+import { countSymbols, legendRows, legendVisibleRows, symbolMethodText } from '../lib/roadPermit/symbols/counting';
 import { occupancyLabel, occupancyMark, occupancyMeasure, occupancyNoteLines } from '../lib/roadPermit/drawing/occupancy';
 // styles.ts（CDNフォント）の後に評価させるため import は最後に置く
 import '../lib/pdf/registerServerFonts';
@@ -201,8 +201,8 @@ function checkDrawingPage(
         const rows = legendRows(drawing.entities, toSymbolMap(symbols), drawing.layers);
         if (rows.length > 0) {
             expected.push('凡　例', ...legendVisibleRows(rows).rows.map((r) => r.name));
-            const countText = symbolCountText(countSymbols(drawing.entities, toSymbolMap(symbols), drawing.layers));
-            console.log(`凡例 ${rows.length} 行／数量の文: ${countText || '（数える記号なし）'}`);
+            const methodText = symbolMethodText(countSymbols(drawing.entities, toSymbolMap(symbols), drawing.layers));
+            console.log(`凡例 ${rows.length} 行／方法又は形態の文: ${methodText || '（数える記号なし）'}`);
         }
     }
     for (const t of expected) {
