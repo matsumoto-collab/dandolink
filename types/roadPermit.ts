@@ -215,6 +215,31 @@ export interface RoadPermitDocumentEntry {
     expiryDate: string;
     /** 添付書類のチェックリスト（初期値は様式カタログの文言から） */
     attachmentChecks: RoadPermitAttachmentCheck[];
+    /**
+     * 許可書（スキャン）。**サーバーだけが書く**＝PUT で送られてきた値は捨てて DB の値を残す
+     * （付ける・消すは /api/road-permits/[id]/files の API だけ。docs/指示書_道路申請_許可書を見ての修正.md §4）
+     */
+    permitFiles: RoadPermitPermitFile[];
+}
+
+/** 許可が出た書類（スキャン）1 つ。Storage（非公開 bucket）に置き、申請の documents に記録する */
+export interface RoadPermitPermitFile {
+    /** randomUUID */
+    id: string;
+    /** 元のファイル名 */
+    fileName: string;
+    /** Storage のパス（road-permits/<申請の id>/<id>.<拡張子>） */
+    storagePath: string;
+    /** application/pdf・image/jpeg など */
+    mimeType: string;
+    /** バイト */
+    size: number;
+    /** 付けた日時（ISO） */
+    uploadedAt: string;
+    /** 付けた人（User.id） */
+    uploadedBy: string | null;
+    /** 付けた人の表示名（付けた時点の写し。あとで名前が変わってもこのまま） */
+    uploadedByName: string;
 }
 
 export interface RoadPermitDocuments {

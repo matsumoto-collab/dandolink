@@ -11,6 +11,9 @@ import { validateRequest } from '@/lib/validations/common';
 import { roadPermitUpdateSchema } from '@/lib/validations/roadPermit';
 import { ROAD_PERMIT_ROW_INCLUDE, toRoadPermitDto } from '@/lib/roadPermitServer';
 import { normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
+import { normalizeRoadPermitDocuments } from '@/lib/roadPermit/defaults';
+import { withPermitFilesFrom } from '@/lib/roadPermit/permitFiles';
+import type { RoadPermitDocuments } from '@/types/roadPermit';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,9 +54,17 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
         const existing = await prisma.roadPermit.findUnique({
             where: { id: params.id },
-            select: { id: true, deletedAt: true },
+            select: { id: true, deletedAt: true, documents: true },
         });
         if (!existing || existing.deletedAt !== null) return notFoundResponse('道路申請');
+
+        // 許可書（スキャン）の一覧はサーバーだけが書く（付ける・消すは /files の API）。
+        // 画面から来た permitFiles は捨てて DB の値を残す＝古い画面で開いたまま保存しても、
+        // その間に付けたファイルの記録が消えない
+        const documents = withPermitFilesFrom(
+            input.documents as unknown as RoadPermitDocuments,
+            normalizeRoadPermitDocuments(existing.documents),
+        );
 
         // 図面: 省略なら変えない・null なら消す・あれば正規化して書く（Phase 2）
         const drawingData =
@@ -69,7 +80,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
                 title: input.title,
                 status: input.status,
                 values: input.values as unknown as Prisma.InputJsonValue,
-                documents: input.documents as unknown as Prisma.InputJsonValue,
+                documents: documents as unknown as Prisma.InputJsonValue,
                 ...drawingData,
                 updatedBy: session!.user.id,
             },

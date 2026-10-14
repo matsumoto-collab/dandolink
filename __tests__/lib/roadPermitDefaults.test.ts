@@ -19,10 +19,12 @@ import {
     projectLocationOf,
 } from '@/lib/roadPermit/defaults';
 import { ROAD_PERMIT_FORMS } from '@/lib/roadPermit/forms';
+import { ROAD_PERMIT_FILE_MAX_BYTES, permitFileExtension, withPermitFilesFrom } from '@/lib/roadPermit/permitFiles';
 import type {
     RoadPermitCompanyDefaults,
     RoadPermitContactPreset,
     RoadPermitDocuments,
+    RoadPermitPermitFile,
     RoadPermitProjectSource,
     RoadPermitValues,
 } from '@/types/roadPermit';
@@ -452,5 +454,86 @@ describe('enabledFormIdsOf・latestExpiryOf', () => {
     it('latestExpiryOf: 出す様式のうちいちばん遅い期限。無ければ null', () => {
         expect(latestExpiryOf(docs())).toBe('2026-11-15');
         expect(latestExpiryOf(buildDefaultRoadPermitDocuments())).toBeNull();
+    });
+});
+
+describe('許可書（スキャン）の一覧 permitFiles', () => {
+    const file = (over: Partial<RoadPermitPermitFile> = {}): RoadPermitPermitFile => ({
+        id: 'f1',
+        fileName: '許可書.pdf',
+        storagePath: 'road-permits/rp1/f1.pdf',
+        mimeType: 'application/pdf',
+        size: 2048,
+        uploadedAt: '2026-10-14T01:00:00.000Z',
+        uploadedBy: 'u1',
+        uploadedByName: '担当A',
+        ...over,
+    });
+
+    it('normalizeRoadPermitDocuments: 保存してある一覧を読む。壊れた 1 件は落とし、無ければ []', () => {
+        const raw = {
+            forms: [
+                {
+                    formId: 'police-road-use',
+                    enabled: true,
+                    permitFiles: [
+                        file(),
+                        file({ id: '' }), // id が空
+                        { ...file({ id: 'f3' }), storagePath: 'other/rp1/f3.pdf' }, // 置き場所が違う
+                        { ...file({ id: 'f4' }), size: 'abc' }, // 大きさが数でない
+                        { ...file({ id: 'f5' }), uploadedBy: 5 }, // 付けた人が文字でも null でもない
+                        file({ id: 'f6', size: 10.6, uploadedBy: null }),
+                    ],
+                },
+                { formId: 'matsuyama-occupancy-apply', enabled: true }, // 古いデータ（一覧が無い）
+            ],
+        };
+        const docs = normalizeRoadPermitDocuments(raw);
+        const police = docs.forms.find((f) => f.formId === 'police-road-use')!;
+        expect(police.permitFiles.map((f) => f.id)).toEqual(['f1', 'f6']);
+        expect(police.permitFiles[1]).toMatchObject({ size: 11, uploadedBy: null });
+        expect(docs.forms.find((f) => f.formId === 'matsuyama-occupancy-apply')!.permitFiles).toEqual([]);
+        // DB に無い様式・正規化前の空の値も []
+        expect(docs.forms.find((f) => f.formId === 'matsuyama-occupancy-reply')!.permitFiles).toEqual([]);
+        expect(normalizeRoadPermitDocuments(null).forms.every((f) => f.permitFiles.length === 0)).toBe(true);
+    });
+
+    it('buildCopiedRoadPermitDocuments: コピーすると一覧は空になる', () => {
+        const src = buildDefaultRoadPermitDocuments();
+        src.forms[0].permitFiles = [file()];
+        const copied = buildCopiedRoadPermitDocuments(src);
+        expect(copied.forms.every((f) => f.permitFiles.length === 0)).toBe(true);
+    });
+
+    it('withPermitFilesFrom: 様式ごとの一覧を DB の値で置き換える（入力中の値は残す・next に無い様式は足さない）', () => {
+        const next = buildDefaultRoadPermitDocuments();
+        next.forms[0].submittedDate = '2026-10-01';
+        next.forms[0].permitFiles = [file({ id: 'from-screen' })];
+        const onlyTwo: RoadPermitDocuments = { forms: next.forms.slice(0, 2) };
+
+        const existing = buildDefaultRoadPermitDocuments();
+        existing.forms[0].permitFiles = [file({ id: 'db1' })];
+        existing.forms[2].permitFiles = [file({ id: 'db3' })];
+
+        const out = withPermitFilesFrom(onlyTwo, existing);
+        expect(out.forms).toHaveLength(2);
+        expect(out.forms[0].submittedDate).toBe('2026-10-01');
+        expect(out.forms[0].permitFiles.map((f) => f.id)).toEqual(['db1']);
+        expect(out.forms[1].permitFiles).toEqual([]);
+        // 元の値は変えない
+        expect(next.forms[0].permitFiles[0].id).toBe('from-screen');
+    });
+
+    it('permitFileExtension: PDF と画像だけ拡張子を返す。上限は 20MB', () => {
+        expect(permitFileExtension('application/pdf')).toBe('pdf');
+        expect(permitFileExtension('image/jpeg')).toBe('jpg');
+        expect(permitFileExtension('image/png')).toBe('png');
+        expect(permitFileExtension('image/webp')).toBe('webp');
+        expect(permitFileExtension('image/gif')).toBe('gif');
+        expect(permitFileExtension('image/heic')).toBe('heic');
+        expect(permitFileExtension('image/heif')).toBe('heif');
+        expect(permitFileExtension('text/plain')).toBeNull();
+        expect(permitFileExtension('')).toBeNull();
+        expect(ROAD_PERMIT_FILE_MAX_BYTES).toBe(20 * 1024 * 1024);
     });
 });

@@ -147,6 +147,9 @@ const documentEntrySchema = z.object({
     attachmentChecks: z
         .array(z.object({ label: text('添付書類', MEDIUM), done: z.boolean() }))
         .max(50, '添付書類のチェックが多すぎます'),
+    // 許可書（スキャン）の一覧。画面は form.documents をそのまま送るので受け付けるが、
+    // 中身はサーバーで捨てて DB の値を使う（ファイルの一覧はサーバーだけが書く）ので検査しない
+    permitFiles: z.array(z.unknown()).max(50).optional(),
 });
 
 export const roadPermitDocumentsSchema = z.object({

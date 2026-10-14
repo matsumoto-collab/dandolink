@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import toast from 'react-hot-toast';
-import { Eye, FileDown, RefreshCw, Save, X } from 'lucide-react';
+import { Eye, FileDown, FileUp, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -12,6 +12,7 @@ import { logger } from '@/lib/logger';
 import { onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
 import { ROAD_PERMIT_FORMS, getRoadPermitForm } from '@/lib/roadPermit/forms';
 import { enabledFormIdsOf, normalizeRoadPermitDocuments, normalizeRoadPermitValues } from '@/lib/roadPermit/defaults';
+import { withPermitFilesFrom } from '@/lib/roadPermit/permitFiles';
 import { contactPresetIndexOf, isContactBlank } from '@/lib/roadPermit/contacts';
 import { approxAreaOf, countDaysInclusive } from '@/lib/roadPermit/format';
 import { isDrawingEmpty, normalizeRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
@@ -29,6 +30,7 @@ import {
     type RoadPermitDocuments,
     type RoadPermitDto,
     type RoadPermitFormId,
+    type RoadPermitPermitFile,
     type RoadPermitStatus,
     type RoadPermitValues,
 } from '@/types/roadPermit';
@@ -178,6 +180,19 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
             ...f,
             documents: { ...f.documents, forms: f.documents.forms.map((d) => (d.formId === formId ? { ...d, ...patch } : d)) },
         }));
+    }, []);
+
+    // ---- 許可書（スキャン）を付けた・消したあと ----
+    // 一覧はサーバーだけが書く。入力中の提出日やチェックは消さず、form と保存済みの基準（baseJson）の
+    // 両方の permitFiles だけを最新にする（＝「保存していない変更」にしない）
+    const onPermitFiles = useCallback((dto: RoadPermitDto) => {
+        const latest = normalizeRoadPermitDocuments(dto.documents);
+        setForm((f) => ({ ...f, documents: withPermitFilesFrom(f.documents, latest) }));
+        setBaseJson((json) => {
+            const base = JSON.parse(json) as EditorForm;
+            return JSON.stringify({ ...base, documents: withPermitFilesFrom(base.documents, latest) });
+        });
+        sendBroadcast('road_permits_updated', { id: dto.id });
     }, []);
 
     // ---- 閉じる（直しかけなら確認） ----
@@ -433,6 +448,8 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
                                     onStatus={(status) => setForm((f) => ({ ...f, status }))}
                                     updateDoc={updateDoc}
                                     onExportPdf={() => void handleExportPdf()}
+                                    permitId={permit.id}
+                                    onPermitFiles={onPermitFiles}
                                 />
                             )}
                         </div>
@@ -1223,6 +1240,8 @@ function SubmitTab({
     onStatus,
     updateDoc,
     onExportPdf,
+    permitId,
+    onPermitFiles,
 }: {
     form: EditorForm;
     formIds: RoadPermitFormId[];
@@ -1234,6 +1253,10 @@ function SubmitTab({
     onStatus: (s: RoadPermitStatus) => void;
     updateDoc: UpdateDoc;
     onExportPdf: () => void;
+    /** 申請の id（許可書の API に使う） */
+    permitId: string;
+    /** 許可書を付けた・消したあと（サーバーが返した申請 1 件） */
+    onPermitFiles: (dto: RoadPermitDto) => void;
 }) {
     // 出す様式だけ、カタログの順に並べる
     const entries = formIds
@@ -1346,11 +1369,169 @@ function SubmitTab({
                                         />
                                     </Field>
                                 </div>
+                                <PermitFilesBlock
+                                    permitId={permitId}
+                                    formId={entry.formId}
+                                    files={entry.permitFiles}
+                                    status={form.status}
+                                    onStatus={onStatus}
+                                    onPermitFiles={onPermitFiles}
+                                />
                             </div>
                         </Section>
                     );
                 })
             )}
         </>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 許可書（スキャン）（docs/指示書_道路申請_許可書を見ての修正.md §4）
+// ---------------------------------------------------------------------------
+
+/** 大きさの表示（KB / MB・小数 1 桁） */
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function PermitFilesBlock({
+    permitId,
+    formId,
+    files,
+    status,
+    onStatus,
+    onPermitFiles,
+}: {
+    permitId: string;
+    formId: RoadPermitFormId;
+    files: RoadPermitPermitFile[];
+    status: RoadPermitStatus;
+    onStatus: (s: RoadPermitStatus) => void;
+    onPermitFiles: (dto: RoadPermitDto) => void;
+}) {
+    const inputRef = useRef<HTMLInputElement>(null);
+    // 二重押しを防ぐ同期ロック（送っている間・消している間）
+    const busyRef = useRef(false);
+    // 送っている間の進み（null＝送っていない）
+    const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const base = `/api/road-permits/${encodeURIComponent(permitId)}/files`;
+
+    const handleFiles = async (list: FileList | null) => {
+        const picked = list ? Array.from(list) : [];
+        // 同じファイルをもう一度選べるように空に戻す
+        if (inputRef.current) inputRef.current.value = '';
+        if (picked.length === 0 || busyRef.current) return;
+        busyRef.current = true;
+        let added = 0;
+        try {
+            // 1 つずつ順に送る（失敗したらそこで止める。成功した分は残る）
+            for (let i = 0; i < picked.length; i++) {
+                setProgress({ done: i + 1, total: picked.length });
+                const fd = new FormData();
+                fd.append('formId', formId);
+                fd.append('file', picked[i]);
+                const res = await fetch(base, { method: 'POST', body: fd });
+                // 413＝サーバーの受け取れる大きさ（Vercel は約 4.5MB）を超えた。応答は JSON ではない
+                if (res.status === 413) throw new Error('ファイルが大きすぎて送れませんでした（4.5MB まで）');
+                if (!res.ok) throw new Error(await errorMessage(res, '許可書を付けられませんでした'));
+                onPermitFiles((await res.json()) as RoadPermitDto);
+                added++;
+            }
+        } catch (e) {
+            logger.error('道路申請の許可書の保存失敗:', e);
+            toast.error(e instanceof Error ? e.message : '許可書を付けられませんでした');
+        } finally {
+            busyRef.current = false;
+            setProgress(null);
+        }
+        if (added === 0) return;
+        toast.success(`許可書を ${added} 件付けました`);
+        // 状態が「提出済み」なら聞く（勝手に変えない）
+        if (status === 'submitted' && window.confirm('許可書を付けました。状態を「許可済み」にしますか？')) {
+            onStatus('permitted');
+            toast.success('状態を「許可済み」にしました（保存すると残ります）');
+        }
+    };
+
+    const handleDelete = async (file: RoadPermitPermitFile) => {
+        if (busyRef.current) return;
+        if (!window.confirm(`「${file.fileName}」を消します。よろしいですか？`)) return;
+        busyRef.current = true;
+        setDeletingId(file.id);
+        try {
+            const res = await fetch(`${base}/${encodeURIComponent(file.id)}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(await errorMessage(res, '許可書を消せませんでした'));
+            onPermitFiles((await res.json()) as RoadPermitDto);
+            toast.success('許可書を消しました');
+        } catch (e) {
+            logger.error('道路申請の許可書の削除失敗:', e);
+            toast.error(e instanceof Error ? e.message : '許可書を消せませんでした');
+        } finally {
+            busyRef.current = false;
+            setDeletingId(null);
+        }
+    };
+
+    const busy = progress !== null || deletingId !== null;
+
+    return (
+        <div className="border-t border-slate-100 pt-3">
+            <span className="block text-sm font-medium text-slate-700">許可書（スキャン）</span>
+            <p className="mb-2 text-xs text-slate-500">
+                許可が出た書類をスキャンして付けておきます（PDF・画像。見られるのは管理者とマネージャーだけ）
+            </p>
+            {files.length === 0 ? (
+                <p className="mb-2 text-sm text-slate-500">まだありません</p>
+            ) : (
+                <ul className="mb-2 divide-y divide-slate-100 rounded border border-slate-200 bg-white">
+                    {files.map((f) => (
+                        <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
+                            <a
+                                href={`${base}/${encodeURIComponent(f.id)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="min-w-0 flex-1 break-all text-teal-700 underline hover:text-teal-900"
+                            >
+                                {f.fileName}
+                            </a>
+                            <span className="text-xs text-slate-500">{formatFileSize(f.size)}</span>
+                            <span className="text-xs text-slate-500">{new Date(f.uploadedAt).toLocaleDateString('ja-JP')}</span>
+                            {f.uploadedByName && <span className="text-xs text-slate-500">{f.uploadedByName}</span>}
+                            <button
+                                type="button"
+                                onClick={() => void handleDelete(f)}
+                                disabled={busy}
+                                className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                {deletingId === f.id ? '消しています…' : '消す'}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <input
+                ref={inputRef}
+                type="file"
+                accept="application/pdf,image/*"
+                multiple
+                className="hidden"
+                data-testid={`permit-file-input-${formId}`}
+                onChange={(e) => void handleFiles(e.target.files)}
+            />
+            <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => inputRef.current?.click()}
+                disabled={busy}
+                leftIcon={<FileUp className="h-4 w-4" />}
+            >
+                {progress ? `送っています… (${progress.done}/${progress.total})` : '許可書（スキャン）を付ける'}
+            </Button>
+        </div>
     );
 }

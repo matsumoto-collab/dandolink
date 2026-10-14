@@ -129,6 +129,34 @@ describe('/api/road-permits/[id]', () => {
             expect(args.data.documents.forms).toHaveLength(3);
             expect(json).toMatchObject({ id: 'rp1', title: '北井門様邸（修正）', status: 'submitted' });
         });
+
+        it('画面が送った許可書（permitFiles）は捨て、DB の値を残す（ファイルの一覧はサーバーだけが書く）', async () => {
+            const dbFile = {
+                id: 'f-db',
+                fileName: '許可書.pdf',
+                storagePath: 'road-permits/rp1/f-db.pdf',
+                mimeType: 'application/pdf',
+                size: 1000,
+                uploadedAt: '2026-10-14T00:00:00.000Z',
+                uploadedBy: 'u1',
+                uploadedByName: '担当A',
+            };
+            const dbDocs = buildDefaultRoadPermitDocuments();
+            dbDocs.forms[0].permitFiles = [dbFile];
+            (prisma.roadPermit.findUnique as jest.Mock).mockResolvedValue(row({ documents: dbDocs }));
+
+            const body = validBody();
+            body.documents.forms[0].submittedDate = '2026-10-01';
+            body.documents.forms[0].permitFiles = [{ ...dbFile, id: 'f-fake', storagePath: 'road-permits/rp1/f-fake.pdf' }];
+            body.documents.forms[1].permitFiles = [{ ...dbFile, id: 'f-fake2' }];
+            const res = await PUT(req('PUT', body), ctx);
+            expect(res.status).toBe(200);
+
+            const args = (prisma.roadPermit.update as jest.Mock).mock.calls[0][0];
+            expect(args.data.documents.forms[0].submittedDate).toBe('2026-10-01');
+            expect(args.data.documents.forms[0].permitFiles).toEqual([dbFile]);
+            expect(args.data.documents.forms[1].permitFiles).toEqual([]);
+        });
     });
 
     describe('DELETE', () => {

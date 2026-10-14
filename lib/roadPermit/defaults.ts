@@ -41,6 +41,10 @@ import type {
 import { ROAD_PERMIT_FORM_IDS, ROAD_PERMIT_STATUSES } from '@/types/roadPermit';
 import { ROAD_PERMIT_FORMS, getRoadPermitForm, isRoadPermitFormId, sortFormIds } from './forms';
 import { isContactBlank } from './contacts';
+import { normalizePermitFiles } from './permitFiles';
+
+// 許可書（スキャン）の決まりは ./permitFiles にある（ここからも使えるように出し直す）
+export { withPermitFilesFrom, permitFileExtension, ROAD_PERMIT_FILE_MAX_BYTES } from './permitFiles';
 
 // ---------------------------------------------------------------------------
 // 既定の文言
@@ -297,6 +301,7 @@ export function emptyDocumentEntry(formId: RoadPermitFormId, enabled: boolean): 
         permitNo: '',
         expiryDate: '',
         attachmentChecks: def.attachmentChecklist.map((label) => ({ label, done: false })),
+        permitFiles: [],
     };
 }
 
@@ -455,6 +460,8 @@ export function normalizeRoadPermitDocuments(raw: unknown): RoadPermitDocuments 
             permitNo: str(o.permitNo),
             expiryDate: str(o.expiryDate),
             attachmentChecks: stored ?? def.attachmentChecklist.map((label) => ({ label, done: false })),
+            // 許可書（スキャン）の一覧。古い行（一覧が無い）は []・壊れた 1 件は落とす
+            permitFiles: normalizePermitFiles(o.permitFiles),
         };
     });
     return { forms };
