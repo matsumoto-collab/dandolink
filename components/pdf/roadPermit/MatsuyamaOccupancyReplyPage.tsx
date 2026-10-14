@@ -7,7 +7,9 @@
  *
  * 下の「第　号／令和　年　月　日／上記について次の条件により 許可／回答 する／道路管理者 松山市長」は
  * **市が書く欄**なので、番号・日付は空けて印刷し、「許可／回答」も囲まない。
- * 番号の頭（原本の「4松（都生）第占」）は部署名・年が変わるため印字せず「第　号」だけにする（§14-1 で kei に確認中）。
+ * 番号の頭（原本の「4松（都生）第占」）は部署名・年が変わるため印字せず「第　号」だけにする（kei 決定 2026-10-14: 今のまま）。
+ * **上の日付も市が書く**（2026-10-14 許可書の見本で確認。2025-12 は印字した申請日を市が線で消して許可日を書いた）ので、
+ * 年・月・日とも空けて印刷する。提出用（MatsuyamaOccupancyApplyPage）の日付は申請日のまま。
  */
 import React from 'react';
 import { Page } from '@react-pdf/renderer';
@@ -17,7 +19,6 @@ import {
     Chars,
     DashedBox,
     HLine,
-    ReiwaNumbers,
     RoadPartMarks,
     RoadSurfaceMarks,
     Spaced,
@@ -43,12 +44,11 @@ export function MatsuyamaOccupancyReplyPage({ values }: { values: RoadPermitValu
             <Chars xs={[320.3, 344.0]} y={121.0} fs={11} text="回答" />
             <T x={379.5} y={121.0} fs={11}>書</T>
 
-            {/* 申請日 */}
+            {/* 上の日付（市が許可日を書く欄。申請日は印字しない） */}
             <T x={380.8} y={155.0}>令和</T>
             <T x={431.8} y={155.0}>年</T>
             <T x={465.8} y={155.0}>月</T>
             <T x={511.1} y={155.0}>日</T>
-            <ReiwaNumbers ymd={matsuyama.applicationDate} y={155.0} yearRight={431.8} monthRight={465.8} dayRight={511.1} />
 
             {/* ===== 申請者（住所・氏名・担当者・連絡先） ===== */}
             <Chars xs={[297.7, 320.4]} y={185.0} text="住所" />

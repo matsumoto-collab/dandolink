@@ -4,6 +4,11 @@ import type { RoadPermitFormDef } from './types';
 export const MATSUYAMA_ATTACHMENTS_TEXT =
     'ア.警察署長の道路使用許可書の写　イ.位置図・平面図・断面図・立面図・外　ウ.着工前写真';
 
+/**
+ * 添付書類のチェックリスト（「添付・提出」タブ）。新しく作る申請から出る。
+ * 既にある申請のチェックリストは保存してある並びのまま（normalizeRoadPermitDocuments）なので、ここに足しても変わらない。
+ * 四国ガスの協議: 松山市の許可 3 件とも許可の数日前に四国ガスの「協議済」印があった（雄伸工業が持って行く。2026-10-14）
+ */
 export const MATSUYAMA_ATTACHMENT_CHECKLIST = [
     'ア. 警察署長の道路使用許可書の写',
     'イ. 位置図',
@@ -11,6 +16,7 @@ export const MATSUYAMA_ATTACHMENT_CHECKLIST = [
     'イ. 断面図',
     'イ. 立面図',
     'ウ. 着工前写真',
+    '四国ガスの協議（協議済の印をもらう）',
 ] as const;
 
 /** 宛名（道路管理者）の初期値。市長が変わったら画面で直す（§14-3） */

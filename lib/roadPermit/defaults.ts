@@ -425,7 +425,10 @@ export function normalizeRoadPermitValues(raw: unknown): RoadPermitValues {
 
 /**
  * documents の正規化。カタログの全様式を並び順どおりに並べ、DB に無い様式は「出さない」で足す。
- * 未知の様式 id は落とす。添付書類のチェックは、ラベルが同じものだけ引き継ぐ（カタログの文言が変わっても壊れない）。
+ * 未知の様式 id は落とす。
+ * 添付書類のチェックは、保存してある一覧（ラベルと済み）をそのまま使う＝カタログに項目を足しても既にある申請の
+ * チェックリストは変わらない（今のチェックの状態を壊さないため。docs/指示書_道路申請_許可書を見ての修正.md §5）。
+ * 一覧が保存されていない（古い行・壊れた値）ときだけカタログの文言で作る。
  */
 export function normalizeRoadPermitDocuments(raw: unknown): RoadPermitDocuments {
     const r = obj(raw);
@@ -438,12 +441,12 @@ export function normalizeRoadPermitDocuments(raw: unknown): RoadPermitDocuments 
     const forms: RoadPermitDocumentEntry[] = ROAD_PERMIT_FORMS.map((def) => {
         const o = byId.get(def.id);
         if (!o) return emptyDocumentEntry(def.id, false);
-        const checks = Array.isArray(o.attachmentChecks) ? o.attachmentChecks : [];
-        const done = new Map<string, boolean>();
-        for (const c of checks) {
-            const co = obj(c);
-            if (typeof co.label === 'string') done.set(co.label, co.done === true);
-        }
+        const stored = Array.isArray(o.attachmentChecks)
+            ? o.attachmentChecks
+                  .map((c) => obj(c))
+                  .filter((co) => typeof co.label === 'string' && co.label.trim() !== '')
+                  .map((co) => ({ label: co.label as string, done: co.done === true }))
+            : null;
         return {
             formId: def.id,
             enabled: o.enabled === true,
@@ -451,7 +454,7 @@ export function normalizeRoadPermitDocuments(raw: unknown): RoadPermitDocuments 
             permittedDate: str(o.permittedDate),
             permitNo: str(o.permitNo),
             expiryDate: str(o.expiryDate),
-            attachmentChecks: def.attachmentChecklist.map((label) => ({ label, done: done.get(label) === true })),
+            attachmentChecks: stored ?? def.attachmentChecklist.map((label) => ({ label, done: false })),
         };
     });
     return { forms };

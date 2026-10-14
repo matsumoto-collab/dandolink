@@ -376,7 +376,7 @@ describe('normalizeRoadPermitDocuments', () => {
         expect(normalizeRoadPermitDocuments(null).forms).toHaveLength(3);
     });
 
-    it('チェックはラベルが同じものだけ引き継ぐ（カタログの文言が変わっても壊れない）', () => {
+    it('チェックは保存してある一覧をそのまま使う（カタログに項目を足しても既にある申請は変わらない・済みは true だけ）', () => {
         const d = normalizeRoadPermitDocuments({
             forms: [
                 {
@@ -386,15 +386,45 @@ describe('normalizeRoadPermitDocuments', () => {
                         { label: '位置図', done: true },
                         { label: '昔の書類', done: true },
                         { label: '現地写真', done: 'yes' },
+                        { label: '', done: true },
+                        'broken',
                     ],
                 },
             ],
         });
         expect(d.forms[0].attachmentChecks).toEqual([
             { label: '位置図', done: true },
+            { label: '昔の書類', done: true },
+            { label: '現地写真', done: false },
+        ]);
+    });
+
+    it('一覧が保存されていない（古い行）ときだけカタログの文言で作る', () => {
+        const d = normalizeRoadPermitDocuments({ forms: [{ formId: 'police-road-use', enabled: true }] });
+        expect(d.forms[0].attachmentChecks).toEqual([
+            { label: '位置図', done: false },
             { label: '現地写真', done: false },
             { label: '平面図（保安図）', done: false },
         ]);
+    });
+
+    it('四国ガスの協議: 新しく作る松山市の申請のチェックに出る・既にある申請（6 項目で保存）には足さない', () => {
+        const fresh = buildDefaultRoadPermitDocuments().forms.find((f) => f.formId === 'matsuyama-occupancy-apply')!;
+        expect(fresh.attachmentChecks.map((c) => c.label)).toEqual([
+            'ア. 警察署長の道路使用許可書の写',
+            'イ. 位置図',
+            'イ. 平面図',
+            'イ. 断面図',
+            'イ. 立面図',
+            'ウ. 着工前写真',
+            '四国ガスの協議（協議済の印をもらう）',
+        ]);
+        const old = ['ア. 警察署長の道路使用許可書の写', 'イ. 位置図', 'イ. 平面図', 'イ. 断面図', 'イ. 立面図', 'ウ. 着工前写真'].map((label, i) => ({
+            label,
+            done: i < 2,
+        }));
+        const d = normalizeRoadPermitDocuments({ forms: [{ formId: 'matsuyama-occupancy-apply', enabled: true, attachmentChecks: old }] });
+        expect(d.forms.find((f) => f.formId === 'matsuyama-occupancy-apply')!.attachmentChecks).toEqual(old);
     });
 });
 
