@@ -85,6 +85,7 @@ export function emptyRoadPermitDrawing(): RoadPermitDrawing {
         showNorthArrow: true,
         showScaleBar: true,
         showLegend: true,
+        occupancyNoteAt: null,
     };
 }
 
@@ -242,7 +243,9 @@ export function normalizeEntity(raw: unknown): DrawingEntity | null {
                 const l = pts[pts.length - 1];
                 if (Math.abs(f.x - l.x) < 1e-6 && Math.abs(f.y - l.y) < 1e-6) pts.pop();
             }
-            return pts.length >= 3 ? { ...base, kind: 'occupancy', points: pts, routeName: str(o.routeName).slice(0, 100) } : null;
+            return pts.length >= 3
+                ? { ...base, kind: 'occupancy', points: pts, routeName: str(o.routeName).slice(0, 100), labelAt: point(o.labelAt) }
+                : null;
         }
         default:
             return null;
@@ -297,5 +300,6 @@ export function normalizeRoadPermitDrawing(raw: unknown): RoadPermitDrawing {
         showNorthArrow: bool(o.showNorthArrow, true),
         showScaleBar: bool(o.showScaleBar, true),
         showLegend: bool(o.showLegend, true),
+        occupancyNoteAt: point(o.occupancyNoteAt),
     };
 }

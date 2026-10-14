@@ -33,7 +33,7 @@ import SymbolThumbnail from './SymbolThumbnail';
 import { DRAWING_LAYER_COLORS, emptyRoadPermitDrawing } from '@/lib/roadPermit/drawing/defaults';
 import { originToFit, paperLabel, scaleLabel } from '@/lib/roadPermit/drawing/paper';
 import { entitiesBBox } from '@/lib/roadPermit/drawing/geometry';
-import { occupancyApplyItems, occupancyTotalM2, type OccupancyApplyItem } from '@/lib/roadPermit/drawing/occupancy';
+import { occupancyApplyItems, occupancyMark, occupancyTotal, type OccupancyApplyItem } from '@/lib/roadPermit/drawing/occupancy';
 import {
     COMMAND_LABELS,
     DIMENSION_TOOL_LABELS,
@@ -874,7 +874,10 @@ function OccupancyPanel({
         [state.drawing.entities],
     );
     const items = useMemo(() => occupancyApplyItems(list), [list]);
-    const total = occupancyTotalM2(items);
+    const total = occupancyTotal(items);
+    const many = items.length >= 2;
+    // 文字を動かしてある（自動の位置に戻せる）
+    const moved = state.drawing.occupancyNoteAt !== null || list.some((e) => e.labelAt !== null);
     return (
         <section className="mt-2 overflow-hidden rounded border border-slate-300 bg-white">
             <h3 className={panelTitle}>占用範囲</h3>
@@ -896,14 +899,28 @@ function OccupancyPanel({
                                         state.selection.includes(list[i].id) ? 'border-teal-600 bg-teal-50' : 'border-slate-200'
                                     }`}
                                 >
-                                    <span className="block font-medium text-slate-800">{m.routeName || `占用範囲 ${i + 1}`}</span>
+                                    <span className="block font-medium text-slate-800">
+                                        {many ? `${occupancyMark(i)}　` : ''}
+                                        {m.routeName || `占用範囲 ${i + 1}`}
+                                    </span>
                                     <span className="block tabular-nums text-slate-700">{m.expression}</span>
                                 </button>
                             </li>
                         ))}
                     </ul>
-                    {items.length > 1 && (
-                        <p className="text-right text-sm font-semibold tabular-nums text-slate-900">合計 {total.toFixed(3)}㎡</p>
+                    <p className="text-right text-sm font-semibold tabular-nums text-slate-900">
+                        {many ? '合計 ' : ''}
+                        {total.areaText}㎡　約{total.approx}㎡
+                    </p>
+                    <p className="text-xs text-slate-500">図面の文字（式・①②）はドラッグで動かせます</p>
+                    {moved && (
+                        <button
+                            type="button"
+                            onClick={() => dispatch({ type: 'resetOccupancyLabels' })}
+                            className="w-full rounded border border-slate-300 bg-white py-1 text-xs text-slate-700 hover:bg-slate-100"
+                        >
+                            文字の位置を自動に戻す
+                        </button>
                     )}
                     {onApply && (
                         <button

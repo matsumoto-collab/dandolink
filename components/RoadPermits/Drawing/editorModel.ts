@@ -239,6 +239,12 @@ export type EditorAction =
     | { type: 'setOrigin'; origin: DrawingPoint }
     | { type: 'setDrawingFlags'; patch: Partial<Pick<RoadPermitDrawing, 'showTitleBlock' | 'showNorthArrow' | 'showScaleBar' | 'showLegend'>> }
     | { type: 'setTitleBlock'; patch: Partial<DrawingTitleBlock> }
+    /** 占用範囲の文字（式・①②の印）をドラッグで動かした（null＝自動の位置に戻す）。1 回の戻るで元に戻る */
+    | { type: 'setOccupancyLabelAt'; id: string; at: DrawingPoint | null }
+    /** 占用範囲が 2 つ以上のときのまとまりを動かした（null＝自動の位置に戻す） */
+    | { type: 'setOccupancyNoteAt'; at: DrawingPoint | null }
+    /** 占用範囲の文字の位置を全部自動に戻す */
+    | { type: 'resetOccupancyLabels' }
     | { type: 'setView'; patch: Partial<ViewState> }
     | { type: 'hover'; p: DrawingPoint | null; shift?: boolean }
     | { type: 'setMessage'; message: string | null }
@@ -538,6 +544,7 @@ function occupancyEntity(s: EditorState, points: DrawingPoint[]): DrawingEntity 
         kind: 'occupancy',
         points,
         routeName: s.settings.occupancyRoute.trim(),
+        labelAt: null,
     };
 }
 
@@ -1062,6 +1069,26 @@ export function editorReducer(s: EditorState, a: EditorAction): EditorState {
             return { ...s, drawing: { ...s.drawing, origin: a.origin } };
         case 'setDrawingFlags':
             return { ...s, drawing: { ...s.drawing, ...a.patch } };
+        case 'setOccupancyLabelAt': {
+            const target = s.drawing.entities.find((e) => e.id === a.id);
+            if (!target || target.kind !== 'occupancy') return s;
+            return commitEntities(
+                s,
+                s.drawing.entities.map((e) => (e.id === a.id && e.kind === 'occupancy' ? { ...e, labelAt: a.at } : e)),
+            );
+        }
+        case 'setOccupancyNoteAt':
+            return { ...s, drawing: { ...s.drawing, occupancyNoteAt: a.at } };
+        case 'resetOccupancyLabels': {
+            const moved = s.drawing.entities.some((e) => e.kind === 'occupancy' && e.labelAt !== null);
+            const next = moved
+                ? commitEntities(
+                      s,
+                      s.drawing.entities.map((e) => (e.kind === 'occupancy' && e.labelAt !== null ? { ...e, labelAt: null } : e)),
+                  )
+                : s;
+            return { ...next, drawing: { ...next.drawing, occupancyNoteAt: null } };
+        }
         case 'setTitleBlock':
             return { ...s, drawing: { ...s.drawing, titleBlock: { ...s.drawing.titleBlock, ...a.patch } } };
         case 'setView':

@@ -19,7 +19,14 @@ import type { RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
 import type { RoadPermitSymbolGeometry } from '@/types/roadPermitSymbol';
 import { isSymbolGeometryEmpty, placedSymbolPolylines, symbolBBox, symbolPolylines } from '@/lib/roadPermit/symbols/geometry';
 import { legendLayout, legendRows, legendVisibleRows, LEGEND_WIDTH_MM } from '@/lib/roadPermit/symbols/counting';
-import { occupancyLabel, occupancyLabelPoint } from '@/lib/roadPermit/drawing/occupancy';
+import {
+    OCCUPANCY_LINE_HEIGHT,
+    OCCUPANCY_TEXT_PAPER_MM,
+    occupancyEntityLabel,
+    occupancyLabelAt,
+    occupancyNoteAt,
+    occupancyNoteLines,
+} from '@/lib/roadPermit/drawing/occupancy';
 import { OCCUPANCY_HATCH_SPACING_PAPER_MM } from '@/lib/roadPermit/drawing/defaults';
 import { drawingPaperMm, PAPER_MARGIN_MM, PT_PER_MM, scaleLabel, toPt } from '@/lib/roadPermit/drawing/paper';
 import { arcPoints, circlePoints, dimensionLabel, dimensionLinePoints, hatchLines } from '@/lib/roadPermit/drawing/geometry';
@@ -80,7 +87,22 @@ function inFrame(p: Pt, f: FrameBox): boolean {
     return p.x >= f.x && p.x <= f.x + f.w && p.y >= f.y && p.y <= f.y + f.h;
 }
 
-function EntityShape({ e, d, part, frame, symbols }: { e: DrawingEntity; d: RoadPermitDrawing; part: Part; frame: FrameBox; symbols: RoadPermitSymbolMap }) {
+function EntityShape({
+    e,
+    d,
+    part,
+    frame,
+    symbols,
+    occupancy,
+}: {
+    e: DrawingEntity;
+    d: RoadPermitDrawing;
+    part: Part;
+    frame: FrameBox;
+    symbols: RoadPermitSymbolMap;
+    /** 占用範囲のときだけ: 印刷する占用範囲の中での番号（0 始まり）と数（2 つ以上なら文字は ①② の印になる） */
+    occupancy?: { index: number; count: number };
+}) {
     const P = (p: { x: number; y: number }): Pt => toPt(p, d);
     const sw = lineWidthPt(e.style.width);
     const dash = strokeDash(e.style.lineType);
@@ -131,11 +153,11 @@ function EntityShape({ e, d, part, frame, symbols }: { e: DrawingEntity; d: Road
                     </>
                 );
             }
-            // 文字の中ほどが多角形の重心に来るように（基準点は文字の下端）
-            const c = P(occupancyLabelPoint(e.points));
+            // 文字（1 つなら「路線名　式　約○㎡」・2 つ以上なら ①② の印）。中ほどが位置（動かしてあればそこ・無ければ重心）に来るように
+            const c = P(occupancyLabelAt(e));
             if (!inFrame(c, frame)) return null;
-            const size = mm(OCCUPANCY_TEXT_MM);
-            const label = occupancyLabel(e);
+            const size = mm(OCCUPANCY_TEXT_PAPER_MM);
+            const label = occupancyEntityLabel(e, occupancy?.index ?? 0, occupancy?.count ?? 1);
             // ハッチの上でも読めるよう、文字の範囲を白で塗ってから書く（文字は切り取りの外＝線の上に描かれる）
             const labelW = estimateDrawTextWidth(label, size);
             const padX = mm(1);
@@ -173,8 +195,29 @@ function EntityShape({ e, d, part, frame, symbols }: { e: DrawingEntity; d: Road
     }
 }
 
-/** 占用範囲の中の文字の大きさ（用紙上 mm） */
-const OCCUPANCY_TEXT_MM = 3;
+/**
+ * 占用範囲が 2 つ以上のときのまとまり（「申請物件」＋ ①② の式 ＋ 合計と約○㎡）。
+ * 左上の位置（動かしてあればそこ・無ければ範囲の左下の下）から 1 行ずつ下へ。白地を敷いて線の上に描く
+ */
+function OccupancyNote({ d, entities, frame }: { d: RoadPermitDrawing; entities: readonly DrawingEntity[]; frame: FrameBox }) {
+    const list = entities.filter((e): e is Extract<DrawingEntity, { kind: 'occupancy' }> => e.kind === 'occupancy');
+    const lines = occupancyNoteLines(list);
+    if (lines.length === 0) return null;
+    const at = toPt(occupancyNoteAt(d, list), d);
+    if (!inFrame(at, frame)) return null;
+    const size = mm(OCCUPANCY_TEXT_PAPER_MM);
+    const lineH = size * OCCUPANCY_LINE_HEIGHT;
+    const w = Math.max(...lines.map((l) => estimateDrawTextWidth(l, size)));
+    const pad = mm(1);
+    return (
+        <>
+            <Rect x={at.x - pad} y={at.y - pad * 0.5} width={w + pad * 2} height={lineH * (lines.length - 1) + size + pad} fill="#ffffff" />
+            {lines.map((line, i) => (
+                <DrawText key={i} at={{ x: at.x, y: at.y + size * 0.85 + lineH * i }} text={line} sizePt={size} anchor="start" />
+            ))}
+        </>
+    );
+}
 
 /** 寸法: 寸法線・引出し線 2 本・両端の矢印・寸法値 */
 function Dimension({
@@ -504,6 +547,10 @@ export function DrawingPage({ drawing, values, symbols = NO_SYMBOLS }: DrawingPa
     // ハッチ・塗り・占用範囲は線の下に敷く（線や文字を隠さないように先に描く）
     const under = (e: DrawingEntity) => e.kind === 'hatch' || e.kind === 'occupancy';
     const ordered = [...entities.filter(under), ...entities.filter((e) => !under(e))];
+    // 占用範囲の番号（印刷する占用範囲の並び順。2 つ以上なら文字は ①② の印＋まとまり）
+    const occupancyIds = entities.filter((e) => e.kind === 'occupancy').map((e) => e.id);
+    const occupancyOf = (e: DrawingEntity) =>
+        e.kind === 'occupancy' ? { index: occupancyIds.indexOf(e.id), count: occupancyIds.length } : undefined;
 
     return (
         <Page size={[W, H]} style={{ position: 'relative', padding: 0, fontFamily: 'NotoSerifJP' }}>
@@ -526,8 +573,10 @@ export function DrawingPage({ drawing, values, symbols = NO_SYMBOLS }: DrawingPa
                 </G>
                 {/* 図形の文字（切り取りの外で描く。基準点が枠の外の文字は出さない） */}
                 {ordered.map((e) => (
-                    <EntityShape key={`t-${e.id}`} e={e} d={drawing} part="text" frame={frame} symbols={symbols} />
+                    <EntityShape key={`t-${e.id}`} e={e} d={drawing} part="text" frame={frame} symbols={symbols} occupancy={occupancyOf(e)} />
                 ))}
+                <OccupancyNote d={drawing} entities={entities} frame={frame} />
+                {/* 記号の形は切り取りの中で描くので、占用範囲の文字と同じく線の上に重なる */}
                 {/* 用紙の枠（10mm 内側） */}
                 <Rect x={frame.x} y={frame.y} width={frame.w} height={frame.h} fill="none" stroke={INK} strokeWidth={lineWidthPt('normal')} />
                 {drawing.showTitleBlock && (

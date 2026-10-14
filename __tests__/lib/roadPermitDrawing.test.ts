@@ -358,16 +358,41 @@ describe('占用範囲（Phase 2b）の正規化・幾何・検査', () => {
         { x: 11100, y: 810 },
         { x: 0, y: 810 },
     ];
-    const occ = (): OccupancyEntity => ({ id: 'o1', kind: 'occupancy', layer: 2, style: DEFAULT_STYLE, points: band, routeName: '市道 新屋敷線' });
+    const occ = (): OccupancyEntity => ({
+        id: 'o1',
+        kind: 'occupancy',
+        layer: 2,
+        style: DEFAULT_STYLE,
+        points: band,
+        routeName: '市道 新屋敷線',
+        labelAt: null,
+    });
 
-    it('normalizeEntity: 3 点以上で残す・閉じる点の重なりは外す・路線名は文字（無ければ空）', () => {
+    it('normalizeEntity: 3 点以上で残す・閉じる点の重なりは外す・路線名は文字（無ければ空）・文字の位置は無ければ null', () => {
         const e = normalizeEntity({ kind: 'occupancy', layer: 2, points: [...band, band[0]], routeName: '市道 新屋敷線' }) as OccupancyEntity;
         expect(e.kind).toBe('occupancy');
         expect(e.points).toHaveLength(4);
         expect(e.routeName).toBe('市道 新屋敷線');
         expect(e.layer).toBe(2);
+        expect(e.labelAt).toBeNull();
         expect((normalizeEntity({ kind: 'occupancy', points: band }) as OccupancyEntity).routeName).toBe('');
         expect(normalizeEntity({ kind: 'occupancy', points: band.slice(0, 2) })).toBeNull();
+        // 動かした文字の位置は残す（壊れていれば null）
+        expect((normalizeEntity({ kind: 'occupancy', points: band, labelAt: { x: 100, y: -2000 } }) as OccupancyEntity).labelAt).toEqual({ x: 100, y: -2000 });
+        expect((normalizeEntity({ kind: 'occupancy', points: band, labelAt: { x: 'a' } }) as OccupancyEntity).labelAt).toBeNull();
+    });
+
+    it('移動すると文字の位置も一緒に動く（自動＝null はそのまま）', () => {
+        const moved = translateEntity({ ...occ(), labelAt: { x: 100, y: -2000 } }, { x: 10, y: 20 }) as OccupancyEntity;
+        expect(moved.labelAt).toEqual({ x: 110, y: -1980 });
+        expect((translateEntity(occ(), { x: 10, y: 20 }) as OccupancyEntity).labelAt).toBeNull();
+    });
+
+    it('occupancyNoteAt（まとまりの位置）: 既定 null・あれば残す', () => {
+        expect(emptyRoadPermitDrawing().occupancyNoteAt).toBeNull();
+        expect(normalizeRoadPermitDrawing({}).occupancyNoteAt).toBeNull();
+        expect(normalizeRoadPermitDrawing({ occupancyNoteAt: { x: 1, y: 2 } }).occupancyNoteAt).toEqual({ x: 1, y: 2 });
+        expect(normalizeRoadPermitDrawing({ occupancyNoteAt: 'x' }).occupancyNoteAt).toBeNull();
     });
 
     it('showLegend: 既定 true・false を保つ', () => {
@@ -401,8 +426,9 @@ describe('占用範囲（Phase 2b）の正規化・幾何・検査', () => {
             paper: { size: 'A3', orientation: 'landscape' },
             scale: 100,
             origin: { x: 0, y: 0 },
-            entities: [{ kind: 'occupancy', points: band, routeName: '市道 新屋敷線', layer: 2 }],
+            entities: [{ kind: 'occupancy', points: band, routeName: '市道 新屋敷線', layer: 2, labelAt: { x: 1, y: 2 } }],
             showLegend: false,
+            occupancyNoteAt: null,
         });
         expect(ok.success).toBe(true);
         const bad = roadPermitDrawingEntitySchema.safeParse({ kind: 'occupancy', points: band, routeName: 'x'.repeat(101) });

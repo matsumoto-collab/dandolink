@@ -149,6 +149,8 @@ export interface OccupancyEntity extends EntityBase {
     points: DrawingPoint[];
     /** 路線名（例「市道 新屋敷線」）。空なら付けない */
     routeName: string;
+    /** 文字（1 つのときの式・2 つ以上のときの ①② の印）の位置。null＝自動（重心）。ドラッグで動かすと入る */
+    labelAt: DrawingPoint | null;
 }
 
 export type DrawingEntity =
@@ -190,4 +192,6 @@ export interface RoadPermitDrawing {
     showScaleBar: boolean;
     /** 凡例（置いた記号の下絵・名前・数）を表題欄の上に出すか（Phase 2b・既定 true） */
     showLegend: boolean;
+    /** 占用範囲が 2 つ以上のときのまとまり（「申請物件」＋①②の式＋合計）の左上の位置。null＝自動（範囲の左下の下） */
+    occupancyNoteAt: DrawingPoint | null;
 }

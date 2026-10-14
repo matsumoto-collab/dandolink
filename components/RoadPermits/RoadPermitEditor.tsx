@@ -156,7 +156,7 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
         setForm((f) => ({ ...f, values: { ...f.values, [key]: { ...f.values[key], ...patch } } }));
     }, []);
 
-    // 図面の「占用範囲」→ 申請書の占用物件（長さ・幅・数量・規模の文言）。「約○㎡」は自動のまま触らない
+    // 図面の「占用範囲」→ 申請書の占用物件（規模＝「別紙記入」・長さと幅は空・数量＝合計）。「約○㎡」は自動のまま触らない
     const applyOccupancy = useCallback(
         (items: OccupancyApplyItem[]) => {
             const patch = occupancyFormPatch(items);
@@ -164,11 +164,9 @@ export default function RoadPermitEditor({ permit, company, contacts, onClose, o
                 toast.error('図面に占用範囲がありません');
                 return;
             }
-            const preview =
-                items.length === 1
-                    ? `長さ ${patch.length} m・幅 ${patch.width} m・数量 ${patch.quantity} ㎡`
-                    : `規模の文言「${patch.scaleNote}」・数量（合計）${patch.quantity} ㎡（長さ・幅は空にします）`;
-            if (!window.confirm(`申請書の占用物件に入れます。よろしいですか？\n\n${preview}`)) return;
+            const preview = `規模「${patch.scaleNote}」・長さと幅は空・数量 ${patch.quantity} ㎡（約 ${approxAreaOf(patch.quantity)} ㎡ は自動）`;
+            const note = '数量が長いときは手で短くしてもかまいません（過去に 2.67962708 を 2.67 と書いた例あり）';
+            if (!window.confirm(`申請書の占用物件に入れます。よろしいですか？\n\n${preview}\n\n${note}`)) return;
             updateGroup('occupancy', patch);
             toast.success('占用物件に入れました（保存すると残ります）');
         },

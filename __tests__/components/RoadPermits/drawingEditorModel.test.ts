@@ -384,7 +384,8 @@ describe('作図画面の reducer: 占用範囲（Phase 2b）', () => {
             { x: 11100, y: 810 },
             { x: 0, y: 810 },
         ]);
-        expect(occupancyMeasure(o.points).expression).toBe('0.81×11.10＝8.991㎡');
+        expect(occupancyMeasure(o.points).expression).toBe('0.81×11.1＝8.991㎡');
+        expect(o.labelAt).toBeNull();
         // 1 回の戻るで消える
         s = run(s, { type: 'undo' });
         expect(occupancies(s)).toHaveLength(0);
@@ -403,7 +404,7 @@ describe('作図画面の reducer: 占用範囲（Phase 2b）', () => {
         expect(pv[0].kind === 'polyline' && pv[0].closed).toBe(true);
         s = run(s, { type: 'finish' });
         expect(occupancies(s)).toHaveLength(1);
-        expect(occupancyMeasure(occupancies(s)[0].points).expression).toBe('1.53×10.08÷2＝7.716㎡');
+        expect(occupancyMeasure(occupancies(s)[0].points).expression).toBe('1.531×10.08÷2＝7.71624㎡');
         expect(s.pts).toEqual([]);
 
         // 始点で閉じる（読取点で始点を指示）
@@ -426,6 +427,32 @@ describe('作図画面の reducer: 占用範囲（Phase 2b）', () => {
         expect(occupancies(s)[0].routeName).toBe('');
         s = run(s, { type: 'setSelection', ids: [id] }, { type: 'applyAttributes', patch: { routeName: '県道 1 号線' } });
         expect(occupancies(s)[0].routeName).toBe('県道 1 号線');
+    });
+
+    it('文字をドラッグで動かす: 位置が入り 1 回の戻るで元に戻る・まとまりの位置・自動に戻す', () => {
+        let s = run(start(), { type: 'command', command: 'occupancy' }, pt(0, 0), pt(11100, 0), pt(11100, 810), pt(0, 810), { type: 'finish' });
+        const id = occupancies(s)[0].id;
+        s = run(s, { type: 'setOccupancyLabelAt', id, at: { x: 5000, y: 3000 } });
+        expect(occupancies(s)[0].labelAt).toEqual({ x: 5000, y: 3000 });
+        // 知らない id・占用範囲でない図形は何もしない
+        expect(run(s, { type: 'setOccupancyLabelAt', id: 'nothing', at: { x: 1, y: 1 } })).toBe(s);
+        s = run(s, { type: 'undo' });
+        expect(occupancies(s)[0].labelAt).toBeNull();
+        s = run(s, { type: 'redo' });
+        expect(occupancies(s)[0].labelAt).toEqual({ x: 5000, y: 3000 });
+
+        // 移動（move）で図形を動かすと文字の位置も一緒に動く
+        s = run(s, { type: 'command', command: 'move' }, { type: 'setSelection', ids: [id] }, { type: 'finish' }, pt(0, 0), pt(100, 200));
+        expect(occupancies(s)[0].points[0]).toEqual({ x: 100, y: 200 });
+        expect(occupancies(s)[0].labelAt).toEqual({ x: 5100, y: 3200 });
+
+        // まとまりの位置（戻るの対象にしない）
+        s = run(s, { type: 'setOccupancyNoteAt', at: { x: -500, y: -900 } });
+        expect(s.drawing.occupancyNoteAt).toEqual({ x: -500, y: -900 });
+        // 全部自動に戻す
+        s = run(s, { type: 'resetOccupancyLabels' });
+        expect(occupancies(s)[0].labelAt).toBeNull();
+        expect(s.drawing.occupancyNoteAt).toBeNull();
     });
 
     it('凡例の表示の切り替え', () => {

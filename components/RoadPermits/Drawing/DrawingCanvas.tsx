@@ -10,7 +10,14 @@ import type { RoadPermitValues } from '@/types/roadPermit';
 import type { RoadPermitSymbolDto, RoadPermitSymbolMap } from '@/types/roadPermitSymbol';
 import { isSymbolGeometryEmpty, placedSymbolPolylines, symbolBBox, symbolPolylines } from '@/lib/roadPermit/symbols/geometry';
 import { legendLayout, legendRows, legendVisibleRows, LEGEND_WIDTH_MM } from '@/lib/roadPermit/symbols/counting';
-import { occupancyLabel, occupancyLabelPoint } from '@/lib/roadPermit/drawing/occupancy';
+import {
+    OCCUPANCY_LINE_HEIGHT,
+    OCCUPANCY_TEXT_PAPER_MM,
+    occupancyEntityLabel,
+    occupancyLabelAt,
+    occupancyNoteAt,
+    occupancyNoteLines,
+} from '@/lib/roadPermit/drawing/occupancy';
 import { LINE_WIDTH_MM, PAPER_MARGIN_MM, drawingPaperMm, scaleLabel } from '@/lib/roadPermit/drawing/paper';
 import {
     angleDeg,
@@ -275,36 +282,12 @@ const EntityShape = memo(function EntityShape({
             );
         }
         case 'occupancy': {
-            // 占用範囲: 薄い塗り＋輪郭＋中に「占用 8.991㎡」（印刷は斜線。PDF 側が正）
+            // 占用範囲: 薄い塗り＋輪郭（印刷は斜線。PDF 側が正）。式の文字・①②の印は OccupancyLabelsLayer（ドラッグで動かせる）
             const pts = flat(e.points.map(toS));
-            const lc = toS(occupancyLabelPoint(e.points));
-            // 文字の中ほどが重心に来るように（基準点は文字の下端）
-            const labelAt = { x: lc.x, y: lc.y + OCCUPANCY_TEXT_MM * px * 0.5 };
             return (
                 <Group listening={false}>
                     <Line points={pts} closed fill={color} opacity={0.15} strokeEnabled={false} listening={false} />
                     <Line points={pts} closed {...common} />
-                    {!preview && (
-                        <Rect
-                            x={labelAt.x - (occupancyLabel(e).length * OCCUPANCY_TEXT_MM * px * 1.05) / 2 - 2}
-                            y={labelAt.y - OCCUPANCY_TEXT_MM * px - 1}
-                            width={occupancyLabel(e).length * OCCUPANCY_TEXT_MM * px * 1.05 + 4}
-                            height={OCCUPANCY_TEXT_MM * px + 2}
-                            fill="#ffffff"
-                            opacity={0.85}
-                            listening={false}
-                        />
-                    )}
-                    {!preview && (
-                        <TextNode
-                            at={labelAt}
-                            text={occupancyLabel(e)}
-                            fontSize={OCCUPANCY_TEXT_MM * px}
-                            rotationDeg={0}
-                            align="center"
-                            color={color}
-                        />
-                    )}
                 </Group>
             );
         }
@@ -327,8 +310,161 @@ const EntityShape = memo(function EntityShape({
     }
 });
 
-/** 占用範囲の中の文字の大きさ（用紙上 mm・PDF と同じ） */
-const OCCUPANCY_TEXT_MM = 3;
+/** 文字の幅の見積もり（px。全角＝1em・半角＝0.6em。PDF の estimateDrawTextWidth と同じ換算） */
+function estimateTextPx(text: string, fontSize: number): number {
+    let units = 0;
+    for (const ch of text) units += /[\x00-\xff｡-ﾟ²³]/.test(ch) ? 0.6 : 1;
+    return units * fontSize;
+}
+
+/** 占用範囲の文字の名前（konva の name。Stage の mousedown で「文字のドラッグ」と「図面のクリック」を見分ける） */
+const OCCUPANCY_LABEL_NAME = 'occupancy-label';
+
+/** イベントの相手が占用範囲の文字（か、その中の部品）か */
+function isOccupancyLabelTarget(ev: KonvaEventObject<MouseEvent | TouchEvent>): boolean {
+    const t = ev.target as unknown as { findAncestor?: (sel: string, includeSelf?: boolean) => unknown };
+    return typeof t.findAncestor === 'function' && !!t.findAncestor(`.${OCCUPANCY_LABEL_NAME}`, true);
+}
+
+/**
+ * 動かせる文字の 1 かたまり（白地＋文字）。at は基準点の画面座標。lines の 1 行目の基準を at に置き、2 行目からは下へ並べる。
+ * align='center' は 1 行目の中央下を at に（式の文字）・'left' は左上を at に（まとまり）。
+ * ドラッグして離したら onMoved に新しい基準点（画面 px）を渡す。クリック（動かさず離す）は onClick
+ */
+function DraggableLabel({
+    at,
+    lines,
+    fontSize,
+    align,
+    color,
+    enabled,
+    onMoved,
+    onClick,
+    onHover,
+}: {
+    at: Px;
+    lines: string[];
+    fontSize: number;
+    align: 'center' | 'left';
+    color: string;
+    enabled: boolean;
+    onMoved: (p: Px) => void;
+    onClick?: () => void;
+    onHover: (over: boolean) => void;
+}) {
+    if (fontSize < 1 || lines.length === 0) return null;
+    const lineH = fontSize * OCCUPANCY_LINE_HEIGHT;
+    const w = Math.max(...lines.map((l) => estimateTextPx(l, fontSize)));
+    const pad = 2;
+    // 文字の左上（基準点から見た相対）。center は 1 行目の中央下が基準なので、左上は (-w/2, -fontSize)
+    const left = align === 'center' ? -w / 2 : 0;
+    const top = align === 'center' ? -fontSize : 0;
+    return (
+        <Group
+            name={OCCUPANCY_LABEL_NAME}
+            x={at.x}
+            y={at.y}
+            draggable={enabled}
+            listening={enabled}
+            onDragEnd={(ev) => {
+                const p = ev.target.position();
+                onMoved({ x: p.x, y: p.y });
+            }}
+            onClick={() => onClick?.()}
+            onTap={() => onClick?.()}
+            onMouseEnter={() => onHover(true)}
+            onMouseLeave={() => onHover(false)}
+        >
+            <Rect x={left - pad} y={top - 1} width={w + pad * 2} height={lineH * (lines.length - 1) + fontSize + 2} fill="#ffffff" opacity={0.85} />
+            {lines.map((line, i) => (
+                <Text
+                    key={i}
+                    x={left}
+                    y={top + lineH * i}
+                    text={line}
+                    fontSize={fontSize}
+                    fontFamily="serif"
+                    fill={color}
+                    width={w}
+                    align={align}
+                    listening={false}
+                />
+            ))}
+        </Group>
+    );
+}
+
+/**
+ * 占用範囲の文字の層（1 つのとき＝「路線名　式　約○㎡」／2 つ以上＝範囲に ①② と、まとまり「申請物件…」）。
+ * 図形の層（listening=false）とは別に置き、文字だけドラッグで動かせるようにする。位置は図面データに持つ（PDF と同じ位置に出る）
+ */
+const OccupancyLabelsLayer = memo(function OccupancyLabelsLayer({
+    drawing,
+    entities,
+    geo,
+    view,
+    selection,
+    enabled,
+    dispatch,
+    toReal,
+    onHover,
+}: {
+    drawing: RoadPermitDrawing;
+    entities: DrawingEntity[];
+    geo: Geo;
+    view: View;
+    selection: string[];
+    enabled: boolean;
+    dispatch: React.Dispatch<EditorAction>;
+    toReal: (sx: number, sy: number) => DrawingPoint;
+    onHover: (over: boolean) => void;
+}) {
+    const list = useMemo(() => entities.filter((e): e is Extract<DrawingEntity, { kind: 'occupancy' }> => e.kind === 'occupancy'), [entities]);
+    const px = view.pxPerMm;
+    const fontSize = OCCUPANCY_TEXT_PAPER_MM * px;
+    if (list.length === 0) return null;
+    const toS = (p: DrawingPoint) => realToScreen(geo, view, p);
+    const noteLines = occupancyNoteLines(list);
+    const noteAt = toS(occupancyNoteAt(drawing, list));
+    return (
+        <Layer listening={enabled}>
+            {list.map((e, i) => {
+                const c = toS(occupancyLabelAt(e));
+                const color = selection.includes(e.id) ? COLOR_SELECTED : DRAWING_LAYER_COLORS[e.layer];
+                return (
+                    <DraggableLabel
+                        key={e.id}
+                        // 文字の中ほどが基準点に来るように（基準点は 1 行目の中央下）
+                        at={{ x: c.x, y: c.y + fontSize * 0.5 }}
+                        lines={[occupancyEntityLabel(e, i, list.length)]}
+                        fontSize={fontSize}
+                        align="center"
+                        color={color}
+                        enabled={enabled}
+                        onMoved={(p) => {
+                            const r = toReal(p.x, p.y - fontSize * 0.5);
+                            dispatch({ type: 'setOccupancyLabelAt', id: e.id, at: r });
+                        }}
+                        onClick={() => dispatch({ type: 'setSelection', ids: [e.id] })}
+                        onHover={onHover}
+                    />
+                );
+            })}
+            {noteLines.length > 0 && (
+                <DraggableLabel
+                    at={noteAt}
+                    lines={noteLines}
+                    fontSize={fontSize}
+                    align="left"
+                    color="#0f172a"
+                    enabled={enabled}
+                    onMoved={(p) => dispatch({ type: 'setOccupancyNoteAt', at: toReal(p.x, p.y) })}
+                    onHover={onHover}
+                />
+            )}
+        </Layer>
+    );
+});
 
 /** 凡例の下絵（記号の形を枠に収めて 1 つの path で描く）。cx・cy は枠の中心（px）、size は枠の 1 辺（px） */
 function LegendThumb({ geometry, cx, cy, size }: { geometry: Parameters<typeof symbolPolylines>[0]; cx: number; cy: number; size: number }) {
@@ -582,6 +718,8 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown, symb
     const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
     const [rect, setRect] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
     const [panning, setPanning] = useState(false);
+    // 占用範囲の文字の上にカーソルがある（カーソルを「動かせる」形にする）
+    const [labelHover, setLabelHover] = useState(false);
     const dragRef = useRef<DragState | null>(null);
     const touchRef = useRef<TouchState>(null);
     const { drawing, view } = state;
@@ -637,6 +775,8 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown, symb
         if (!pos) return;
         // キーボード（Esc・Ctrl+Z など）を受けるため、作図画面の外枠に focus を移す
         wrapRef.current?.closest<HTMLElement>('[data-drawing-root]')?.focus();
+        // 占用範囲の文字の上で押した＝文字のドラッグ（konva に任せる）。図面のクリックにはしない
+        if (ev.evt.button === 0 && !spaceDown && isOccupancyLabelTarget(ev)) return;
         const btn = ev.evt.button;
         if (btn === 1 || (btn === 0 && spaceDown)) {
             ev.evt.preventDefault();
@@ -720,6 +860,11 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown, symb
     };
     const onTouchStart = (ev: KonvaEventObject<TouchEvent>) => {
         const ts = ev.evt.touches;
+        // 占用範囲の文字に触れた＝文字のドラッグ（konva に任せる）。パン・点の指示にはしない
+        if (ts.length === 1 && isOccupancyLabelTarget(ev)) {
+            touchRef.current = null;
+            return;
+        }
         if (ts.length >= 2) {
             const a = touchPos(ts[0]);
             const b = touchPos(ts[1]);
@@ -770,7 +915,7 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown, symb
         <div
             ref={wrapRef}
             className="absolute inset-0 overflow-hidden bg-slate-300 outline-none"
-            style={{ touchAction: 'none', cursor: panning ? 'grabbing' : spaceDown ? 'grab' : 'crosshair' }}
+            style={{ touchAction: 'none', cursor: panning ? 'grabbing' : spaceDown ? 'grab' : labelHover ? 'move' : 'crosshair' }}
             onContextMenu={(e) => e.preventDefault()}
         >
             {size.w > 0 && size.h > 0 && (
@@ -796,6 +941,18 @@ export default function DrawingCanvas({ state, dispatch, values, spaceDown, symb
                         selection={state.selection}
                         symbols={state.symbols}
                         symbolsLoading={symbolsLoading}
+                    />
+                    {/* 占用範囲の文字（ドラッグで動かせる。Space でパンしている間は動かさない） */}
+                    <OccupancyLabelsLayer
+                        drawing={drawing}
+                        entities={shown}
+                        geo={geo}
+                        view={viewPx}
+                        selection={state.selection}
+                        enabled={!spaceDown}
+                        dispatch={dispatch}
+                        toReal={toReal}
+                        onHover={setLabelHover}
                     />
                     <Layer listening={false}>
                         {previews.map((e) => (

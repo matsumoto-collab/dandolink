@@ -22,6 +22,7 @@
  *   西条市の例（道路 2線・官民境界・既存建物・足場の帯・寸法・文字・引出線）をこのスクリプトの中で組み立てる。
  *   --symbols の JSON は RoadPermitSymbolDto[]（または { symbols: [...] }＝GET /api/road-permits/symbols の応答）。
  *   kei のデータ（JWW から取り込んだ形）はリポジトリに入れないので、ファイルはリポジトリの外に置いてパスで渡す。
+ *   --two-occupancies を --sample-drawing と一緒に渡すと、占用範囲を 2 つ（帯＋直角三角形 508×756.8）にして ①② の印と「申請物件」のまとまりを出す。
  *   --sample-drawing と一緒に渡すと、最初の記号を 1 つ置き、コーン（分類 cone）とコーンバー（barPitchMm あり）が
  *   あれば足場の前にコーン列（11,100mm）を置く。
  * JSON は RoadPermitValues（＋ formIds。無ければ 3 様式すべて）。normalizeRoadPermitValues を通すので欠けた欄は空になる。
@@ -48,7 +49,7 @@ import type { RoadPermitSymbolDto } from '../types/roadPermitSymbol';
 import { isConeBarSymbol, normalizeRoadPermitSymbolCategory, normalizeRoadPermitSymbolGeometry, toSymbolMap } from '../lib/roadPermit/symbols/normalize';
 import { coneRowLayout } from '../lib/roadPermit/symbols/place';
 import { countSymbols, legendRows, legendVisibleRows, symbolCountText } from '../lib/roadPermit/symbols/counting';
-import { occupancyLabel, occupancyMeasure } from '../lib/roadPermit/drawing/occupancy';
+import { occupancyLabel, occupancyMark, occupancyMeasure, occupancyNoteLines } from '../lib/roadPermit/drawing/occupancy';
 // styles.ts（CDNフォント）の後に評価させるため import は最後に置く
 import '../lib/pdf/registerServerFonts';
 
@@ -191,8 +192,10 @@ function checkDrawingPage(
     if (drawing.showScaleBar || drawing.showTitleBlock) expected.push(scaleLabel(drawing.scale));
     if (drawing.showNorthArrow) expected.push('N');
     if (isSample) expected.push('市道　新屋敷線', 'くさび緊結式足場', '既存建物（改修）', '11,100', '810', '6,000');
-    // 占用範囲の文字（見本は 11.1×0.81＝8.991㎡）
-    for (const e of drawing.entities) if (e.kind === 'occupancy') expected.push(occupancyLabel(e));
+    // 占用範囲の文字（1 つなら「路線名　式　約○㎡」・2 つ以上なら ①② の印と「申請物件」のまとまり）
+    const occupancies = drawing.entities.filter((e): e is Extract<DrawingEntity, { kind: 'occupancy' }> => e.kind === 'occupancy');
+    if (occupancies.length === 1) expected.push(occupancyLabel(occupancies[0]));
+    else if (occupancies.length >= 2) expected.push(...occupancies.map((_, i) => occupancyMark(i)), ...occupancyNoteLines(occupancies));
     // 凡例（記号があるとき）: 見出しと、置いた記号の名前
     if (drawing.showLegend && symbols && symbols.length > 0) {
         const rows = legendRows(drawing.entities, toSymbolMap(symbols), drawing.layers);
@@ -236,7 +239,7 @@ function checkDrawingPage(
  *   既存建物 x 6,000〜20,000・y 1,500〜12,000（ハッチ）／足場の帯 x 9,000〜20,100・y -810〜0（11,100×810）
  * 寸法・占用面積などの値は西条市の過去の申請書の値（番地は省略）。
  */
-function sampleDrawing(symbols: RoadPermitSymbolDto[] | null): RoadPermitDrawing {
+function sampleDrawing(symbols: RoadPermitSymbolDto[] | null, twoOccupancies = false): RoadPermitDrawing {
     const d = emptyRoadPermitDrawing();
     let n = 0;
     const id = () => `s${++n}`;
@@ -332,8 +335,26 @@ function sampleDrawing(symbols: RoadPermitSymbolDto[] | null): RoadPermitDrawing
             text: 'くさび緊結式足場',
             heightPaperMm: 3,
         },
-        // 占用範囲（レイヤ 2）: 足場の帯と同じ 11,100×810 → 「市道 新屋敷線 占用 8.991㎡」
-        { id: id(), layer: 2, style: st('solid', 'normal'), kind: 'occupancy', points: scaffold, routeName: '市道 新屋敷線' },
+        // 占用範囲（レイヤ 2）: 足場の帯と同じ 11,100×810 → 「市道 新屋敷線　0.81×11.1＝8.991㎡　約9㎡」
+        { id: id(), layer: 2, style: st('solid', 'normal'), kind: 'occupancy', points: scaffold, routeName: '市道 新屋敷線', labelAt: null },
+        // 占用範囲 2 つ目（--two-occupancies のとき）: 直角三角形 508×756.8（許可が出た図面の数）→ ①② の印と「申請物件」のまとまり
+        ...(twoOccupancies
+            ? [
+                  {
+                      id: id(),
+                      layer: 2 as DrawingLayerId,
+                      style: st('solid', 'normal'),
+                      kind: 'occupancy' as const,
+                      points: [
+                          { x: 20100, y: -810 },
+                          { x: 20856.8, y: -810 },
+                          { x: 20100, y: -302 },
+                      ],
+                      routeName: '',
+                      labelAt: null,
+                  },
+              ]
+            : []),
         // 下敷き（レイヤ 6・印刷しない）: PDF に出ないことを確かめるための文字
         text(6, 30000, 9000, '下敷き（印刷しない）', 3),
     ];
@@ -424,7 +445,7 @@ async function main() {
     const useSample = !drawingPath && args.includes('--sample-drawing');
     let drawing: RoadPermitDrawing | null = null;
     if (drawingPath) drawing = normalizeRoadPermitDrawing(JSON.parse(fs.readFileSync(drawingPath, 'utf8')));
-    else if (useSample) drawing = normalizeRoadPermitDrawing(JSON.parse(JSON.stringify(sampleDrawing(symbols))));
+    else if (useSample) drawing = normalizeRoadPermitDrawing(JSON.parse(JSON.stringify(sampleDrawing(symbols, args.includes('--two-occupancies')))));
     const hasDrawing = drawing != null && !isDrawingEmpty(drawing);
     if (drawing && !hasDrawing) console.log('図面に図形が 1 つも無いので、図面のページは入りません');
 

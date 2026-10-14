@@ -463,7 +463,8 @@ function mapPoints(e: DrawingEntity, f: (p: DrawingPoint) => DrawingPoint): Draw
         case 'leader':
             return { ...e, points: e.points.map(f) };
         case 'occupancy':
-            return { ...e, points: e.points.map(f) };
+            // 動かした文字の位置も一緒に移す（自動＝null はそのまま）
+            return { ...e, points: e.points.map(f), labelAt: e.labelAt ? f(e.labelAt) : null };
         case 'circle':
             return { ...e, center: f(e.center) };
         case 'arc':
